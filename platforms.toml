@@ -1,0 +1,123 @@
+# The platforms, with what each one needs at each kernel age (spec 06).
+#
+# Values that change with the kernel are lists of `{ from, value }` steps, and the value for a kernel is the last step at or below it. `image` is relative to `arch/<ARCH>/boot`. A cell whose kernel is older than `first-kernel`, or whose GCC is older than `first-gcc`, is n/a rather than a failure. Budgets assume TCG, since the build machines have no KVM.
+
+[[platform]]
+name = "x86_64"
+tier = 1
+triple = "x86_64-linux-gnu"
+arch = [{ from = "2.6.0", value = "x86_64" }, { from = "2.6.24", value = "x86" }]
+first-kernel = "2.6.0"
+first-gcc = "3.1"
+defconfig = [{ from = "2.6.0", value = "defconfig" }, { from = "2.6.24", value = "x86_64_defconfig" }]
+image = [{ from = "2.6.0", value = "bzImage" }]
+qemu = "qemu-system-x86_64"
+machine = [{ from = "2.6.0", value = "pc" }, { from = "3.0", value = "q35" }]
+cpu = [{ from = "2.6.0", value = "qemu64" }, { from = "4.0", value = "max,la57=off" }]
+console = [{ from = "2.6.0", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "i386"
+tier = 1
+triple = "i686-linux-gnu"
+arch = [{ from = "0.01", value = "i386" }, { from = "2.6.24", value = "x86" }]
+first-kernel = "0.01"
+first-gcc = "1.0"
+defconfig = [{ from = "0.01", value = "defconfig" }, { from = "2.6.24", value = "i386_defconfig" }]
+image = [{ from = "0.01", value = "Image" }, { from = "1.3.73", value = "bzImage" }]
+qemu = "qemu-system-i386"
+machine = [{ from = "0.01", value = "isapc" }, { from = "2.1", value = "pc" }]
+cpu = [{ from = "0.01", value = "486" }, { from = "2.3", value = "pentium" }, { from = "2.6.24", value = "pentium3" }]
+console = [{ from = "0.01", value = "vga" }, { from = "2.1.25", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "arm64"
+tier = 1
+triple = "aarch64-linux-gnu"
+arch = [{ from = "3.7", value = "arm64" }]
+first-kernel = "3.7"
+first-gcc = "4.8"
+defconfig = [{ from = "3.7", value = "defconfig" }]
+image = [{ from = "3.7", value = "Image" }]
+qemu = "qemu-system-aarch64"
+machine = [{ from = "3.7", value = "virt,gic-version=max" }]
+cpu = [{ from = "3.7", value = "cortex-a57" }, { from = "4.16", value = "max,lpa2=off" }, { from = "5.12", value = "max,pauth-impdef=on" }]
+console = [{ from = "3.7", value = "ttyAMA0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "arm"
+tier = 2
+triple = "arm-linux-gnueabi"
+arch = [{ from = "3.2", value = "arm" }]
+first-kernel = "3.2"
+first-gcc = "4.8"
+defconfig = [{ from = "3.2", value = "vexpress_defconfig" }, { from = "3.14", value = "multi_v7_defconfig" }]
+image = [{ from = "3.2", value = "zImage" }]
+qemu = "qemu-system-arm"
+machine = [{ from = "3.2", value = "vexpress-a9" }, { from = "3.14", value = "virt" }]
+cpu = [{ from = "3.2", value = "cortex-a9" }, { from = "3.14", value = "cortex-a15" }]
+console = [{ from = "3.2", value = "ttyAMA0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "riscv64"
+tier = 2
+triple = "riscv64-linux-gnu"
+arch = [{ from = "4.19", value = "riscv" }]
+first-kernel = "4.19"
+first-gcc = "7.1"
+defconfig = [{ from = "4.19", value = "defconfig" }]
+image = [{ from = "4.19", value = "Image" }]
+qemu = "qemu-system-riscv64"
+machine = [{ from = "4.19", value = "virt" }]
+cpu = [{ from = "4.19", value = "rv64" }]
+console = [{ from = "4.19", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "ppc64le"
+tier = 2
+triple = "powerpc64le-linux-gnu"
+arch = [{ from = "3.13", value = "powerpc" }]
+first-kernel = "3.13"
+first-gcc = "4.8"
+defconfig = [{ from = "3.13", value = "pseries_le_defconfig" }]
+image = [{ from = "3.13", value = "zImage.epapr" }]
+qemu = "qemu-system-ppc64"
+machine = [{ from = "3.13", value = "pseries" }]
+cpu = [{ from = "3.13", value = "power8" }]
+console = [{ from = "3.13", value = "hvc0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "s390x"
+tier = 2
+triple = "s390x-linux-gnu"
+arch = [{ from = "2.6.0", value = "s390" }]
+first-kernel = "2.6.0"
+first-gcc = "3.1"
+defconfig = [{ from = "2.6.0", value = "defconfig" }]
+image = [{ from = "2.6.0", value = "bzImage" }]
+qemu = "qemu-system-s390x"
+machine = [{ from = "2.6.0", value = "s390-ccw-virtio" }]
+cpu = [{ from = "2.6.0", value = "qemu" }]
+console = [{ from = "2.6.0", value = "ttysclp0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "loongarch64"
+tier = 2
+triple = "loongarch64-linux-gnu"
+arch = [{ from = "5.19", value = "loongarch" }]
+first-kernel = "5.19"
+first-gcc = "12.1"
+defconfig = [{ from = "5.19", value = "loongson3_defconfig" }]
+image = [{ from = "5.19", value = "vmlinuz.efi" }]
+qemu = "qemu-system-loongarch64"
+machine = [{ from = "5.19", value = "virt" }]
+cpu = [{ from = "5.19", value = "la464" }]
+console = [{ from = "5.19", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }

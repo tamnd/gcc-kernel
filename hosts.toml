@@ -1,0 +1,215 @@
+# Host environments and forge containers (spec 05.2 and 04.4).
+#
+# A host is where a kernel is built: its GCC is HOSTCC and its make, perl, bison and flex run the build. The compiler under test never comes from the host. It comes in through CROSS_COMPILE as a static bundle built in a forge. `image` is the pushed image by digest and stays empty until the image has been built. The GCC, binutils and make versions are what the distribution archive lists, and `gk hosts check` compares them with what the images report.
+
+[[host]]
+name = "gk-host-minix"
+kind = "host"
+base = "Minix-386 1.5.10 with Bruce Evans's 386 patches, in QEMU"
+arches = ["emulated"]
+gcc = "1.40"
+
+[[host]]
+name = "gk-host-linux012"
+kind = "host"
+base = "a Linux 0.12 root image with gcc 1.40 binaries, in QEMU"
+arches = ["emulated"]
+gcc = "1.40"
+
+[[host]]
+name = "gk-host-bo"
+kind = "host"
+base = "debian/eol:bo"
+arches = ["i386"]
+gcc = "2.7.2.1"
+binutils = "2.7.0.9"
+make = "3.75"
+
+[[host]]
+name = "gk-host-hamm"
+kind = "host"
+base = "debian/eol:hamm"
+arches = ["i386"]
+gcc = "2.7.2.3"
+binutils = "2.9.1"
+make = "3.76"
+
+[[host]]
+name = "gk-host-slink"
+kind = "host"
+base = "debian/eol:slink"
+arches = ["i386"]
+gcc = "2.7.2.3"
+binutils = "2.9.1.0.19a"
+make = "3.77"
+
+[[host]]
+name = "gk-host-woody"
+kind = "host"
+base = "debian/eol:woody"
+arches = ["i386"]
+gcc = "2.95.4"
+binutils = "2.12.90.0.1"
+make = "3.79.1"
+
+[[host]]
+name = "gk-host-sarge"
+kind = "host"
+base = "debian/eol:sarge"
+arches = ["i386", "amd64"]
+gcc = "3.3.5"
+binutils = "2.15"
+make = "3.80"
+
+[[host]]
+name = "gk-host-etch"
+kind = "host"
+base = "debian/eol:etch"
+arches = ["i386", "amd64"]
+gcc = "4.1.1"
+binutils = "2.17"
+make = "3.81"
+
+[[host]]
+name = "gk-host-lenny"
+kind = "host"
+base = "debian/eol:lenny"
+arches = ["i386", "amd64"]
+gcc = "4.3.2"
+binutils = "2.18.1"
+make = "3.81"
+
+[[host]]
+name = "gk-host-squeeze"
+kind = "host"
+base = "debian/eol:squeeze"
+arches = ["i386", "amd64"]
+gcc = "4.4.5"
+binutils = "2.20.1"
+make = "3.81"
+
+[[host]]
+name = "gk-host-wheezy"
+kind = "host"
+base = "debian/eol:wheezy"
+arches = ["i386", "amd64"]
+gcc = "4.7.2"
+binutils = "2.22"
+make = "3.81"
+
+[[host]]
+name = "gk-host-jessie"
+kind = "host"
+base = "debian/eol:jessie"
+arches = ["amd64"]
+gcc = "4.9.2"
+binutils = "2.25"
+make = "4.0"
+
+[[host]]
+name = "gk-host-stretch"
+kind = "host"
+base = "debian/eol:stretch"
+arches = ["amd64"]
+gcc = "6.3.0"
+binutils = "2.28"
+make = "4.1"
+
+[[host]]
+name = "gk-host-buster"
+kind = "host"
+base = "debian/eol:buster"
+arches = ["amd64"]
+gcc = "8.3.0"
+binutils = "2.31.1"
+make = "4.2.1"
+
+[[host]]
+name = "gk-host-bullseye"
+kind = "host"
+base = "debian/eol:bullseye"
+arches = ["amd64"]
+gcc = "10.2.1"
+binutils = "2.35.2"
+make = "4.3"
+
+[[host]]
+name = "gk-host-bookworm"
+kind = "host"
+base = "debian:bookworm"
+arches = ["amd64"]
+gcc = "12.2.0"
+binutils = "2.40"
+make = "4.3"
+
+[[host]]
+name = "gk-host-trixie"
+kind = "host"
+base = "debian:trixie"
+arches = ["amd64"]
+gcc = "14.2.0"
+binutils = "2.44"
+make = "4.4.1"
+
+[[host]]
+name = "gk-forge-modern"
+kind = "forge"
+base = "debian:trixie"
+arches = ["amd64"]
+gcc = "14.2.0"
+
+[[host]]
+name = "gk-forge-bullseye"
+kind = "forge"
+base = "debian/eol:bullseye"
+arches = ["amd64"]
+gcc = "10.2.1"
+
+[[host]]
+name = "gk-forge-jessie"
+kind = "forge"
+base = "debian/eol:jessie"
+arches = ["amd64"]
+gcc = "4.9.2"
+
+[[host]]
+name = "gk-forge-squeeze"
+kind = "forge"
+base = "debian/eol:squeeze"
+arches = ["amd64", "i386"]
+gcc = "4.4.5"
+
+[[host]]
+name = "gk-forge-etch"
+kind = "forge"
+base = "debian/eol:etch"
+arches = ["i386"]
+gcc = "4.1.1"
+
+[[host]]
+name = "gk-forge-woody"
+kind = "forge"
+base = "debian/eol:woody"
+arches = ["i386"]
+gcc = "2.95.4"
+
+[[host]]
+name = "gk-forge-slink"
+kind = "forge"
+base = "debian/eol:slink"
+arches = ["i386"]
+gcc = "2.7.2.3"
+
+[[host]]
+name = "gk-forge-bo"
+kind = "forge"
+base = "debian/eol:bo"
+arches = ["i386"]
+gcc = "2.7.2.1"
+
+[[host]]
+name = "gk-forge-linux012"
+kind = "forge"
+base = "the emulated Linux 0.12 image"
+arches = ["emulated"]
+gcc = "1.40"

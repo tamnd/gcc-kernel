@@ -83,6 +83,12 @@ dependencies = [
 [[package]]
 name = "gk-model"
 version = "0.0.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "toml",
+]
 
 [[package]]
 name = "hashbrown"

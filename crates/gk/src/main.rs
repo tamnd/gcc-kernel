@@ -1,13 +1,15 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
+use gk_model::repo::Repo;
 use gk_model::{Rung, Verdict};
 use std::process::ExitCode;
 
 const USAGE: &str = "usage: gk <command>
 
 commands:
+  check      read every pin file and check that they agree with each other
   ladder     print the outcome ladder and the verdict each rung earns
   version    print the gk version
   help       print this text
@@ -24,6 +26,7 @@ fn main() -> ExitCode {
             }
             ExitCode::SUCCESS
         }
+        Some("check") => check(),
         Some("version" | "--version" | "-V") => {
             println!("gk {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
@@ -36,5 +39,39 @@ fn main() -> ExitCode {
             eprintln!("gk: unknown command {other:?}\n\n{USAGE}");
             ExitCode::from(2)
         }
+    }
+}
+
+/// `gk check`: every pin file read, cross-checked, and counted.
+fn check() -> ExitCode {
+    let repo = match Repo::find() {
+        Ok(repo) => repo,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let problems = repo.check();
+    for p in &problems {
+        println!("{p}");
+    }
+    println!(
+        "{} kernels, {} gccs, {} binutils, {} eras, {} hosts, {} platforms: {}",
+        repo.kernels.kernels.len(),
+        repo.gccs.gccs.len(),
+        repo.binutils.releases.len(),
+        repo.eras.eras.len(),
+        repo.hosts.hosts.len(),
+        repo.platforms.platforms.len(),
+        if problems.is_empty() {
+            "they agree".to_owned()
+        } else {
+            format!("{} problems", problems.len())
+        }
+    );
+    if problems.is_empty() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
     }
 }
