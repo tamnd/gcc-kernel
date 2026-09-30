@@ -21,7 +21,8 @@ pub struct Gcc {
     pub version: Version,
     /// `upstream` for a release tarball, or the distribution for a distribution package.
     pub flavor: String,
-    /// The release date, `YYYY-MM-DD`, which the binutils pairing starts from.
+    /// The release date, `YYYY-MM-DD`, which the binutils pairing starts from. `gk pins` fills it in from the GNU mirror when it is left empty.
+    #[serde(default)]
     pub released: String,
     /// The release tarball, for upstream columns.
     #[serde(default, skip_serializing_if = "String::is_empty")]

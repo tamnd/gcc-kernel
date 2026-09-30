@@ -1,6 +1,11 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+
+mod gnu;
+mod kernelorg;
+mod net;
+mod pins;
 
 use gk_model::repo::Repo;
 use gk_model::{Rung, Verdict};
@@ -10,6 +15,8 @@ const USAGE: &str = "usage: gk <command>
 
 commands:
   check      read every pin file and check that they agree with each other
+  pins       apply sets.toml to kernel.org and the GNU mirror and print how the pins change,
+             or write them with --write
   ladder     print the outcome ladder and the verdict each rung earns
   version    print the gk version
   help       print this text
@@ -27,6 +34,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("check") => check(),
+        Some("pins") => pins(args.iter().any(|a| a == "--write")),
         Some("version" | "--version" | "-V") => {
             println!("gk {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
@@ -37,6 +45,20 @@ fn main() -> ExitCode {
         }
         Some(other) => {
             eprintln!("gk: unknown command {other:?}\n\n{USAGE}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk pins`: exits 0 when nothing changed, 1 when something did, so `watch.yml` can tell.
+fn pins(write: bool) -> ExitCode {
+    let result = Repo::find().and_then(|repo| pins::run(&repo, write));
+    match result {
+        Ok(false) => ExitCode::SUCCESS,
+        Ok(true) if write => ExitCode::SUCCESS,
+        Ok(true) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("gk: {e}");
             ExitCode::from(2)
         }
     }
