@@ -1,0 +1,31 @@
+[workspace]
+members = [
+    "crates/gk",
+    "crates/gk-model",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+repository = "https://github.com/tamnd/gcc-kernel"
+
+[workspace.dependencies]
+gk-model = { path = "crates/gk-model", version = "0.0.1" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+[profile.release]
+lto = "thin"
+strip = true

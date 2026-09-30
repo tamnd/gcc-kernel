@@ -1,0 +1,11 @@
+[package]
+name = "gk-model"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The gcc-kernel model: cells, the outcome ladder and verdicts"
+
+[lints]
+workspace = true

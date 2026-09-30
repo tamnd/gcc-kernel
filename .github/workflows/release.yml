@@ -1,0 +1,61 @@
+# Builds gk for Linux on x86-64 and arm64 when a version tag is pushed, attests where each binary came from, and attaches the tarballs and their SHA-256 files to the GitHub release of that tag. Release notes are written by hand, so the job only uploads to a release that already exists or creates one with the tag message as its body.
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build on ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: cargo build
+        run: cargo build --release --workspace --locked
+      - name: package
+        id: package
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          name="gcc-kernel-${GITHUB_REF_NAME}-${TARGET}"
+          mkdir "$name"
+          cp target/release/gk LICENSE README.md "$name/"
+          tar czf "$name.tar.gz" "$name"
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.package.outputs.name }}.tar.gz
+      - name: upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ steps.package.outputs.name }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --notes-from-tag || true
+          fi
+          gh release upload "$GITHUB_REF_NAME" "$NAME.tar.gz" "$NAME.tar.gz.sha256" --clobber

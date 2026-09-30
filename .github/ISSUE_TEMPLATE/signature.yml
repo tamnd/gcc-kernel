@@ -1,0 +1,24 @@
+name: Unclassified failure
+description: A failing cell whose first error matched no signature, from gk triage.
+labels: [kind/bug, area/signatures]
+body:
+  - type: input
+    id: cell
+    attributes:
+      label: Cell
+      description: The cell id, or kernel, GCC column and platform.
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: First error
+      description: The first failing unit and its compiler output.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Fixing commit, if known
+      description: The kernel commit that made this pairing work, and the first release that has it.

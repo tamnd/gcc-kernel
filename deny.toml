@@ -1,0 +1,15 @@
+# What cargo deny accepts in the dependency tree. The workspace is Apache-2.0, and anything it links has to be compatible with that.
+
+[advisories]
+yanked = "deny"
+
+[licenses]
+unused-allowed-license = "allow"
+allow = ["Apache-2.0", "MIT", "BSD-3-Clause", "Unicode-3.0"]
+
+[bans]
+multiple-versions = "warn"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

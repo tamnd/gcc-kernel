@@ -1,0 +1,32 @@
+name: A cell looks wrong
+description: A kernel and GCC pairing whose verdict, first error or explanation does not match what you see.
+labels: [kind/bug, area/results]
+body:
+  - type: input
+    id: kernel
+    attributes:
+      label: Kernel
+      description: The version as kernels.toml writes it, for example 6.12.48.
+    validations:
+      required: true
+  - type: input
+    id: gcc
+    attributes:
+      label: GCC column
+      description: The id from gccs.toml, for example gcc-16.2.0.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: For example x86_64 or arm64.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What the matrix says and what you see
+      description: Include how you built it. The output of gk repro for the cell is the most useful thing to paste.
+    validations:
+      required: true

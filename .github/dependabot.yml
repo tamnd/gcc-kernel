@@ -1,0 +1,23 @@
+# Weekly updates for the pinned actions and the crates. Each one arrives as a pull request and goes through ci like any other change, so a new action version never reaches main unseen. The cooldown lets a bad release be pulled before it is proposed here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    labels: [kind/chore, area/ci]
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    labels: [kind/chore]
+    groups:
+      crates:
+        patterns: ["*"]
