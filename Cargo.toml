@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/gk",
+    "crates/gk-cc",
     "crates/gk-model",
 ]
 resolver = "3"
@@ -13,7 +14,13 @@ license = "Apache-2.0"
 repository = "https://github.com/tamnd/gcc-kernel"
 
 [workspace.dependencies]
+gk-cc = { path = "crates/gk-cc", version = "0.0.1" }
 gk-model = { path = "crates/gk-model", version = "0.0.1" }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+toml = "0.9"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
