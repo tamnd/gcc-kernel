@@ -1,8 +1,9 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
 mod fetch;
+mod forge;
 mod gnu;
 mod gpg;
 mod kernelorg;
@@ -21,6 +22,9 @@ commands:
              or write them with --write
   fetch      download and check pinned tarballs into the cache:
              --kernel K, --gcc G, --binutils B (each can repeat), or --all
+  forge      build a static toolchain bundle: forge G [--target T] [--jobs N]
+  forge verify [G...]
+             check every bundle in the cache, in every host
   ladder     print the outcome ladder and the verdict each rung earns
   version    print the gk version
   help       print this text
@@ -38,6 +42,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("check") => check(),
+        Some("forge") => forge(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
         Some("pins") => pins(args.iter().any(|a| a == "--write")),
         Some("version" | "--version" | "-V") => {
@@ -65,6 +70,65 @@ fn pins(write: bool) -> ExitCode {
         Err(e) => {
             eprintln!("gk: {e}");
             ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk forge` and `gk forge verify`.
+fn forge(args: &[String]) -> ExitCode {
+    let repo = match Repo::find() {
+        Ok(repo) => repo,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    if args.first().map(String::as_str) == Some("verify") {
+        return match forge::verify(&repo, &args[1..]) {
+            Ok(true) => ExitCode::SUCCESS,
+            Ok(false) => ExitCode::FAILURE,
+            Err(e) => {
+                eprintln!("gk: {e}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    let mut gcc = None;
+    let mut targets = Vec::new();
+    let mut jobs = None;
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--target" | "--jobs" => {
+                let Some(v) = it.next() else {
+                    eprintln!("gk forge: {a} needs a value");
+                    return ExitCode::from(2);
+                };
+                if a == "--target" {
+                    targets.push(v.clone());
+                } else if let Ok(n) = v.parse() {
+                    jobs = Some(n);
+                } else {
+                    eprintln!("gk forge: --jobs takes a number");
+                    return ExitCode::from(2);
+                }
+            }
+            other if gcc.is_none() && !other.starts_with('-') => gcc = Some(other.to_owned()),
+            other => {
+                eprintln!("gk forge: unknown argument {other:?}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    let Some(gcc) = gcc else {
+        eprintln!("gk forge: which GCC? as in gk forge gcc-16.2.0");
+        return ExitCode::from(2);
+    };
+    match forge::run(&repo, &gcc, &targets, jobs) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::FAILURE
         }
     }
 }
