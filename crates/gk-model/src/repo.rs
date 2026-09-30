@@ -6,6 +6,7 @@ use crate::eras::Eras;
 use crate::hosts::Hosts;
 use crate::kernels::Kernels;
 use crate::platforms::Platforms;
+use crate::sets::Sets;
 use crate::toolchains::{AllBinutils, Gccs};
 use crate::{is_sha256, step_for};
 use serde::de::DeserializeOwned;
@@ -29,6 +30,8 @@ pub struct Repo {
     pub hosts: Hosts,
     /// `platforms.toml`.
     pub platforms: Platforms,
+    /// `sets.toml`.
+    pub sets: Sets,
 }
 
 fn read<T: DeserializeOwned + Default>(root: &Path, name: &str) -> Result<T, String> {
@@ -51,6 +54,7 @@ impl Repo {
             eras: read(root, "eras.toml")?,
             hosts: read(root, "hosts.toml")?,
             platforms: read(root, "platforms.toml")?,
+            sets: read(root, "sets.toml")?,
         })
     }
 

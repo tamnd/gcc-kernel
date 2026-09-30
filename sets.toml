@@ -1,0 +1,17 @@
+# The rules that decide which kernel trees and binutils releases are pinned (spec 03.1).
+#
+# `gk pins` applies them to kernel.org's releases.json, the sha256sums.asc of each kernel directory and the GNU mirror, and `gk pins --write` writes kernels.toml and binutils.toml. G0 starts the releases set at 5.0. G2 moves it back to 2.6.0 and adds the last points.
+
+# Every line kernel.org still maintains, at its latest point release.
+[[set]]
+name = "current"
+monikers = ["stable", "longterm"]
+
+# Every mainline release, X.Y, from this one on.
+[[set]]
+name = "releases"
+releases-from = "5.0"
+
+[gnu]
+# Every binutils release from this one on. GCC 8.5, the oldest column so far, pairs with 2.36.1, and 2.28.1 is the oldest release the mirror has as .tar.xz. G2 moves this back for the older columns.
+binutils-from = "2.28"

@@ -39,6 +39,8 @@ jobs:
         run: cargo fmt --all --check
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets --locked
+      - name: pin files agree
+        run: cargo run --locked -q -p gk -- check
       - name: prose style
         run: ./scripts/style.sh
       - name: shell scripts parse

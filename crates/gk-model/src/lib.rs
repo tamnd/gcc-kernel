@@ -9,6 +9,7 @@ pub mod kernels;
 pub mod ladder;
 pub mod platforms;
 pub mod repo;
+pub mod sets;
 pub mod toolchains;
 pub mod version;
 
