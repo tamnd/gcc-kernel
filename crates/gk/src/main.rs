@@ -1,8 +1,10 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
+mod fetch;
 mod gnu;
+mod gpg;
 mod kernelorg;
 mod net;
 mod pins;
@@ -17,6 +19,8 @@ commands:
   check      read every pin file and check that they agree with each other
   pins       apply sets.toml to kernel.org and the GNU mirror and print how the pins change,
              or write them with --write
+  fetch      download and check pinned tarballs into the cache:
+             --kernel K, --gcc G, --binutils B (each can repeat), or --all
   ladder     print the outcome ladder and the verdict each rung earns
   version    print the gk version
   help       print this text
@@ -34,6 +38,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("check") => check(),
+        Some("fetch") => fetch(&args[1..]),
         Some("pins") => pins(args.iter().any(|a| a == "--write")),
         Some("version" | "--version" | "-V") => {
             println!("gk {}", env!("CARGO_PKG_VERSION"));
@@ -60,6 +65,39 @@ fn pins(write: bool) -> ExitCode {
         Err(e) => {
             eprintln!("gk: {e}");
             ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk fetch`.
+fn fetch(args: &[String]) -> ExitCode {
+    let mut req = fetch::Request::default();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        let list = match a.as_str() {
+            "--all" => {
+                req.all = true;
+                continue;
+            }
+            "--kernel" => &mut req.kernels,
+            "--gcc" => &mut req.gccs,
+            "--binutils" => &mut req.binutils,
+            other => {
+                eprintln!("gk fetch: unknown argument {other:?}");
+                return ExitCode::from(2);
+            }
+        };
+        let Some(value) = it.next() else {
+            eprintln!("gk fetch: {a} needs a value");
+            return ExitCode::from(2);
+        };
+        list.push(value.clone());
+    }
+    match Repo::find().and_then(|repo| fetch::run(&repo, &req)) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::FAILURE
         }
     }
 }
