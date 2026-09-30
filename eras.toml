@@ -1,0 +1,124 @@
+# Kernel eras: the era GCC e(K), the host environment each kernel is built in, and the rucc-kernel plan eras each one maps to (spec 03.3 and 05.2).
+#
+# An era runs from its `from` up to the next era's `from`. Hosts change inside an era where a Debian release boundary falls there. A boundary moves only with evidence, an era diagonal cell that fails where the neighbouring era's GCC or host works, and `notes` records the reason and the cell.
+
+[[era]]
+name = "X0"
+from = "0.01"
+gcc = "gcc-1.40"
+hosts = [{ from = "0.01", value = "gk-host-minix" }, { from = "0.10", value = "gk-host-linux012" }]
+
+[[era]]
+name = "X1"
+from = "0.95"
+gcc = "gcc-2.5.8"
+hosts = [{ from = "0.95", value = "gk-host-bo" }]
+notes = "The era GCC is somewhere from 2.3.3 to 2.5.8 and is chosen at G3."
+
+[[era]]
+name = "M0"
+from = "1.0"
+plan-eras = ["E0"]
+gcc = "gcc-2.5.8"
+hosts = [{ from = "1.0", value = "gk-host-bo" }]
+
+[[era]]
+name = "M1"
+from = "1.3"
+plan-eras = ["E0", "E1"]
+gcc = "gcc-2.7.2.3"
+hosts = [{ from = "1.3", value = "gk-host-hamm" }]
+
+[[era]]
+name = "M2"
+from = "2.1"
+plan-eras = ["E1"]
+gcc = "gcc-2.7.2.3"
+hosts = [{ from = "2.1", value = "gk-host-slink" }]
+
+[[era]]
+name = "M3"
+from = "2.3"
+plan-eras = ["E2"]
+gcc = "gcc-2.95.3"
+hosts = [{ from = "2.3", value = "gk-host-woody" }]
+
+[[era]]
+name = "M4"
+from = "2.5"
+plan-eras = ["E3"]
+gcc = "gcc-3.4.6"
+hosts = [{ from = "2.5", value = "gk-host-sarge" }]
+notes = "Whether 2.95.3 is the era GCC before 2.6.12 is decided at G3."
+
+[[era]]
+name = "M5"
+from = "2.6.16"
+plan-eras = ["E4"]
+gcc = "gcc-4.1.2"
+hosts = [{ from = "2.6.16", value = "gk-host-etch" }]
+
+[[era]]
+name = "M6"
+from = "2.6.26"
+plan-eras = ["E4"]
+gcc = "gcc-4.3.5"
+hosts = [{ from = "2.6.26", value = "gk-host-lenny" }, { from = "2.6.32", value = "gk-host-squeeze" }]
+
+[[era]]
+name = "M7"
+from = "3.0"
+plan-eras = ["E5"]
+gcc = "gcc-4.7.2"
+hosts = [{ from = "3.0", value = "gk-host-squeeze" }, { from = "3.2", value = "gk-host-wheezy" }, { from = "3.17", value = "gk-host-jessie" }]
+
+[[era]]
+name = "M8"
+from = "3.18"
+plan-eras = ["E6"]
+gcc = "gcc-4.9.2"
+hosts = [{ from = "3.18", value = "gk-host-jessie" }]
+
+[[era]]
+name = "M9"
+from = "4.2"
+plan-eras = ["E7"]
+gcc = "gcc-6.3.0"
+hosts = [{ from = "4.2", value = "gk-host-jessie" }, { from = "4.10", value = "gk-host-stretch" }]
+
+[[era]]
+name = "M10"
+from = "4.18"
+plan-eras = ["E8"]
+gcc = "gcc-8.3.0"
+hosts = [{ from = "4.18", value = "gk-host-stretch" }, { from = "4.20", value = "gk-host-buster" }]
+
+[[era]]
+name = "M11"
+from = "5.5"
+plan-eras = ["E8"]
+gcc = "debian-bullseye-gcc-10"
+hosts = [{ from = "5.5", value = "gk-host-buster" }, { from = "5.11", value = "gk-host-bullseye" }]
+notes = "10.2.1 is Debian's version and not an upstream release, so the era GCC is the bullseye package."
+
+[[era]]
+name = "M12"
+from = "5.12"
+plan-eras = ["E9"]
+gcc = "debian-bullseye-gcc-10"
+hosts = [{ from = "5.12", value = "gk-host-bullseye" }]
+
+[[era]]
+name = "M13"
+from = "5.18"
+plan-eras = ["E10"]
+gcc = "gcc-12.2.0"
+hosts = [{ from = "5.18", value = "gk-host-bullseye" }, { from = "6.0", value = "gk-host-bookworm" }, { from = "6.13", value = "gk-host-trixie" }]
+
+[[era]]
+name = "M14"
+from = "6.15"
+plan-eras = ["E11"]
+gcc = "gcc-14.2.0"
+second-gcc = "gcc-16.2.0"
+hosts = [{ from = "6.15", value = "gk-host-trixie" }]
