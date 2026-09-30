@@ -2,7 +2,7 @@
 //!
 //! curl is on every machine that runs `gk`, and using it keeps an HTTP and TLS stack out of the dependency tree.
 
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha256, Sha512};
 use std::io::Read;
 use std::path::Path;
 use std::process::Command;
@@ -40,9 +40,18 @@ pub fn fetch_text(url: &str) -> Result<String, String> {
 
 /// The lower case hex SHA-256 of a file.
 pub fn sha256_file(path: &Path) -> Result<String, String> {
+    hash_file::<Sha256>(path)
+}
+
+/// The lower case hex SHA-512 of a file, which is what GCC's `prerequisites.sha512` lists.
+pub fn sha512_file(path: &Path) -> Result<String, String> {
+    hash_file::<Sha512>(path)
+}
+
+fn hash_file<D: Digest>(path: &Path) -> Result<String, String> {
     let mut file =
         std::fs::File::open(path).map_err(|e| format!("opening {}: {e}", path.display()))?;
-    let mut hasher = Sha256::new();
+    let mut hasher = D::new();
     let mut buf = vec![0u8; 1 << 20];
     loop {
         let n = file
