@@ -1,9 +1,10 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `probe`, `cell`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `probe`, `cell`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
 mod build;
 mod cell;
+mod changed;
 mod fetch;
 mod forge;
 mod gnu;
@@ -24,6 +25,9 @@ commands:
   check      read every pin file and check that they agree with each other
   pins       apply sets.toml to kernel.org and the GNU mirror and print how the pins change,
              or write them with --write
+  pins changed BASE
+             print the accept probes that the pins changed since the git revision BASE call for,
+             one \"K G\" line each, and with --bundles the GCC columns they need
   fetch      download and check pinned tarballs into the cache:
              --kernel K, --gcc G, --binutils B (each can repeat), or --all
   forge      build a static toolchain bundle: forge G [--target T] [--jobs N]
@@ -55,6 +59,7 @@ fn main() -> ExitCode {
         Some("forge") => forge(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
         Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
+        Some("pins") if args.get(1).map(String::as_str) == Some("changed") => changed(&args[2..]),
         Some("pins") => pins(args.iter().any(|a| a == "--write")),
         Some("version" | "--version" | "-V") => {
             println!("gk {}", env!("CARGO_PKG_VERSION"));
@@ -78,6 +83,33 @@ fn pins(write: bool) -> ExitCode {
         Ok(false) => ExitCode::SUCCESS,
         Ok(true) if write => ExitCode::SUCCESS,
         Ok(true) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk pins changed BASE [--bundles]`.
+fn changed(args: &[String]) -> ExitCode {
+    let bundles = args.iter().any(|a| a == "--bundles");
+    let Some(base) = args.iter().find(|a| !a.starts_with('-')) else {
+        eprintln!("gk pins changed: name the git revision to compare against");
+        return ExitCode::from(2);
+    };
+    match Repo::find().and_then(|repo| changed::probes(&repo, base)) {
+        Ok(probes) if bundles => {
+            for id in changed::bundles(&probes) {
+                println!("{id}");
+            }
+            ExitCode::SUCCESS
+        }
+        Ok(probes) => {
+            for (kernel, gcc) in &probes {
+                println!("{kernel} {gcc}");
+            }
+            ExitCode::SUCCESS
+        }
         Err(e) => {
             eprintln!("gk: {e}");
             ExitCode::from(2)
