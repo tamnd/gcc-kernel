@@ -1,0 +1,78 @@
+# The accept probe for every kernel or GCC pin a pull request adds or changes (spec 09.4 and 10.6).
+#
+# The rest of what spec 10.6 asks of a pull request, the tests, lints, style and the schema checks of every pin file, is in ci.yml, which runs on every commit as well. This workflow only does what needs a toolchain bundle, and only when a pin file changed.
+#
+# `gk pins changed` says which probes are owed: a new kernel with its era GCC, a new GCC against the newest current kernel. Bundles are forged on the runner the first time they are needed and kept in the actions cache, so a pull request that only touches kernels costs a few minutes.
+
+name: pr
+
+on:
+  pull_request:
+    paths:
+      - kernels.toml
+      - gccs.toml
+      - binutils.toml
+      - eras.toml
+      - hosts.toml
+      - configs/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  probe:
+    name: accept probe on changed pins
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: build gk and a static gk-cc
+        run: |
+          sudo apt-get install -y --no-install-recommends musl-tools
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --release --locked -p gk
+          cargo build --release --locked -p gk-cc --target x86_64-unknown-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/gk-cc target/release/gk-cc
+      - name: list the probes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          ./target/release/gk pins changed "$BASE" | tee probes.txt
+          ./target/release/gk pins changed "$BASE" --bundles > bundles.txt
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/gk/bundles/*.*
+          key: bundles-${{ hashFiles('gccs.toml', 'binutils.toml', 'hosts.toml', 'provision/forge/**') }}-${{ github.run_id }}
+          restore-keys: bundles-${{ hashFiles('gccs.toml', 'binutils.toml', 'hosts.toml', 'provision/forge/**') }}-
+      - name: forge the bundles that are not cached
+        run: |
+          while read -r gcc; do
+            if [ -f ~/.cache/gk/bundles/"$gcc"-x86_64-linux-gnu.json ]; then
+              echo "$gcc is cached"
+            else
+              ./target/release/gk forge "$gcc" --target x86_64-linux-gnu --jobs "$(nproc)"
+            fi
+          done < bundles.txt
+      - name: probe
+        run: |
+          status=0
+          while read -r kernel gcc; do
+            ./target/release/gk probe "$kernel" "$gcc" --platform x86_64 | tee -a "$GITHUB_STEP_SUMMARY" || status=1
+          done < probes.txt
+          exit "$status"
