@@ -25,10 +25,12 @@ The graded configurations:
 | Name | Kernels | Recipe |
 |---|---|---|
 | `defconfig+gk` | all | the platform's defconfig target, then the era's fragment |
-| `tinyconfig+gk` | 3.17 on | `tinyconfig`, then the fragment |
-| `allnoconfig+gk` | 2.6.x to 3.16, on demand | `allnoconfig`, then the fragment |
+| `tinyconfig+gk` | 3.17 on | `tinyconfig`, then `configs/tiny.gk`, then the fragment |
+| `allnoconfig+gk` | 2.6.x to 3.16, on demand | `allnoconfig`, then `configs/tiny.gk`, then the fragment |
 | `oldconfig-default` | 2.4 and earlier | `yes "" | make oldconfig` from the tree's default `.config` or `arch/i386/defconfig`, then the fragment's options set through the same `oldconfig` pass |
 | `allmodconfig` | Current set, build only | `allmodconfig` with `CONFIG_WERROR=n`, `CONFIG_GCC_PLUGINS=n`, `CONFIG_RUST=n`, reaching at most L4 |
+
+`configs/tiny.gk` holds what gk-init needs and the two smallest targets switch off, which so far is only `CONFIG_BINFMT_ELF`, so that a tiny cell that does not boot failed on the compiler rather than on a missing feature. It is part of the configuration's digest, in front of the fragment. `gk cell` and `gk search` take the configuration with `--config`, and `defconfig+gk` is the default.
 
 The fragment only turns things on, as in the kernel plan's section 11.1, and adds the switches a matrix of compilers needs everywhere:
 

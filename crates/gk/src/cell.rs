@@ -21,6 +21,45 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 /// The configuration every G0 cell uses.
 pub const CONFIG: &str = "defconfig+gk";
 
+/// Every configuration a cell can be built with (spec 07.2), as the name, the target that starts it, and the file of options added before the era's fragment, if any.
+pub const CONFIGS: &[(&str, &str, Option<&str>)] = &[
+    (CONFIG, "", None),
+    ("tinyconfig+gk", "tinyconfig", Some("configs/tiny.gk")),
+    ("allnoconfig+gk", "allnoconfig", Some("configs/tiny.gk")),
+];
+
+/// The make target a configuration starts from on one kernel: its own, or the platform's defconfig.
+fn config_target(target: &str, defconfig: &str, version: &Version) -> Result<String, String> {
+    if target == "tinyconfig" && version.series(2) < [3, 17].to_vec() {
+        return Err(format!(
+            "{version} has no tinyconfig, which came in 3.17; use allnoconfig+gk"
+        ));
+    }
+    Ok(if target.is_empty() { defconfig } else { target }.to_owned())
+}
+
+/// A kernel's tree, fetched and unpacked into the cache if it is not there yet.
+fn fetched_tree(repo: &Repo, version: &Version, file_name: &str) -> Result<PathBuf, String> {
+    fetch::run(
+        repo,
+        &Request {
+            kernels: vec![version.as_str().to_owned()],
+            ..Request::default()
+        },
+    )?;
+    unpack_tree(&fetch::cache_dir().join("kernels").join(file_name), version)
+}
+
+/// A configuration's entry in [`CONFIGS`], by name.
+pub fn config_named(
+    name: &str,
+) -> Result<&'static (&'static str, &'static str, Option<&'static str>), String> {
+    CONFIGS.iter().find(|c| c.0 == name).ok_or_else(|| {
+        let names: Vec<&str> = CONFIGS.iter().map(|c| c.0).collect();
+        format!("no configuration {name:?}; there is {}", names.join(", "))
+    })
+}
+
 /// What kbuild would otherwise take from the clock and the machine.
 const REPRODUCIBLE: [(&str, &str); 4] = [
     ("KBUILD_BUILD_TIMESTAMP", "Thu Jan  1 00:00:00 UTC 1970"),
@@ -49,8 +88,14 @@ pub struct Setup {
     pub fragment: PathBuf,
     /// kbuild's `ARCH`.
     pub arch: String,
-    /// The configuration target.
+    /// The platform's defconfig target, which the accept probe runs.
     pub defconfig: String,
+    /// The configuration's name, as `tinyconfig+gk`.
+    pub config: &'static str,
+    /// The target the configuration step starts from.
+    pub target: String,
+    /// The options added before the fragment, from a file in `configs/`.
+    pub extra: Option<PathBuf>,
     /// The boot image, relative to `arch/<ARCH>/boot`.
     pub image_name: String,
     /// The six coordinates, and the boot ones once [`Setup::booting`] has run.
@@ -61,7 +106,14 @@ pub struct Setup {
 
 impl Setup {
     /// Resolve and fetch everything a cell needs, which is rung L0.
-    pub fn new(repo: &Repo, kernel: &str, gcc: &str, platform: &str) -> Result<Self, String> {
+    pub fn new(
+        repo: &Repo,
+        kernel: &str,
+        gcc: &str,
+        platform: &str,
+        config: &str,
+    ) -> Result<Self, String> {
+        let &(config, target, extra) = config_named(config)?;
         let version: Version = kernel
             .trim_start_matches("linux-")
             .parse()
@@ -98,6 +150,8 @@ impl Setup {
             .to_owned();
         let arch = p.arch_for(&version).unwrap_or_default().to_owned();
         let defconfig = p.defconfig_for(&version).unwrap_or_default().to_owned();
+        let target = config_target(target, &defconfig, &version)?;
+        let extra = extra.map(|f| repo.root.join(f));
         let image_name = p.image_for(&version).unwrap_or_default().to_owned();
         let bundle = forge::manifest(&g.id, &p.triple)?;
         let binutils = repo
@@ -106,22 +160,16 @@ impl Setup {
             .iter()
             .find(|b| b.version.as_str() == bundle.binutils)
             .ok_or_else(|| format!("binutils {} is not in binutils.toml", bundle.binutils))?;
-        fetch::run(
-            repo,
-            &Request {
-                kernels: vec![version.as_str().to_owned()],
-                ..Request::default()
-            },
-        )?;
-        let tree = unpack_tree(
-            &fetch::cache_dir().join("kernels").join(k.file_name()),
-            &version,
-        )?;
+        let tree = fetched_tree(repo, &version, k.file_name())?;
         let bundle_dir = forge::unpacked(&bundle)?;
         let image = forge::image_for(repo, &host)?;
         let fragment = repo.root.join(era.fragment());
-        let fragment_text =
-            std::fs::read(&fragment).map_err(|e| format!("reading {}: {e}", fragment.display()))?;
+        // The extra options go first, so the digest of a defconfig cell is the fragment's alone, as it was before there were other configurations.
+        let mut fragment_text = Vec::new();
+        for f in extra.iter().chain([&fragment]) {
+            fragment_text
+                .extend(std::fs::read(f).map_err(|e| format!("reading {}: {e}", f.display()))?);
+        }
         let coordinates = Coordinates {
             kernel: Named {
                 name: format!("linux-{version}"),
@@ -137,7 +185,7 @@ impl Setup {
             },
             platform: p.name.clone(),
             config: Named {
-                name: CONFIG.to_owned(),
+                name: config.to_owned(),
                 digest: format!("sha256:{}", net::sha256_bytes(&fragment_text)),
             },
             host: Named {
@@ -158,6 +206,9 @@ impl Setup {
             fragment,
             arch,
             defconfig,
+            config,
+            target,
+            extra,
             image_name,
             coordinates,
             boots: false,
@@ -743,7 +794,13 @@ fn kunit_reference(repo: &Repo, s: &Setup) -> Result<Reference, String> {
     if era.gcc == s.coordinates.gcc.name {
         return Ok(Reference::Itself);
     }
-    let Ok(other) = Setup::new(repo, s.version.as_str(), &era.gcc, &s.platform.name) else {
+    let Ok(other) = Setup::new(
+        repo,
+        s.version.as_str(),
+        &era.gcc,
+        &s.platform.name,
+        s.config,
+    ) else {
         return Ok(Reference::None);
     };
     let other = other.booting(repo)?;
@@ -833,11 +890,14 @@ pub fn run(
         reached = Rung::Accepted;
         let c = Instant::now();
         configured =
-            make(&[s.defconfig.as_str()], "config.log", 1)? == 0 && out.join(".config").is_file();
+            make(&[s.target.as_str()], "config.log", 1)? == 0 && out.join(".config").is_file();
         if configured {
-            let text = std::fs::read_to_string(&s.fragment)
-                .map_err(|e| format!("reading {}: {e}", s.fragment.display()))?;
-            let fragment = kconfig::parse_fragment(&text);
+            let mut fragment = Vec::new();
+            for f in s.extra.iter().chain([&s.fragment]) {
+                let text = std::fs::read_to_string(f)
+                    .map_err(|e| format!("reading {}: {e}", f.display()))?;
+                fragment.extend(kconfig::parse_fragment(&text));
+            }
             let dot = out.join(".config");
             let before = std::fs::read_to_string(&dot)
                 .map_err(|e| format!("reading {}: {e}", dot.display()))?;
@@ -858,11 +918,11 @@ pub fn run(
     let mut built = false;
     let mut timed_out = false;
     let mut image_sha256 = String::new();
+    let mut targets = vec![s.image_name.as_str()];
     if configured {
         reached = Rung::Configured;
         let config = kconfig::load(&out.join(".config"))?;
         let modules = config.get("MODULES").is_some_and(|v| v == "y");
-        let mut targets = vec![s.image_name.as_str()];
         if modules {
             targets.push("modules");
         }
@@ -941,14 +1001,14 @@ pub fn run(
     let outcome = build::Outcome {
         version: s.version.as_str().to_owned(),
         row: s.platform.name.clone(),
-        config: CONFIG.to_owned(),
+        config: s.config.to_owned(),
         era: s.era.clone(),
         gnuc: String::new(),
         std: String::new(),
         source: PathBuf::from("/src"),
         compiler: build::Compiler::of(&s.bundle_dir, &s.bundle.target, &s.real_cc()),
         persona: Vec::new(),
-        targets: vec![s.image_name.clone(), "modules".into()],
+        targets: targets.iter().map(|t| (*t).to_owned()).collect(),
         kcflags: Vec::new(),
         fragment: format!("fragment.{}", s.era),
         fragment_missed: fragment_missed.clone(),

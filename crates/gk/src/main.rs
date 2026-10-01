@@ -48,8 +48,9 @@ commands:
              boot IMAGE --platform P --kernel K [--suite S] [--dir D], writing boot.log and boot.json
   probe      the accept probe: probe K G --platform P
   cell       run one cell and write its directory, booting it to L6 where gk-init covers the kernel:
-             cell K G --platform P [--jobs N] [--keep] [--ungraded] [--no-boot]
-  search     run every cell of one row: search K --platform P --dense [--jobs N] [--rerun]
+             cell K G --platform P [--config C] [--jobs N] [--keep] [--ungraded] [--no-boot],
+             where C is defconfig+gk (the default), tinyconfig+gk or allnoconfig+gk
+  search     run every cell of one row: search K --platform P --dense [--config C] [--jobs N] [--rerun]
              [--keep] [--ungraded] [--no-boot]. Cells already in the store are not run again.
   publish    write matrix/matrix.json from the graded cells in the store [--ungraded]
   config-diff
@@ -174,12 +175,24 @@ fn search_command(args: &[String]) -> ExitCode {
         rerun: false,
         keep: false,
         boot: true,
+        config: cell::CONFIG,
     };
     let (mut kernel, mut platform, mut ungraded) = (None, None, false);
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--platform" => platform = it.next().cloned(),
+            "--config" => match it.next().map(|c| cell::config_named(c)) {
+                Some(Ok(c)) => opts.config = c.0,
+                Some(Err(e)) => {
+                    eprintln!("gk search: {e}");
+                    return ExitCode::from(2);
+                }
+                None => {
+                    eprintln!("gk search: --config needs a value");
+                    return ExitCode::from(2);
+                }
+            },
             "--jobs" => {
                 let Some(n) = it.next().and_then(|v| v.parse().ok()) else {
                     eprintln!("gk search: --jobs takes a number");
@@ -311,18 +324,21 @@ fn store_command(args: &[String]) -> ExitCode {
 fn cell(command: &str, args: &[String]) -> ExitCode {
     let mut positional = Vec::new();
     let mut platform = None;
+    let mut config = cell::CONFIG.to_owned();
     let mut jobs = std::thread::available_parallelism().map_or(8, std::num::NonZero::get);
     let (mut keep, mut ungraded, mut no_boot) = (false, false, false);
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
-            "--platform" | "--jobs" => {
+            "--platform" | "--jobs" | "--config" => {
                 let Some(v) = it.next() else {
                     eprintln!("gk {command}: {a} needs a value");
                     return ExitCode::from(2);
                 };
                 if a == "--platform" {
                     platform = Some(v.clone());
+                } else if a == "--config" {
+                    config.clone_from(v);
                 } else if let Ok(n) = v.parse() {
                     jobs = n;
                 } else {
@@ -345,7 +361,7 @@ fn cell(command: &str, args: &[String]) -> ExitCode {
         return ExitCode::from(2);
     };
     let result = Repo::find().and_then(|repo| {
-        let setup = cell::Setup::new(&repo, kernel, gcc, &platform)?;
+        let setup = cell::Setup::new(&repo, kernel, gcc, &platform, &config)?;
         if command == "probe" {
             let dir = fetch::cache_dir()
                 .join("scratch")

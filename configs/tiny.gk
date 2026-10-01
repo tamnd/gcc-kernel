@@ -1,0 +1,4 @@
+# What tinyconfig+gk and allnoconfig+gk add before the era's fragment (spec 07.2). Those targets switch off every option they can, and the fragment already brings back the console, the initramfs and the file systems gk-init mounts. This file brings back the rest of what gk-init needs to start, so a tiny cell that does not boot failed on the compiler and not on a missing feature.
+
+# gk-init is a static ELF program.
+CONFIG_BINFMT_ELF=y

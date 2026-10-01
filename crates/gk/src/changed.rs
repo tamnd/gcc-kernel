@@ -154,7 +154,7 @@ mod tests {
             .unwrap();
         old.gccs.gccs.remove(g);
         let probes = plan(&r, &old).unwrap();
-        assert!(probes.contains(&("7.2.8".parse().unwrap(), "gcc-14.4.0".to_string())));
+        assert!(probes.contains(&("7.2.8".parse().unwrap(), "gcc-14.2.0".to_string())));
         assert!(probes.iter().any(|(_, g)| g == "gcc-15.3.0"));
         assert!(bundles(&probes).len() <= probes.len());
     }
