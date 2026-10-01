@@ -1,6 +1,6 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `probe`, `cell`, `store`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `probe`, `cell`, `search --dense`, `store`, `publish`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
 mod build;
 mod cell;
@@ -14,6 +14,8 @@ mod kconfig;
 mod kernelorg;
 mod net;
 mod pins;
+mod publish;
+mod search;
 mod store;
 
 use gk_model::repo::Repo;
@@ -39,6 +41,9 @@ commands:
   probe      the accept probe: probe K G --platform P
   cell       run one cell up to L4 and write its directory:
              cell K G --platform P [--jobs N] [--keep] [--ungraded]
+  search     run every cell of one row: search K --platform P --dense [--jobs N] [--rerun]
+             [--keep] [--ungraded]. Cells already in the store are not run again.
+  publish    write matrix/matrix.json from the graded cells in the store [--ungraded]
   store      list the cells in the result store, or:
              store show ID, store check, store pack FILE.tar.zst
   ladder     print the outcome ladder and the verdict each rung earns
@@ -61,6 +66,8 @@ fn main() -> ExitCode {
         Some(c @ ("probe" | "cell")) => cell(c, &args[1..]),
         Some("forge") => forge(&args[1..]),
         Some("store") => store_command(&args[1..]),
+        Some("search") => search_command(&args[1..]),
+        Some("publish") => publish_command(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
         Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
         Some("pins") if args.get(1).map(String::as_str) == Some("changed") => changed(&args[2..]),
@@ -112,6 +119,80 @@ fn changed(args: &[String]) -> ExitCode {
             for (kernel, gcc) in &probes {
                 println!("{kernel} {gcc}");
             }
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk search K --platform P --dense`.
+fn search_command(args: &[String]) -> ExitCode {
+    let mut opts = search::Options {
+        dense: false,
+        jobs: std::thread::available_parallelism().map_or(8, std::num::NonZero::get),
+        rerun: false,
+        keep: false,
+    };
+    let (mut kernel, mut platform, mut ungraded) = (None, None, false);
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--platform" => platform = it.next().cloned(),
+            "--jobs" => {
+                let Some(n) = it.next().and_then(|v| v.parse().ok()) else {
+                    eprintln!("gk search: --jobs takes a number");
+                    return ExitCode::from(2);
+                };
+                opts.jobs = n;
+            }
+            "--dense" => opts.dense = true,
+            "--rerun" => opts.rerun = true,
+            "--keep" => opts.keep = true,
+            "--ungraded" => ungraded = true,
+            other if !other.starts_with('-') && kernel.is_none() => kernel = Some(other.to_owned()),
+            other => {
+                eprintln!("gk search: unknown argument {other:?}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    let (Some(kernel), Some(platform)) = (kernel, platform) else {
+        eprintln!("gk search: as in gk search 7.2.8 --platform x86_64 --dense");
+        return ExitCode::from(2);
+    };
+    let result = Repo::find().and_then(|repo| {
+        if !ungraded && !cell::gk_commit(&repo.root).1 {
+            return Err(
+                "the checkout has uncommitted changes; commit them or pass --ungraded".into(),
+            );
+        }
+        let row = search::run(&repo, &kernel, &platform, opts)?;
+        let broken = row
+            .iter()
+            .filter(|(_, c)| matches!(c, search::Column::Broken(_)))
+            .count();
+        println!("{} columns, {broken} not run", row.len());
+        Ok(broken == 0)
+    });
+    match result {
+        Ok(true) => ExitCode::SUCCESS,
+        Ok(false) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk publish`.
+fn publish_command(args: &[String]) -> ExitCode {
+    let ungraded = args.iter().any(|a| a == "--ungraded");
+    match Repo::find().and_then(|repo| publish::write(&repo.root, ungraded)) {
+        Ok(n) => {
+            println!("{n} cells in matrix/matrix.json");
             ExitCode::SUCCESS
         }
         Err(e) => {
