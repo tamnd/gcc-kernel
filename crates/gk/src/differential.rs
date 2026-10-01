@@ -6,7 +6,15 @@ use crate::{kconfig, store};
 use gk_model::Version;
 use gk_model::repo::Repo;
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// A cell's `.config`, which cells from before 0.2 kept as `config`.
+fn config_of(dir: &Path) -> Option<PathBuf> {
+    [".config", "config"]
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|p| p.is_file())
+}
 
 /// The newest cell for each GCC column on one kernel, platform and configuration, oldest GCC first.
 fn columns(
@@ -26,7 +34,7 @@ fn columns(
         if c.platform != platform || c.config.name != config || k.as_ref() != Ok(kernel) {
             continue;
         }
-        if !dir.join("config").is_file() {
+        if config_of(&dir).is_none() {
             continue;
         }
         match newest.iter_mut().find(|(g, _, _)| *g == c.gcc.name) {
@@ -48,8 +56,12 @@ fn columns(
 
 /// The differences between two cells' configurations, as a section of the report.
 fn section(from: &(String, PathBuf), to: &(String, PathBuf)) -> Result<String, String> {
-    let a = kconfig::load(&from.1.join("config"))?;
-    let b = kconfig::load(&to.1.join("config"))?;
+    let load = |dir: &Path| {
+        config_of(dir)
+            .ok_or_else(|| format!("{} has no .config", dir.display()))
+            .and_then(|p| kconfig::load(&p))
+    };
+    let (a, b) = (load(&from.1)?, load(&to.1)?);
     let d = kconfig::diff(&a, &b);
     let mut s = format!("\n## {} to {}\n\n", from.0, to.0);
     if d.is_empty() {

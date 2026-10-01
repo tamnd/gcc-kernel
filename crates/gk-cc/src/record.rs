@@ -67,7 +67,7 @@ pub struct CompileRecord {
     /// The signal the compiler died on, if it did.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signal: Option<i32>,
-    /// The first KiB of what the compiler wrote on standard error.
+    /// The first 64 KiB of what the compiler wrote on standard error, enough for the warnings of a noisy unit.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub stderr: String,
     /// What a probe read on standard input, when it read it from there, so that the question can be asked again. Only kept for probes, and only the first 64 KiB.

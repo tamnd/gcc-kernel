@@ -14,7 +14,7 @@ use std::process::{Command, ExitCode, Stdio};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// How much of standard error goes on the record.
-const STDERR_KEEP: usize = 1024;
+const STDERR_KEEP: usize = 64 * 1024;
 
 /// How much of a probe's standard input and output goes on the record.
 const PROBE_KEEP: usize = 64 * 1024;
