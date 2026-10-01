@@ -17,7 +17,7 @@ A **cell** is one attempt to build and run one kernel with one toolchain. It has
 
 Two more inputs are fixed per run rather than per cell, and recorded in the run manifest: the QEMU build and the `gk` commit.
 
-A cell's identity is the SHA-256 of the canonical JSON of its six coordinates and the digests they resolve to: the tarball hash of K, the toolchain bundle digest of G and B, the container digest of H, the hash of the merged configuration input, and the QEMU binary hash. Two cells with the same identity are the same experiment, and `gk` runs an experiment once unless told to repeat it. A change to any input, including a rebuilt toolchain whose bytes differ, gives a new identity and a new cell.
+A cell's identity is the SHA-256 of the canonical JSON of its six coordinates and the digests they resolve to: the tarball hash of K, the toolchain bundle digest of G and B, the container digest of H, the hash of the merged configuration input, and for a cell that boots, the digest of the `gk-boot` container and of the initramfs. A cell that stops at L4 has no boot coordinates, so its identity does not change when the rig does. Two cells with the same identity are the same experiment, and `gk` runs an experiment once unless told to repeat it. A change to any input, including a rebuilt toolchain whose bytes differ, gives a new identity and a new cell.
 
 The toolchain pair (G, B) is written together as T when the pairing rule of document 04.5 picked B. Most of the matrix is K × T × P with C and H determined by K. The binutils sweep of document 04.6 is the exception, and it varies B alone.
 

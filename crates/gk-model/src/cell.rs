@@ -14,7 +14,7 @@ pub struct Named {
     pub digest: String,
 }
 
-/// The six coordinates of a cell with their digests, and the QEMU build when the cell boots.
+/// The six coordinates of a cell with their digests, and the QEMU container and initramfs when the cell boots.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Coordinates {
     /// K, with the tarball hash.
@@ -29,9 +29,12 @@ pub struct Coordinates {
     pub config: Named,
     /// H, with the container digest.
     pub host: Named,
-    /// The QEMU binary hash, empty for cells that stop before L5.
+    /// The boot container's digest, empty for cells that do not boot.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub qemu: String,
+    /// The initramfs digest, empty for cells that do not boot.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub initramfs: String,
 }
 
 impl Coordinates {
@@ -87,6 +90,7 @@ mod tests {
             config: named("defconfig+gk", "sha256:cc"),
             host: named("gk-host-trixie", "sha256:dd"),
             qemu: String::new(),
+            initramfs: String::new(),
         }
     }
 
@@ -107,5 +111,14 @@ mod tests {
         let mut booted = cell();
         booted.qemu = "sha256:ee".into();
         assert_ne!(booted.identity(), cell().identity());
+        let mut other_init = booted.clone();
+        other_init.initramfs = "sha256:ff".into();
+        assert_ne!(other_init.identity(), booted.identity());
+    }
+
+    #[test]
+    fn a_cell_that_does_not_boot_keeps_its_old_identity() {
+        assert!(!cell().canonical().contains("qemu"));
+        assert!(!cell().canonical().contains("initramfs"));
     }
 }

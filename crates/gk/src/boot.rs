@@ -54,8 +54,10 @@ pub struct Boot<'a> {
     pub image: &'a Path,
     /// The suite `gk-init` runs.
     pub suite: &'a str,
-    /// Where `boot.log` and `boot.json` go.
+    /// Where the console log and the outcome go.
     pub dir: &'a Path,
+    /// Their file name without the extension, as `boot` for `boot.log` and `boot.json`.
+    pub stem: &'a str,
 }
 
 /// One `GK-CHECK` line.
@@ -202,10 +204,17 @@ pub fn strip_timestamp(line: &str) -> &str {
 }
 
 /// The kernel command line for a boot.
+///
+/// The fragments build every KUnit suite in, and they run before init, which under TCG takes longer than the whole boot budget. So every suite but `kunit` turns them off: `kunit.enable=0` from 6.2, and a filter that matches no suite from 5.10 to 6.1. A kernel ignores the one it does not know.
 #[must_use]
 pub fn append(console: &str, suite: &str, version: &Version) -> String {
+    let quiet = if suite == "kunit" {
+        ""
+    } else {
+        " kunit.enable=0 kunit.filter_glob=gk-none"
+    };
     format!(
-        "console={console} panic=-1 oops=panic gk.suite={suite} gk.kernel={version} gk.cpus={CPUS}"
+        "console={console} panic=-1 oops=panic gk.suite={suite} gk.kernel={version} gk.cpus={CPUS}{quiet}"
     )
 }
 
@@ -251,7 +260,7 @@ enum Read {
     Closed,
 }
 
-/// Boot a kernel once and write `boot.log` and `boot.json` under `b.dir`.
+/// Boot a kernel once and write `<stem>.log` and `<stem>.json` under `b.dir`.
 pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
     let (init, archive) = initramfs::for_platform(repo, b.platform)?;
     let image = forge::image_for(repo, "gk-boot")?;
@@ -260,7 +269,7 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
     let kernel = std::fs::canonicalize(b.image)
         .map_err(|e| format!("reading {}: {e}", b.image.display()))?;
     std::fs::create_dir_all(b.dir).map_err(|e| format!("creating {}: {e}", b.dir.display()))?;
-    let log_path = b.dir.join("boot.log");
+    let log_path = b.dir.join(format!("{}.log", b.stem));
     let mut log = std::fs::File::create(&log_path)
         .map_err(|e| format!("creating {}: {e}", log_path.display()))?;
     let name = format!(
@@ -288,7 +297,7 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
         .map_err(|e| format!("running docker: {e}"))?;
     watch(&mut child, &name, budget, clock, &mut log, &mut outcome);
     outcome.seconds = clock.elapsed().as_secs_f64();
-    let json_path = b.dir.join("boot.json");
+    let json_path = b.dir.join(format!("{}.json", b.stem));
     let text = serde_json::to_string_pretty(&outcome).map_err(|e| e.to_string())? + "\n";
     std::fs::write(&json_path, text)
         .map_err(|e| format!("writing {}: {e}", json_path.display()))?;
@@ -413,6 +422,7 @@ pub fn command(repo: &Repo, args: &[String]) -> Result<bool, String> {
             image: Path::new(&image),
             suite: &suite,
             dir: &dir,
+            stem: "boot",
         },
     )?;
     let passed = o.checks.iter().filter(|c| c.pass).count();
@@ -522,7 +532,7 @@ mod tests {
         let v: Version = "7.2.8".parse().unwrap();
         assert_eq!(
             append("ttyS0", "smoke", &v),
-            "console=ttyS0 panic=-1 oops=panic gk.suite=smoke gk.kernel=7.2.8 gk.cpus=2"
+            "console=ttyS0 panic=-1 oops=panic gk.suite=smoke gk.kernel=7.2.8 gk.cpus=2 kunit.enable=0 kunit.filter_glob=gk-none"
         );
     }
 }

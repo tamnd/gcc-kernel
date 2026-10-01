@@ -7,8 +7,9 @@ use crate::store;
 use gk_model::Version;
 use gk_model::repo::Repo;
 
-/// How to search.
+/// How to search. Each switch is a command line flag, which is why there are so many bools.
 #[derive(Debug, Clone, Copy)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Options {
     /// Run every column, which is the only search there is so far.
     pub dense: bool,
@@ -18,6 +19,8 @@ pub struct Options {
     pub rerun: bool,
     /// Keep the scratch directories.
     pub keep: bool,
+    /// Boot the cells that can boot.
+    pub boot: bool,
 }
 
 /// One column of the row.
@@ -89,6 +92,10 @@ pub fn run(
 
 fn one(repo: &Repo, version: &Version, gcc: &str, platform: &str, opts: Options) -> Column {
     let setup = match Setup::new(repo, version.as_str(), gcc, platform) {
+        Ok(s) if opts.boot => match s.booting(repo) {
+            Ok(s) => s,
+            Err(e) => return Column::Broken(e),
+        },
         Ok(s) => s,
         Err(e) => return Column::Broken(e),
     };

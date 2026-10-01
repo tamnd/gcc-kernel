@@ -45,10 +45,10 @@ commands:
   boot       boot a kernel image in the gk-boot container and run a gk-init suite:
              boot IMAGE --platform P --kernel K [--suite S] [--dir D], writing boot.log and boot.json
   probe      the accept probe: probe K G --platform P
-  cell       run one cell up to L4 and write its directory:
-             cell K G --platform P [--jobs N] [--keep] [--ungraded]
+  cell       run one cell and write its directory, booting it to L6 where gk-init covers the kernel:
+             cell K G --platform P [--jobs N] [--keep] [--ungraded] [--no-boot]
   search     run every cell of one row: search K --platform P --dense [--jobs N] [--rerun]
-             [--keep] [--ungraded]. Cells already in the store are not run again.
+             [--keep] [--ungraded] [--no-boot]. Cells already in the store are not run again.
   publish    write matrix/matrix.json from the graded cells in the store [--ungraded]
   store      list the cells in the result store, or:
              store show ID, store check, store pack FILE.tar.zst
@@ -166,6 +166,7 @@ fn search_command(args: &[String]) -> ExitCode {
         jobs: std::thread::available_parallelism().map_or(8, std::num::NonZero::get),
         rerun: false,
         keep: false,
+        boot: true,
     };
     let (mut kernel, mut platform, mut ungraded) = (None, None, false);
     let mut it = args.iter();
@@ -182,6 +183,7 @@ fn search_command(args: &[String]) -> ExitCode {
             "--dense" => opts.dense = true,
             "--rerun" => opts.rerun = true,
             "--keep" => opts.keep = true,
+            "--no-boot" => opts.boot = false,
             "--ungraded" => ungraded = true,
             other if !other.starts_with('-') && kernel.is_none() => kernel = Some(other.to_owned()),
             other => {
@@ -286,7 +288,7 @@ fn cell(command: &str, args: &[String]) -> ExitCode {
     let mut positional = Vec::new();
     let mut platform = None;
     let mut jobs = std::thread::available_parallelism().map_or(8, std::num::NonZero::get);
-    let (mut keep, mut ungraded) = (false, false);
+    let (mut keep, mut ungraded, mut no_boot) = (false, false, false);
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
@@ -306,6 +308,7 @@ fn cell(command: &str, args: &[String]) -> ExitCode {
             }
             "--keep" => keep = true,
             "--ungraded" => ungraded = true,
+            "--no-boot" => no_boot = true,
             other if !other.starts_with('-') => positional.push(other.to_owned()),
             other => {
                 eprintln!("gk {command}: unknown argument {other:?}");
@@ -338,6 +341,11 @@ fn cell(command: &str, args: &[String]) -> ExitCode {
                 "the checkout has uncommitted changes; commit them or pass --ungraded".into(),
             );
         }
+        let setup = if no_boot {
+            setup
+        } else {
+            setup.booting(&repo)?
+        };
         let (dir, record) = cell::run(&repo, &setup, jobs, keep)?;
         println!(
             "{kernel} {gcc} {platform}: {} at {} in {:.0}s, {}",
