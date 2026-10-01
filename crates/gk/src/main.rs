@@ -224,9 +224,12 @@ fn search_command(args: &[String]) -> ExitCode {
 /// `gk publish`.
 fn publish_command(args: &[String]) -> ExitCode {
     let ungraded = args.iter().any(|a| a == "--ungraded");
-    match Repo::find().and_then(|repo| publish::write(&repo.root, ungraded)) {
-        Ok(n) => {
+    match Repo::find().and_then(|repo| publish::write(&repo, ungraded)) {
+        Ok((n, reports)) => {
             println!("{n} cells in matrix/matrix.json");
+            for r in reports {
+                println!("{r}");
+            }
             ExitCode::SUCCESS
         }
         Err(e) => {

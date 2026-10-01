@@ -1,12 +1,16 @@
 //! `gk publish`: `matrix/matrix.json` from the result store (spec 10.5 and 10.7).
 //!
-//! Each record is a cell's `cell.json` with the heavy fields removed, plus the first error and the count of failing units from `errors.jsonl`. Ungraded cells are left out, because they ran from a checkout with uncommitted changes. The heat maps and the per-GCC and per-kernel pages arrive with G1.
+//! Each record is a cell's `cell.json` with the heavy fields removed, plus the first error and the count of failing units from `errors.jsonl`. Ungraded cells are left out, because they ran from a checkout with uncommitted changes.
+//!
+//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one letter per cell. The per-GCC and per-kernel pages wait for `gk explain`.
 
 use crate::cell::CellRecord;
 use crate::store;
 use gk_model::Version;
+use gk_model::repo::Repo;
 use gk_model::toolchains::add_days;
 use serde::{Deserialize, Serialize};
+use std::fmt::Write as _;
 use std::path::Path;
 
 /// The version of the `matrix.json` schema. It changes only when a field changes meaning or goes away.
@@ -49,12 +53,18 @@ pub struct Entry {
     /// The first unit that failed and its first error.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub first_error: String,
-    /// How many times the cell ran. Always 1 until the three-run rule of G1.
+    /// How many times the cell booted, or 1 for a cell that never got to boot.
     pub runs: u32,
+    /// Whether its boots disagreed.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub flaky: bool,
     /// The gk version and commit that ran it.
     pub gk: String,
     /// The day it ran, as `YYYY-MM-DD`.
     pub date: String,
+    /// When it started, in seconds since the epoch, which tells two runs of the same coordinates apart.
+    #[serde(default)]
+    pub started: u64,
     /// Wall seconds for the whole cell.
     pub seconds: f64,
     /// Wall seconds of the build step alone, L3, which is the number document 09 estimates.
@@ -97,9 +107,11 @@ fn entry(dir: &Path, r: &CellRecord) -> Entry {
         verdict: r.verdict.clone(),
         failing_units,
         first_error,
-        runs: 1,
+        runs: u32::try_from(r.boots.len().max(1)).unwrap_or(u32::MAX),
+        flaky: r.flaky,
         gk: r.gk.clone(),
         date: add_days("1970-01-01", days).unwrap_or_default(),
+        started: r.started,
         seconds: r.seconds,
         build_seconds: r.steps.iter().find(|s| s.rung == "L3").map(|s| s.seconds),
         machine: r.machine.clone(),
@@ -135,13 +147,160 @@ pub fn matrix(ungraded: bool) -> Result<Matrix, String> {
     })
 }
 
-/// Write `matrix/matrix.json` under `root`. Returns how many cells it holds.
-pub fn write(root: &Path, ungraded: bool) -> Result<usize, String> {
+/// The heat map letter of a cell: `W`, `R`, `B`, `F`, or `·` for n/a.
+fn letter(verdict: &str) -> char {
+    match verdict {
+        "works" => 'W',
+        "runs" => 'R',
+        "builds" => 'B',
+        "fails" => 'F',
+        _ => '·',
+    }
+}
+
+/// The heat map of one platform, or `None` when it has no cells.
+#[must_use]
+pub fn heat_map(repo: &Repo, m: &Matrix, platform: &str) -> Option<String> {
+    let p = repo.platforms.get(platform)?;
+    let cells: Vec<&Entry> = m.cells.iter().filter(|e| e.platform == platform).collect();
+    if cells.is_empty() {
+        return None;
+    }
+    let mut gccs: Vec<(&str, Version)> = repo
+        .gccs
+        .gccs
+        .iter()
+        .filter(|g| g.targets.contains(&p.triple))
+        .map(|g| (g.id.as_str(), g.version.clone()))
+        .collect();
+    gccs.sort_by(|a, b| a.1.cmp(&b.1));
+    let mut configs: Vec<&str> = cells.iter().map(|e| e.config.as_str()).collect();
+    configs.sort_unstable();
+    configs.dedup();
+
+    let mut out = format!(
+        "# {platform}\n\nOne letter per cell: W works, R runs, B builds, F fails, · n/a, and blank where the cell has not run. A cell marked with `*` was flaky, its boots disagreed and it keeps the lowest. Written by `gk publish` from `matrix/matrix.json`.\n"
+    );
+    for config in configs {
+        let mut kernels: Vec<Version> = cells
+            .iter()
+            .filter(|e| e.config == config)
+            .filter_map(|e| e.kernel.parse().ok())
+            .collect();
+        kernels.sort();
+        kernels.dedup();
+        let _ = write!(out, "\n## {config}\n\n| Kernel |");
+        for (_, v) in &gccs {
+            let _ = write!(out, " {v} |");
+        }
+        out.push_str("\n|---|");
+        out.push_str(&":-:|".repeat(gccs.len()));
+        out.push('\n');
+        for k in &kernels {
+            let _ = write!(out, "| {k} |");
+            for (id, _) in &gccs {
+                // A rerun with a new rig or toolchain is a new cell with the same names, and the newest one is the square.
+                let cell = cells
+                    .iter()
+                    .filter(|e| {
+                        e.config == config
+                            && e.gcc == *id
+                            && e.kernel.parse::<Version>().ok().as_ref() == Some(k)
+                    })
+                    .max_by_key(|e| e.started);
+                match cell {
+                    Some(e) => {
+                        let _ = write!(
+                            out,
+                            " {}{} |",
+                            letter(&e.verdict),
+                            if e.flaky { "*" } else { "" }
+                        );
+                    }
+                    None => out.push_str("  |"),
+                }
+            }
+            out.push('\n');
+        }
+    }
+    Some(out)
+}
+
+/// Write `matrix/matrix.json` and the heat maps under the repository. Returns how many cells the matrix holds and which reports were written.
+pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String> {
     let m = matrix(ungraded)?;
-    let dir = root.join("matrix");
+    let dir = repo.root.join("matrix");
     std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
     let text = serde_json::to_string_pretty(&m).map_err(|e| e.to_string())? + "\n";
     std::fs::write(dir.join("matrix.json"), text)
         .map_err(|e| format!("writing matrix/matrix.json: {e}"))?;
-    Ok(m.cells.len())
+    let reports = repo.root.join("reports");
+    let mut written = Vec::new();
+    for p in &repo.platforms.platforms {
+        let Some(text) = heat_map(repo, &m, &p.name) else {
+            continue;
+        };
+        std::fs::create_dir_all(&reports)
+            .map_err(|e| format!("creating {}: {e}", reports.display()))?;
+        let name = format!("reports/matrix-{}.md", p.name);
+        std::fs::write(repo.root.join(&name), text).map_err(|e| format!("writing {name}: {e}"))?;
+        written.push(name);
+    }
+    Ok((m.cells.len(), written))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cell(kernel: &str, gcc: &str, verdict: &str, flaky: bool) -> Entry {
+        Entry {
+            cell: String::new(),
+            kernel: kernel.into(),
+            gcc: gcc.into(),
+            binutils: String::new(),
+            platform: "x86_64".into(),
+            config: "defconfig+gk".into(),
+            host: String::new(),
+            rung: String::new(),
+            verdict: verdict.into(),
+            failing_units: 0,
+            first_error: String::new(),
+            runs: 3,
+            flaky,
+            gk: String::new(),
+            date: String::new(),
+            started: 0,
+            seconds: 0.0,
+            build_seconds: None,
+            machine: String::new(),
+        }
+    }
+
+    #[test]
+    fn a_heat_map_has_a_row_per_kernel_and_a_letter_per_cell() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let mut newer = cell("7.2.8", "gcc-16.2.0", "runs", false);
+        newer.started = 5;
+        let m = Matrix {
+            schema: SCHEMA,
+            cells: vec![
+                cell("7.2.8", "gcc-16.2.0", "builds", false),
+                newer,
+                cell("7.2.8", "gcc-8.5.0", "fails", false),
+                cell("6.18", "gcc-16.2.0", "works", true),
+            ],
+        };
+        let text = heat_map(&repo, &m, "x86_64").unwrap();
+        let rows: Vec<&str> = text
+            .lines()
+            .filter(|l| l.starts_with("| 6") || l.starts_with("| 7"))
+            .collect();
+        assert_eq!(rows.len(), 2);
+        assert!(rows[0].starts_with("| 6.18 |"));
+        assert!(rows[0].ends_with(" W* |"));
+        assert!(rows[1].starts_with("| 7.2.8 | F |"));
+        assert!(rows[1].ends_with(" R |"));
+        assert!(heat_map(&repo, &m, "arm64").is_none());
+    }
 }
