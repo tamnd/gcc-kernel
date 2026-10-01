@@ -1,8 +1,8 @@
 //! `.config` files and configuration fragments.
 //!
-//! Copied from rucc-kernel's `rk` with the `config-diff` half left out, which arrives with `gk config-diff`. A fragment is laid over a `.config` the way `merge_config.sh -m` does it, and `olddefconfig` settles it afterwards.
+//! Copied from rucc-kernel's `rk`, the `config-diff` half without `config-divergences.toml`, which belongs to rucc. `gk config-diff` compares GCC columns, where every difference is data rather than something to explain. A fragment is laid over a `.config` the way `merge_config.sh -m` does it, and `olddefconfig` settles it afterwards.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -111,6 +111,49 @@ pub fn missed(config: &Config, fragment: &[(String, String)]) -> Vec<String> {
         .collect()
 }
 
+/// One symbol that differs. A side with no value did not have the symbol at all.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Difference {
+    /// The symbol, without `CONFIG_`.
+    pub symbol: String,
+    /// The first build's value.
+    pub from: Option<String>,
+    /// The second build's value.
+    pub to: Option<String>,
+}
+
+/// Every symbol whose value differs, in symbol order.
+#[must_use]
+pub fn diff(from: &Config, to: &Config) -> Vec<Difference> {
+    let symbols: BTreeSet<&String> = from.keys().chain(to.keys()).collect();
+    symbols
+        .into_iter()
+        .filter(|s| from.get(*s) != to.get(*s))
+        .map(|s| Difference {
+            symbol: s.clone(),
+            from: from.get(s).cloned(),
+            to: to.get(s).cloned(),
+        })
+        .collect()
+}
+
+/// The differences as a markdown table with the two sides named.
+#[must_use]
+pub fn table(differences: &[Difference], from: &str, to: &str) -> String {
+    let side = |v: Option<&String>| v.map_or("(absent)", String::as_str).to_owned();
+    let mut s = format!("| symbol | {from} | {to} |\n|---|---|---|\n");
+    for d in differences {
+        let _ = writeln!(
+            s,
+            "| {} | {} | {} |",
+            d.symbol,
+            side(d.from.as_ref()),
+            side(d.to.as_ref())
+        );
+    }
+    s
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,5 +208,23 @@ CONFIG_GCC_VERSION=80500
             assert!(fragment.len() > 10, "{} is nearly empty", path.display());
             assert!(fragment.iter().all(|(_, v)| v == "y" || v == "n"));
         }
+    }
+
+    #[test]
+    fn two_columns_differ_where_a_probe_answered_differently() {
+        let a = parse("CONFIG_GCC_VERSION=140400\nCONFIG_CC_HAS_ASM_GOTO_OUTPUT=y\nCONFIG_X86=y\n");
+        let b = parse(
+            "CONFIG_GCC_VERSION=160200\n# CONFIG_CC_HAS_ASM_GOTO_OUTPUT is not set\nCONFIG_X86=y\nCONFIG_CC_HAS_COUNTED_BY=y\n",
+        );
+        let d = diff(&a, &b);
+        let symbols: Vec<&str> = d.iter().map(|d| d.symbol.as_str()).collect();
+        assert_eq!(
+            symbols,
+            ["CC_HAS_ASM_GOTO_OUTPUT", "CC_HAS_COUNTED_BY", "GCC_VERSION"]
+        );
+        assert_eq!(d[1].from, None);
+        let t = table(&d, "14.4.0", "16.2.0");
+        assert!(t.contains("| CC_HAS_COUNTED_BY | (absent) | y |"));
+        assert!(t.contains("| CC_HAS_ASM_GOTO_OUTPUT | y | n |"));
     }
 }
