@@ -42,6 +42,27 @@ pub struct Platform {
     pub console: Vec<Step>,
     /// How long a build and a boot may take before the cell is stopped.
     pub budget: Budget,
+    /// How its init program is built, for platforms that boot from 2.6 on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub init: Option<Init>,
+}
+
+/// The pinned compiler that builds a platform's init program (spec 07.4).
+///
+/// Every column of a row boots the same initramfs, so it is built once with one bundle, named here, and not with the GCC of the cell.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Init {
+    /// The GCC column whose bundle builds it.
+    pub gcc: String,
+    /// The bundle's triple, when it is not the platform's own, as for i386, which uses the `x86_64` bundle with `-m32`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub triple: Option<String>,
+    /// Flags added to the fixed ones.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flags: Vec<String>,
+    /// The host that runs the compiler.
+    pub host: String,
 }
 
 /// Time limits for one cell.
