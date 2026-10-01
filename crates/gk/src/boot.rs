@@ -187,6 +187,27 @@ impl Outcome {
     }
 }
 
+/// What two splats from different boots share when they are the same complaint: the line without the CPU, the task, and the offsets into functions, which move between builds.
+#[must_use]
+pub fn splat_key(line: &str) -> String {
+    // 6.x ends the line with `, CPU#1: task/123`, and older kernels put `CPU: 1 PID: 123` after the kind.
+    let line = line.split(", CPU#").next().unwrap_or(line);
+    let mut words = Vec::new();
+    let mut it = line.split_whitespace().peekable();
+    while let Some(w) = it.next() {
+        if (w == "CPU:" || w == "PID:")
+            && it
+                .peek()
+                .is_some_and(|n| n.bytes().all(|b| b.is_ascii_digit()))
+        {
+            it.next();
+            continue;
+        }
+        words.push(w.split("+0x").next().unwrap_or(w));
+    }
+    words.join(" ")
+}
+
 /// A console line without the kernel's `[    1.234567] ` time stamp.
 #[must_use]
 pub fn strip_timestamp(line: &str) -> &str {
@@ -546,6 +567,24 @@ mod tests {
         assert_eq!(
             append("ttyS0", "smoke", &v),
             "console=ttyS0 panic=-1 oops=panic gk.suite=smoke gk.kernel=7.2.8 gk.cpus=2 kunit.enable=0 kunit.filter_glob=gk-none"
+        );
+    }
+
+    #[test]
+    fn splats_from_two_boots_match_by_key() {
+        assert_eq!(
+            splat_key(
+                "WARNING: lib/math/int_log.c:63 at intlog2+0x55/0x60, CPU#0: kunit_try_catch/607"
+            ),
+            "WARNING: lib/math/int_log.c:63 at intlog2"
+        );
+        assert_eq!(
+            splat_key("WARNING: CPU: 1 PID: 42 at kernel/fork.c:12 copy_process+0x1/0x2 [foo]"),
+            "WARNING: at kernel/fork.c:12 copy_process [foo]"
+        );
+        assert_eq!(
+            splat_key("UBSAN: shift-out-of-bounds in lib/x.c:3:9"),
+            "UBSAN: shift-out-of-bounds in lib/x.c:3:9"
         );
     }
 }

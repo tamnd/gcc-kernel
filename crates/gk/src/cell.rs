@@ -469,6 +469,21 @@ pub struct KunitRecord {
     pub failed: Vec<Vec<String>>,
     /// Every suite, run by run.
     pub suites: Vec<tap::Tally>,
+    /// The splats of every KUnit boot, by [`boot::splat_key`], which a cell graded against this one may show too.
+    #[serde(default)]
+    pub splats: Vec<String>,
+}
+
+/// `splats.json`: what kept each run from L8.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SplatRecord {
+    /// The `objtool` warnings in the build logs.
+    pub objtool: Vec<String>,
+    /// Each run's splats on the smoke boot, every one of which counts.
+    pub smoke: Vec<Vec<String>>,
+    /// Each run's splats on the KUnit boot that the reference did not show, by key.
+    pub kunit: Vec<Vec<String>>,
 }
 
 /// What booting a cell gave.
@@ -486,10 +501,13 @@ fn boots(
     image: &Path,
     cell_dir: &Path,
     kunit: bool,
+    objtool: &[String],
 ) -> Result<Booted, String> {
     let mut steps = Vec::new();
     let mut rungs = Vec::new();
     let mut suites = Vec::new();
+    let mut smoke_splats = Vec::new();
+    let mut kunit_splats = Vec::new();
     let mut kunit_seconds = 0.0;
     for n in 1..=BOOTS {
         let stem = format!("boot-{n}");
@@ -520,6 +538,7 @@ fn boots(
         }
         let rung = boot_rung(&o);
         rungs.push(rung);
+        smoke_splats.push(o.splats.clone());
         // A cell that never booted is not one that reaches L5, so it is not repeated.
         if n == 1 && !o.booted() {
             break;
@@ -538,6 +557,7 @@ fn boots(
                 },
             )?;
             kunit_seconds += k.seconds;
+            kunit_splats.push(k.splats.iter().map(|l| boot::splat_key(l)).collect());
             suites.push(if k.ended() && k.panic.is_none() {
                 Some(k.kunit)
             } else {
@@ -545,10 +565,26 @@ fn boots(
             });
         } else {
             suites.push(None);
+            kunit_splats.push(Vec::new());
         }
     }
 
-    if !kunit {
+    let allowed = if kunit {
+        if !rungs.iter().all(|r| *r == Rung::Smoke) {
+            return Ok(Booted { rungs, steps });
+        }
+        let (step, allowed) = grade(
+            repo,
+            s,
+            cell_dir,
+            &mut rungs,
+            &suites,
+            &kunit_splats,
+            kunit_seconds,
+        )?;
+        steps.push(step);
+        allowed
+    } else {
         // Before KUnit there is nothing to grade, and L7 passes vacuously.
         if s.version.series(2) < [5, 5].to_vec() {
             for r in &mut rungs {
@@ -557,21 +593,81 @@ fn boots(
                 }
             }
         }
-        return Ok(Booted { rungs, steps });
+        Some(Vec::new())
+    };
+    if rungs.contains(&Rung::Tested) {
+        steps.push(clean(
+            cell_dir,
+            &mut rungs,
+            objtool,
+            smoke_splats,
+            &kunit_splats,
+            allowed.as_deref(),
+        )?);
     }
-    if !rungs.iter().all(|r| *r == Rung::Smoke) {
-        return Ok(Booted { rungs, steps });
-    }
-
-    steps.push(grade(
-        repo,
-        s,
-        cell_dir,
-        &mut rungs,
-        &suites,
-        kunit_seconds,
-    )?);
     Ok(Booted { rungs, steps })
+}
+
+/// Raise each run at L7 with no `objtool` warning in the build, no splat on its smoke boot, and no splat on its KUnit boot that the reference did not show to L8, and write `splats.json`. `allowed` is `None` for the era GCC's own cell, which is its own reference. Returns the L8 step.
+fn clean(
+    cell_dir: &Path,
+    rungs: &mut [Rung],
+    objtool: &[String],
+    smoke: Vec<Vec<String>>,
+    kunit: &[Vec<String>],
+    allowed: Option<&[String]>,
+) -> Result<Step, String> {
+    let unexpected: Vec<Vec<String>> = kunit
+        .iter()
+        .map(|run| {
+            let mut keys: Vec<String> = run
+                .iter()
+                .filter(|k| allowed.is_some_and(|a| !a.contains(k)))
+                .cloned()
+                .collect();
+            keys.dedup();
+            keys
+        })
+        .collect();
+    for (n, r) in rungs.iter_mut().enumerate() {
+        if *r == Rung::Tested
+            && objtool.is_empty()
+            && smoke.get(n).is_none_or(Vec::is_empty)
+            && unexpected.get(n).is_none_or(Vec::is_empty)
+        {
+            *r = Rung::Clean;
+        }
+    }
+    let record = SplatRecord {
+        objtool: objtool.to_vec(),
+        smoke,
+        kunit: unexpected,
+    };
+    let json = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?;
+    std::fs::write(cell_dir.join("splats.json"), json + "\n")
+        .map_err(|e| format!("writing splats.json: {e}"))?;
+    Ok(Step {
+        rung: Rung::Clean.to_string(),
+        passed: rungs.iter().all(|r| *r == Rung::Clean),
+        seconds: 0.0,
+        log: "splats.json".into(),
+    })
+}
+
+/// The `objtool` warnings in a cell's build logs, at most 100 of them.
+fn objtool_warnings(cell_dir: &Path) -> Vec<String> {
+    ["make.log", "modules.log"]
+        .iter()
+        .filter_map(|f| std::fs::read(cell_dir.join(f)).ok())
+        .flat_map(|b| {
+            String::from_utf8_lossy(&b)
+                .lines()
+                .filter(|l| l.contains("warning: objtool:"))
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .take(100)
+        .collect()
 }
 
 /// Grade the KUnit runs of a cell that passed smoke in every run against the era GCC's cell, raising each run that passed every graded suite to L7, and write `kunit.json`. Returns the L7 step.
@@ -581,17 +677,21 @@ fn grade(
     cell_dir: &Path,
     rungs: &mut [Rung],
     suites: &[Option<Vec<tap::Suite>>],
+    splats: &[Vec<String>],
     seconds: f64,
-) -> Result<Step, String> {
+) -> Result<(Step, Option<Vec<String>>), String> {
+    let mut seen: Vec<String> = splats.iter().flatten().cloned().collect();
+    seen.sort();
+    seen.dedup();
     let ran: Vec<Vec<tap::Suite>> = suites
         .iter()
         .map(|s| s.clone().unwrap_or_default())
         .collect();
     let mine = tap::tally(&ran);
-    let (reference, theirs) = match kunit_reference(repo, s)? {
-        Reference::Itself => ("self".to_owned(), mine.clone()),
-        Reference::Cell(id, tally) => (id, tally),
-        Reference::None => (String::new(), Vec::new()),
+    let (reference, theirs, allowed) = match kunit_reference(repo, s)? {
+        Reference::Itself => ("self".to_owned(), mine.clone(), None),
+        Reference::Cell(id, tally, allowed) => (id, tally, Some(allowed)),
+        Reference::None => (String::new(), Vec::new(), Some(Vec::new())),
     };
     let graded: Vec<&str> = tap::graded(&theirs, BOOTS);
     let mut failed = Vec::new();
@@ -611,24 +711,26 @@ fn grade(
         graded: graded.into_iter().map(str::to_owned).collect(),
         failed,
         suites: mine,
+        splats: seen,
     };
     let json = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?;
     std::fs::write(cell_dir.join("kunit.json"), json + "\n")
         .map_err(|e| format!("writing kunit.json: {e}"))?;
-    Ok(Step {
+    let step = Step {
         rung: Rung::Tested.to_string(),
         passed: rungs.iter().all(|r| *r == Rung::Tested),
         seconds,
         log: "kunit.json".into(),
-    })
+    };
+    Ok((step, allowed))
 }
 
 /// What a cell's KUnit suites are graded against.
 enum Reference {
     /// The cell is the era GCC's own.
     Itself,
-    /// The era GCC's cell, by identity, and its suites.
-    Cell(String, Vec<tap::Tally>),
+    /// The era GCC's cell, by identity, its suites, and the splats its KUnit boots showed.
+    Cell(String, Vec<tap::Tally>, Vec<String>),
     /// The era GCC's cell has not run, or did not reach KUnit.
     None,
 }
@@ -652,7 +754,7 @@ fn kunit_reference(repo: &Repo, s: &Setup) -> Result<Reference, String> {
     };
     let record: KunitRecord =
         serde_json::from_str(&text).map_err(|e| format!("reading {}: {e}", path.display()))?;
-    Ok(Reference::Cell(id, record.suites))
+    Ok(Reference::Cell(id, record.suites, record.splats))
 }
 
 /// Run a cell up to L4, or up to L6 when it boots, and write its directory. Returns the directory and the record.
@@ -816,7 +918,8 @@ pub fn run(
                 if s.boots {
                     let kunit = std::fs::read_to_string(out.join(".config"))
                         .is_ok_and(|c| c.lines().any(|l| l == "CONFIG_KUNIT=y"));
-                    let b = boots(repo, s, &image, &cell_dir, kunit)?;
+                    let objtool = objtool_warnings(&cell_dir);
+                    let b = boots(repo, s, &image, &cell_dir, kunit, &objtool)?;
                     steps.extend(b.steps);
                     reached = b.rungs.iter().copied().min().unwrap_or(Rung::Linked);
                     flaky = b.rungs.windows(2).any(|w| w[0] != w[1]);
