@@ -135,6 +135,7 @@ make = "4.3"
 
 [[host]]
 name = "gk-host-bookworm"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-bookworm@sha256:fad205caae6678dec430e84a21142cc8a5f96b02d0d0045523d15d120925ded6"
 kind = "host"
 base = "debian:bookworm"
 arches = ["amd64"]
@@ -144,6 +145,7 @@ make = "4.3"
 
 [[host]]
 name = "gk-host-trixie"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-trixie@sha256:cb347959dc2f5633744f919c0b55cef129a84f8888d30bc15b436bed16b12da1"
 kind = "host"
 base = "debian:trixie"
 arches = ["amd64"]
@@ -153,6 +155,7 @@ make = "4.4.1"
 
 [[host]]
 name = "gk-forge-modern"
+image = "ghcr.io/tamnd/gcc-kernel/gk-forge-modern@sha256:e1c53feb6e777151dee788e4016bb0930530ba2fa501fbb0492a1b0407ece47e"
 kind = "forge"
 base = "debian:trixie"
 arches = ["amd64"]
@@ -160,6 +163,7 @@ gcc = "14.2.0"
 
 [[host]]
 name = "gk-forge-bullseye"
+image = "ghcr.io/tamnd/gcc-kernel/gk-forge-bullseye@sha256:f80ed1ac4a333773219f1218e0bba083d4115b66110a536a12284b0e8f59d0b1"
 kind = "forge"
 base = "debian/eol:bullseye"
 arches = ["amd64"]

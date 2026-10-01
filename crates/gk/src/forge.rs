@@ -140,7 +140,7 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
 }
 
 /// The image of a forge or host: the published one when `hosts.toml` pins it, and otherwise one built here from its Dockerfile under a local tag.
-fn image_for(repo: &Repo, name: &str) -> Result<String, String> {
+pub(crate) fn image_for(repo: &Repo, name: &str) -> Result<String, String> {
     let host = repo
         .hosts
         .get(name)

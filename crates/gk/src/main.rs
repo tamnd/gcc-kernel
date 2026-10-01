@@ -1,11 +1,12 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
 mod fetch;
 mod forge;
 mod gnu;
 mod gpg;
+mod hosts;
 mod kernelorg;
 mod net;
 mod pins;
@@ -25,6 +26,8 @@ commands:
   forge      build a static toolchain bundle: forge G [--target T] [--jobs N]
   forge verify [G...]
              check every bundle in the cache, in every host
+  hosts check
+             run every host and forge container and compare its tools with hosts.toml
   ladder     print the outcome ladder and the verdict each rung earns
   version    print the gk version
   help       print this text
@@ -44,6 +47,7 @@ fn main() -> ExitCode {
         Some("check") => check(),
         Some("forge") => forge(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
+        Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
         Some("pins") => pins(args.iter().any(|a| a == "--write")),
         Some("version" | "--version" | "-V") => {
             println!("gk {}", env!("CARGO_PKG_VERSION"));
@@ -70,6 +74,18 @@ fn pins(write: bool) -> ExitCode {
         Err(e) => {
             eprintln!("gk: {e}");
             ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk hosts check`.
+fn hosts_check() -> ExitCode {
+    match Repo::find().and_then(|repo| hosts::check(&repo)) {
+        Ok(true) => ExitCode::SUCCESS,
+        Ok(false) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::FAILURE
         }
     }
 }
