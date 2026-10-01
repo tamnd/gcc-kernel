@@ -48,6 +48,44 @@ pub fn bundles_dir() -> PathBuf {
     fetch::cache_dir().join("bundles")
 }
 
+/// The manifest of a bundle that `gk forge` has built.
+pub fn manifest(gcc_id: &str, target: &str) -> Result<Manifest, String> {
+    let path = bundles_dir().join(format!("{gcc_id}-{target}.json"));
+    let text = std::fs::read_to_string(&path).map_err(|_| {
+        format!("no bundle for {gcc_id} on {target}; run gk forge {gcc_id} --target {target}")
+    })?;
+    serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// A bundle unpacked into the cache, unpacking it the first time.
+pub fn unpacked(m: &Manifest) -> Result<PathBuf, String> {
+    let dir = bundles_dir();
+    let unpacked = dir.join("unpacked").join(format!("{}-{}", m.id, m.target));
+    if unpacked.is_dir() {
+        return Ok(unpacked);
+    }
+    let tarball = dir.join(&m.file);
+    let partial = unpacked.with_extension("part");
+    let _ = std::fs::remove_dir_all(&partial);
+    std::fs::create_dir_all(&partial)
+        .map_err(|e| format!("creating {}: {e}", partial.display()))?;
+    let status = Command::new("tar")
+        .arg("--zstd")
+        .arg("-xf")
+        .arg(&tarball)
+        .arg("-C")
+        .arg(&partial)
+        .status()
+        .map_err(|e| format!("running tar: {e}"))?;
+    if !status.success() {
+        let _ = std::fs::remove_dir_all(&partial);
+        return Err(format!("unpacking {} failed", tarball.display()));
+    }
+    std::fs::rename(&partial, &unpacked)
+        .map_err(|e| format!("renaming {}: {e}", partial.display()))?;
+    Ok(unpacked)
+}
+
 /// Run `gk forge`.
 pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> Result<(), String> {
     let gcc = repo
@@ -259,23 +297,7 @@ pub fn verify(repo: &Repo, only: &[String]) -> Result<bool, String> {
             all_ok = false;
             continue;
         }
-        let unpacked = dir.join("unpacked").join(format!("{}-{}", m.id, m.target));
-        if !unpacked.is_dir() {
-            std::fs::create_dir_all(&unpacked)
-                .map_err(|e| format!("creating {}: {e}", unpacked.display()))?;
-            let status = Command::new("tar")
-                .arg("--zstd")
-                .arg("-xf")
-                .arg(&tarball)
-                .arg("-C")
-                .arg(&unpacked)
-                .status()
-                .map_err(|e| format!("running tar: {e}"))?;
-            if !status.success() {
-                let _ = std::fs::remove_dir_all(&unpacked);
-                return Err(format!("unpacking {} failed", tarball.display()));
-            }
-        }
+        let unpacked = unpacked(m)?;
         for host in &hosts {
             let image = image_for(repo, host)?;
             let out = Command::new("docker")
