@@ -66,6 +66,7 @@ dependencies = [
 name = "gk"
 version = "0.0.3"
 dependencies = [
+ "gk-cc",
  "gk-model",
  "serde",
  "serde_json",

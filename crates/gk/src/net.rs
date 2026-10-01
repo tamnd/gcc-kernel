@@ -43,6 +43,12 @@ pub fn sha256_file(path: &Path) -> Result<String, String> {
     hash_file::<Sha256>(path)
 }
 
+/// The lower case hex SHA-256 of bytes in memory.
+#[must_use]
+pub fn sha256_bytes(bytes: &[u8]) -> String {
+    hex(&Sha256::digest(bytes))
+}
+
 /// The lower case hex SHA-512 of a file, which is what GCC's `prerequisites.sha512` lists.
 pub fn sha512_file(path: &Path) -> Result<String, String> {
     hash_file::<Sha512>(path)

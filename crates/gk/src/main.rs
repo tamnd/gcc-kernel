@@ -1,12 +1,15 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `probe`, `cell`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
+mod build;
+mod cell;
 mod fetch;
 mod forge;
 mod gnu;
 mod gpg;
 mod hosts;
+mod kconfig;
 mod kernelorg;
 mod net;
 mod pins;
@@ -28,6 +31,9 @@ commands:
              check every bundle in the cache, in every host
   hosts check
              run every host and forge container and compare its tools with hosts.toml
+  probe      the accept probe: probe K G --platform P
+  cell       run one cell up to L4 and write its directory:
+             cell K G --platform P [--jobs N] [--keep] [--ungraded]
   ladder     print the outcome ladder and the verdict each rung earns
   version    print the gk version
   help       print this text
@@ -45,6 +51,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("check") => check(),
+        Some(c @ ("probe" | "cell")) => cell(c, &args[1..]),
         Some("forge") => forge(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
         Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
@@ -74,6 +81,83 @@ fn pins(write: bool) -> ExitCode {
         Err(e) => {
             eprintln!("gk: {e}");
             ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk probe` and `gk cell`.
+fn cell(command: &str, args: &[String]) -> ExitCode {
+    let mut positional = Vec::new();
+    let mut platform = None;
+    let mut jobs = std::thread::available_parallelism().map_or(8, std::num::NonZero::get);
+    let (mut keep, mut ungraded) = (false, false);
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--platform" | "--jobs" => {
+                let Some(v) = it.next() else {
+                    eprintln!("gk {command}: {a} needs a value");
+                    return ExitCode::from(2);
+                };
+                if a == "--platform" {
+                    platform = Some(v.clone());
+                } else if let Ok(n) = v.parse() {
+                    jobs = n;
+                } else {
+                    eprintln!("gk {command}: --jobs takes a number");
+                    return ExitCode::from(2);
+                }
+            }
+            "--keep" => keep = true,
+            "--ungraded" => ungraded = true,
+            other if !other.starts_with('-') => positional.push(other.to_owned()),
+            other => {
+                eprintln!("gk {command}: unknown argument {other:?}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    let ([kernel, gcc], Some(platform)) = (positional.as_slice(), platform) else {
+        eprintln!("gk {command}: as in gk {command} 7.2.8 gcc-16.2.0 --platform x86_64");
+        return ExitCode::from(2);
+    };
+    let result = Repo::find().and_then(|repo| {
+        let setup = cell::Setup::new(&repo, kernel, gcc, &platform)?;
+        if command == "probe" {
+            let dir = fetch::cache_dir()
+                .join("scratch")
+                .join(format!("probe-{}", setup.coordinates.short_id()));
+            let probe = cell::probe(&setup, &dir, jobs)?;
+            println!(
+                "{kernel} {gcc} {platform}: {} at {} in {:.0}s",
+                probe.result, probe.step, probe.seconds
+            );
+            for line in &probe.why {
+                println!("  {line}");
+            }
+            return Ok(probe.passes());
+        }
+        if !ungraded && !cell::gk_commit(&repo.root).1 {
+            return Err(
+                "the checkout has uncommitted changes; commit them or pass --ungraded".into(),
+            );
+        }
+        let (dir, record) = cell::run(&repo, &setup, jobs, keep)?;
+        println!(
+            "{kernel} {gcc} {platform}: {} at {} in {:.0}s, {}",
+            record.verdict,
+            record.rung,
+            record.seconds,
+            dir.display()
+        );
+        Ok(true)
+    });
+    match result {
+        Ok(true) => ExitCode::SUCCESS,
+        Ok(false) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::FAILURE
         }
     }
 }
