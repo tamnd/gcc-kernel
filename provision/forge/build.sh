@@ -61,6 +61,8 @@ mkdir b-gcc
 ) > gcc.log 2>&1 || { tail -n 80 gcc.log >&2; exit 1; }
 
 log "packing"
+# The man and info pages are all there is under share, and pod2man stamps the day it ran into every binutils man page, so two forges of the same bundle on different days would differ. Nothing in a cell reads them.
+rm -rf "${stage:?}$prefix/share"
 out="/out/$GK_ID-$GK_TARGET.tar.zst"
 tar -C "$stage$prefix" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - . \
   | zstd -q -19 -T0 > "$out.part"
