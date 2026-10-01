@@ -95,7 +95,7 @@ Every command that writes a result records the `gk` commit and refuses to record
 
 ## 10.4 The shim and the build directory
 
-`gk-cc` is `rk-cc` under another name. It is copied from rucc-kernel at G0, not shared through a crate, for the reason the kernel plan gives in its section 14.6: two copies are cheaper than an early abstraction. Placed in front of `CC`, it runs the real compiler with the arguments unchanged and appends a line per call to `compile.jsonl`: cwd, argv, inputs, outputs, exit status, wall and CPU time, peak RSS, the stderr text for failing calls and a hash otherwise, and whether the call was a probe.
+`gk-cc` is `rk-cc` under another name. It is copied from rucc-kernel at G0, not shared through a crate, for the reason the kernel plan gives in its section 14.6: two copies are cheaper than an early abstraction. Placed in front of `CC`, it runs the real compiler with the arguments unchanged and appends a line per call to `compile.jsonl`: cwd, argv, inputs, outputs, exit status, wall and CPU time, peak RSS, the first 64 KiB of stderr, which is where the warning census of 11.5 comes from, and whether the call was a probe.
 
 The schema of `compile.jsonl`, `build.json` and `summary.md` is the rucc-kernel schema, with two added fields in `build.json`: `cell` (the identity of 02.1) and `rung` (the rung reached). That is the data contract between the two repositories. `rk config-diff`, `rk flags-diff`, `rk sections-diff`, `rk symvers-diff`, `rk vec-audit` and `rk frames` can read a gcc-kernel build directory as the reference side of a comparison without change, which is how rucc-kernel uses this repository (document 11).
 
@@ -108,7 +108,7 @@ cells/<cell-id>/
   compile.jsonl      kept for edge cells and holes, dropped otherwise after classification
   errors.jsonl       every failing unit with its first error and its signature classes
   warnings.jsonl     the warning census, for columns the census covers (11.5)
-  config             the .config
+  .config            the configuration kbuild built, under the name rk reads
   make.log.zst       kept for edge cells and holes
   boot-<n>.log       one console per boot run
   kunit.json         parsed TAP, where L7 ran

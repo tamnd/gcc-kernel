@@ -845,7 +845,7 @@ pub fn run(
                 .map_err(|e| format!("writing {}: {e}", dot.display()))?;
             configured = make(&["olddefconfig"], "fragment.log", 1)? == 0;
             fragment_missed = kconfig::missed(&kconfig::load(&dot)?, &fragment);
-            let _ = std::fs::copy(&dot, cell_dir.join("config"));
+            let _ = std::fs::copy(&dot, cell_dir.join(".config"));
         }
         steps.push(Step {
             rung: Rung::Configured.to_string(),
