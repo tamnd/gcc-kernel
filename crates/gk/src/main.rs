@@ -19,6 +19,7 @@ mod pins;
 mod publish;
 mod search;
 mod store;
+mod tap;
 
 use gk_model::repo::Repo;
 use gk_model::{Rung, Verdict};

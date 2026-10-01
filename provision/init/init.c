@@ -657,6 +657,8 @@ __attribute__((noreturn, used)) void cstart(slong *sp)
 	end_line();
 	if (same(suite, "smoke"))
 		smoke();
+	else if (same(suite, "kunit"))
+		; /* KUnit ran before init, and the rig reads its TAP from the console. */
 	else {
 		put("GK-NOTE no suite called ");
 		put(suite);

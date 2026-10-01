@@ -7,7 +7,7 @@
 use crate::build::{self, Calls};
 use crate::fetch::{self, Request};
 use crate::forge::{self, Manifest};
-use crate::{boot, initramfs, kconfig, net, store};
+use crate::{boot, initramfs, kconfig, net, store, tap};
 use gk_cc::config::ShimConfig;
 use gk_model::cell::{Coordinates, Named};
 use gk_model::platforms::Platform;
@@ -444,7 +444,7 @@ pub struct CellRecord {
 /// How many times a cell that reaches L5 boots (spec 02.4).
 pub const BOOTS: usize = 3;
 
-/// The rung one boot reached, from L4 (it did not boot) to L6.
+/// The rung one smoke boot reached, from L4 (it did not boot) to L6.
 fn boot_rung(o: &boot::Outcome) -> Rung {
     if o.passed() {
         Rung::Smoke
@@ -455,15 +455,42 @@ fn boot_rung(o: &boot::Outcome) -> Rung {
     }
 }
 
-/// Boot a linked cell, three times once it has booted at all, into `boot-1.log` and on. Returns the lowest rung any boot reached, a step for each boot, and the rung of each.
+/// `kunit.json`: every KUnit suite over the cell's runs, and how it was graded.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct KunitRecord {
+    /// How many KUnit boots ran.
+    pub runs: usize,
+    /// The cell the suites were graded against, `self` for the era GCC's own cell, or empty when there was none to grade against.
+    pub reference: String,
+    /// The suites graded, which the reference passed in every run.
+    pub graded: Vec<String>,
+    /// The graded suites a run did not pass, by run.
+    pub failed: Vec<Vec<String>>,
+    /// Every suite, run by run.
+    pub suites: Vec<tap::Tally>,
+}
+
+/// What booting a cell gave.
+struct Booted {
+    /// The rung of each run, after grading.
+    rungs: Vec<Rung>,
+    /// One step per boot.
+    steps: Vec<Step>,
+}
+
+/// Boot a linked cell, three times once it has booted at all, into `boot-1.log` and on. A kernel with KUnit built in boots a second time in each run that passed smoke, into `kunit-1.log` and on, and its suites are graded against the era GCC's cell for L7.
 fn boots(
     repo: &Repo,
     s: &Setup,
     image: &Path,
     cell_dir: &Path,
-) -> Result<(Rung, Vec<Step>, Vec<Rung>), String> {
+    kunit: bool,
+) -> Result<Booted, String> {
     let mut steps = Vec::new();
-    let mut runs = Vec::new();
+    let mut rungs = Vec::new();
+    let mut suites = Vec::new();
+    let mut kunit_seconds = 0.0;
     for n in 1..=BOOTS {
         let stem = format!("boot-{n}");
         let o = boot::run(
@@ -491,14 +518,141 @@ fn boots(
                 log: format!("{stem}.json"),
             });
         }
-        runs.push(boot_rung(&o));
+        let rung = boot_rung(&o);
+        rungs.push(rung);
         // A cell that never booted is not one that reaches L5, so it is not repeated.
         if n == 1 && !o.booted() {
             break;
         }
+        if kunit && rung == Rung::Smoke {
+            let stem = format!("kunit-{n}");
+            let k = boot::run(
+                repo,
+                &boot::Boot {
+                    platform: &s.platform,
+                    version: &s.version,
+                    image,
+                    suite: "kunit",
+                    dir: cell_dir,
+                    stem: &stem,
+                },
+            )?;
+            kunit_seconds += k.seconds;
+            suites.push(if k.ended() && k.panic.is_none() {
+                Some(k.kunit)
+            } else {
+                None
+            });
+        } else {
+            suites.push(None);
+        }
     }
-    let lowest = runs.iter().copied().min().unwrap_or(Rung::Linked);
-    Ok((lowest, steps, runs))
+
+    if !kunit {
+        // Before KUnit there is nothing to grade, and L7 passes vacuously.
+        if s.version.series(2) < [5, 5].to_vec() {
+            for r in &mut rungs {
+                if *r == Rung::Smoke {
+                    *r = Rung::Tested;
+                }
+            }
+        }
+        return Ok(Booted { rungs, steps });
+    }
+    if !rungs.iter().all(|r| *r == Rung::Smoke) {
+        return Ok(Booted { rungs, steps });
+    }
+
+    steps.push(grade(
+        repo,
+        s,
+        cell_dir,
+        &mut rungs,
+        &suites,
+        kunit_seconds,
+    )?);
+    Ok(Booted { rungs, steps })
+}
+
+/// Grade the KUnit runs of a cell that passed smoke in every run against the era GCC's cell, raising each run that passed every graded suite to L7, and write `kunit.json`. Returns the L7 step.
+fn grade(
+    repo: &Repo,
+    s: &Setup,
+    cell_dir: &Path,
+    rungs: &mut [Rung],
+    suites: &[Option<Vec<tap::Suite>>],
+    seconds: f64,
+) -> Result<Step, String> {
+    let ran: Vec<Vec<tap::Suite>> = suites
+        .iter()
+        .map(|s| s.clone().unwrap_or_default())
+        .collect();
+    let mine = tap::tally(&ran);
+    let (reference, theirs) = match kunit_reference(repo, s)? {
+        Reference::Itself => ("self".to_owned(), mine.clone()),
+        Reference::Cell(id, tally) => (id, tally),
+        Reference::None => (String::new(), Vec::new()),
+    };
+    let graded: Vec<&str> = tap::graded(&theirs, BOOTS);
+    let mut failed = Vec::new();
+    for (r, run) in rungs.iter_mut().zip(suites) {
+        let missed = match run {
+            Some(run) => tap::failed(run, &graded),
+            None => graded.clone(),
+        };
+        if !reference.is_empty() && run.is_some() && missed.is_empty() {
+            *r = Rung::Tested;
+        }
+        failed.push(missed.into_iter().map(str::to_owned).collect::<Vec<_>>());
+    }
+    let record = KunitRecord {
+        runs: ran.len(),
+        reference: reference.clone(),
+        graded: graded.into_iter().map(str::to_owned).collect(),
+        failed,
+        suites: mine,
+    };
+    let json = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?;
+    std::fs::write(cell_dir.join("kunit.json"), json + "\n")
+        .map_err(|e| format!("writing kunit.json: {e}"))?;
+    Ok(Step {
+        rung: Rung::Tested.to_string(),
+        passed: rungs.iter().all(|r| *r == Rung::Tested),
+        seconds,
+        log: "kunit.json".into(),
+    })
+}
+
+/// What a cell's KUnit suites are graded against.
+enum Reference {
+    /// The cell is the era GCC's own.
+    Itself,
+    /// The era GCC's cell, by identity, and its suites.
+    Cell(String, Vec<tap::Tally>),
+    /// The era GCC's cell has not run, or did not reach KUnit.
+    None,
+}
+
+/// Find the era GCC's cell for the same kernel, platform and boot rig in the store.
+fn kunit_reference(repo: &Repo, s: &Setup) -> Result<Reference, String> {
+    let Some(era) = repo.eras.of(&s.version) else {
+        return Ok(Reference::None);
+    };
+    if era.gcc == s.coordinates.gcc.name {
+        return Ok(Reference::Itself);
+    }
+    let Ok(other) = Setup::new(repo, s.version.as_str(), &era.gcc, &s.platform.name) else {
+        return Ok(Reference::None);
+    };
+    let other = other.booting(repo)?;
+    let id = other.coordinates.identity();
+    let path = store::cell_dir(&id).join("kunit.json");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return Ok(Reference::None);
+    };
+    let record: KunitRecord =
+        serde_json::from_str(&text).map_err(|e| format!("reading {}: {e}", path.display()))?;
+    Ok(Reference::Cell(id, record.suites))
 }
 
 /// Run a cell up to L4, or up to L6 when it boots, and write its directory. Returns the directory and the record.
@@ -660,11 +814,13 @@ pub fn run(
                 reached = Rung::Linked;
                 image_sha256 = net::sha256_file(&image).unwrap_or_default();
                 if s.boots {
-                    let (lowest, boot_steps, rungs) = boots(repo, s, &image, &cell_dir)?;
-                    steps.extend(boot_steps);
-                    reached = lowest;
-                    flaky = rungs.windows(2).any(|w| w[0] != w[1]);
-                    boot_runs = rungs;
+                    let kunit = std::fs::read_to_string(out.join(".config"))
+                        .is_ok_and(|c| c.lines().any(|l| l == "CONFIG_KUNIT=y"));
+                    let b = boots(repo, s, &image, &cell_dir, kunit)?;
+                    steps.extend(b.steps);
+                    reached = b.rungs.iter().copied().min().unwrap_or(Rung::Linked);
+                    flaky = b.rungs.windows(2).any(|w| w[0] != w[1]);
+                    boot_runs = b.rungs;
                 }
             }
         }

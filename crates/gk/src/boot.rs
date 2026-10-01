@@ -4,7 +4,7 @@
 //!
 //! The run ends when QEMU exits, which `gk-init` causes by powering off. It is cut short when the boot budget runs out, and when the end marker has been printed and the console then stays quiet for five seconds, which is how a kernel that cannot power off is told apart from a hung one.
 
-use crate::{forge, initramfs};
+use crate::{forge, initramfs, tap};
 use gk_model::Version;
 use gk_model::platforms::Platform;
 use gk_model::repo::Repo;
@@ -98,6 +98,9 @@ pub struct Outcome {
     /// Every line that says the kernel complained.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub splats: Vec<String>,
+    /// The KUnit suites that ran before init, for the `kunit` suite.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub kunit: Vec<tap::Suite>,
     /// Whether the budget ran out.
     pub timed_out: bool,
     /// Whether the rig stopped QEMU after the end marker because the kernel did not power off.
@@ -119,6 +122,7 @@ impl Outcome {
             status: None,
             panic: None,
             splats: Vec::new(),
+            kunit: Vec::new(),
             timed_out: false,
             stopped_after_end: false,
             seconds: 0.0,
@@ -281,7 +285,11 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
     );
     let mut outcome = Outcome::new(command.clone(), qemu, init.digest);
     let clock = Instant::now();
-    let budget = Duration::from_secs(u64::from(b.platform.budget.boot_seconds));
+    let budget = Duration::from_secs(u64::from(if b.suite == "kunit" {
+        b.platform.budget.kunit_seconds()
+    } else {
+        b.platform.budget.boot_seconds
+    }));
     let mut child = Command::new("docker")
         .args(["run", "--rm", "--network=none", "--name", &name])
         .arg("-v")
@@ -297,6 +305,11 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
         .map_err(|e| format!("running docker: {e}"))?;
     watch(&mut child, &name, budget, clock, &mut log, &mut outcome);
     outcome.seconds = clock.elapsed().as_secs_f64();
+    if b.suite == "kunit" {
+        let text =
+            std::fs::read(&log_path).map_err(|e| format!("reading {}: {e}", log_path.display()))?;
+        outcome.kunit = tap::suites(&String::from_utf8_lossy(&text));
+    }
     let json_path = b.dir.join(format!("{}.json", b.stem));
     let text = serde_json::to_string_pretty(&outcome).map_err(|e| e.to_string())? + "\n";
     std::fs::write(&json_path, text)

@@ -73,6 +73,17 @@ pub struct Budget {
     pub build_minutes: u32,
     /// Seconds from QEMU start to the boot marker.
     pub boot_seconds: u32,
+    /// Seconds for a boot that runs every KUnit suite first, where it differs from `boot_seconds`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kunit_seconds: Option<u32>,
+}
+
+impl Budget {
+    /// Seconds for a KUnit boot.
+    #[must_use]
+    pub fn kunit_seconds(&self) -> u32 {
+        self.kunit_seconds.unwrap_or(self.boot_seconds)
+    }
 }
 
 impl Platforms {
