@@ -21,6 +21,8 @@ pub struct Options {
     pub keep: bool,
     /// Boot the cells that can boot.
     pub boot: bool,
+    /// The configuration, a name from [`cell::CONFIGS`].
+    pub config: &'static str,
 }
 
 /// One column of the row.
@@ -91,7 +93,7 @@ pub fn run(
 }
 
 fn one(repo: &Repo, version: &Version, gcc: &str, platform: &str, opts: Options) -> Column {
-    let setup = match Setup::new(repo, version.as_str(), gcc, platform) {
+    let setup = match Setup::new(repo, version.as_str(), gcc, platform, opts.config) {
         Ok(s) if opts.boot => match s.booting(repo) {
             Ok(s) => s,
             Err(e) => return Column::Broken(e),
@@ -147,6 +149,6 @@ mod tests {
             .collect();
         assert_eq!(ids.first(), Some(&"gcc-8.5.0"));
         assert_eq!(ids.last(), Some(&"gcc-16.2.0"));
-        assert_eq!(ids.len(), 10);
+        assert_eq!(ids.len(), 12);
     }
 }

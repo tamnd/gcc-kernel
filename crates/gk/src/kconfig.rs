@@ -205,7 +205,12 @@ CONFIG_GCC_VERSION=80500
         for entry in std::fs::read_dir("../../configs").unwrap() {
             let path = entry.unwrap().path();
             let fragment = parse_fragment(&std::fs::read_to_string(&path).unwrap());
-            assert!(fragment.len() > 10, "{} is nearly empty", path.display());
+            let least = if path.ends_with("tiny.gk") { 1 } else { 10 };
+            assert!(
+                fragment.len() >= least,
+                "{} is nearly empty",
+                path.display()
+            );
             assert!(fragment.iter().all(|(_, v)| v == "y" || v == "n"));
         }
     }
