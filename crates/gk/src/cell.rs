@@ -7,7 +7,7 @@
 use crate::build::{self, Calls};
 use crate::fetch::{self, Request};
 use crate::forge::{self, Manifest};
-use crate::{kconfig, net};
+use crate::{kconfig, net, store};
 use gk_cc::config::ShimConfig;
 use gk_model::cell::{Coordinates, Named};
 use gk_model::platforms::Platform;
@@ -413,14 +413,6 @@ pub struct CellRecord {
     pub graded: bool,
 }
 
-/// Where cell directories go: `GK_STORE`, or `store` in the cache.
-#[must_use]
-pub fn store_dir() -> PathBuf {
-    std::env::var_os("GK_STORE")
-        .map_or_else(|| fetch::cache_dir().join("store"), PathBuf::from)
-        .join("cells")
-}
-
 /// Run a cell up to L4 and write its directory. Returns the directory and the record.
 #[allow(clippy::too_many_lines)]
 pub fn run(
@@ -434,7 +426,7 @@ pub fn run(
         .map_or(0, |d| d.as_secs());
     let clock = Instant::now();
     let id = s.coordinates.identity();
-    let cell_dir = store_dir().join(s.coordinates.short_id());
+    let cell_dir = store::cell_dir(&id);
     let scratch = fetch::cache_dir()
         .join("scratch")
         .join(s.coordinates.short_id());

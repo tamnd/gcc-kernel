@@ -1,6 +1,6 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `probe`, `cell`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `probe`, `cell`, `store`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
 mod build;
 mod cell;
@@ -14,6 +14,7 @@ mod kconfig;
 mod kernelorg;
 mod net;
 mod pins;
+mod store;
 
 use gk_model::repo::Repo;
 use gk_model::{Rung, Verdict};
@@ -38,6 +39,8 @@ commands:
   probe      the accept probe: probe K G --platform P
   cell       run one cell up to L4 and write its directory:
              cell K G --platform P [--jobs N] [--keep] [--ungraded]
+  store      list the cells in the result store, or:
+             store show ID, store check, store pack FILE.tar.zst
   ladder     print the outcome ladder and the verdict each rung earns
   version    print the gk version
   help       print this text
@@ -57,6 +60,7 @@ fn main() -> ExitCode {
         Some("check") => check(),
         Some(c @ ("probe" | "cell")) => cell(c, &args[1..]),
         Some("forge") => forge(&args[1..]),
+        Some("store") => store_command(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
         Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
         Some("pins") if args.get(1).map(String::as_str) == Some("changed") => changed(&args[2..]),
@@ -110,6 +114,54 @@ fn changed(args: &[String]) -> ExitCode {
             }
             ExitCode::SUCCESS
         }
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk store`: list, show, check and pack the result store.
+fn store_command(args: &[String]) -> ExitCode {
+    let result = match (args.first().map(String::as_str), args.get(1)) {
+        (None | Some("list"), _) => store::cells().map(|cells| {
+            for (_, r) in &cells {
+                let c = &r.coordinates;
+                println!(
+                    "{}  {:<14} {:<12} {:<9} {:<3} {:<7} {:>6.0}s{}",
+                    &r.cell["sha256:".len().."sha256:".len() + 16],
+                    c.kernel.name,
+                    c.gcc.name,
+                    c.platform,
+                    r.rung,
+                    r.verdict,
+                    r.seconds,
+                    if r.graded { "" } else { "  ungraded" }
+                );
+            }
+            eprintln!("{} cells in {}", cells.len(), store::root().display());
+            true
+        }),
+        (Some("show"), Some(id)) => store::find(id).map(|(dir, r)| {
+            println!("{}", dir.display());
+            println!("{}", serde_json::to_string_pretty(&r).unwrap_or_default());
+            true
+        }),
+        (Some("check"), _) => store::check().map(|problems| {
+            for p in &problems {
+                println!("{p}");
+            }
+            problems.is_empty()
+        }),
+        (Some("pack"), Some(out)) => store::pack(std::path::Path::new(out)).map(|n| {
+            println!("{n} cells packed into {out}");
+            true
+        }),
+        _ => Err("usage: gk store [list | show ID | check | pack FILE.tar.zst]".into()),
+    };
+    match result {
+        Ok(true) => ExitCode::SUCCESS,
+        Ok(false) => ExitCode::FAILURE,
         Err(e) => {
             eprintln!("gk: {e}");
             ExitCode::from(2)
