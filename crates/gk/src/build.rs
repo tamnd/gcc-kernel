@@ -326,6 +326,81 @@ pub fn stopped(
     Some((log.to_string(), failure_lines(&text, 6)))
 }
 
+/// The warnings one unit got under one option, a line of `warnings.jsonl` (spec 11.5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Warnings {
+    /// The source, relative to the tree.
+    pub unit: String,
+    /// The option GCC named for them, as `-Wunused-variable`, or empty when it named none.
+    pub option: String,
+    /// How many.
+    pub count: usize,
+    /// How many of them `-Werror` turned into errors.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub fatal: usize,
+    /// Whether the unit was compiled with `-Werror`, where a compiler that warns more than GCC breaks the build.
+    pub werror: bool,
+    /// The first of them, as the compiler wrote it.
+    pub first: String,
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn is_zero(n: &usize) -> bool {
+    *n == 0
+}
+
+/// The option of a diagnostic that is a warning, and whether `-Werror` made it fatal, or `None` for any other line. A plain error has no warning option, and GCC 4.8 and later name the option of a fatal warning as `[-Werror=name]`.
+#[must_use]
+pub fn warning_option(line: &str) -> Option<(String, bool)> {
+    let fatal = if line.contains(": warning: ") {
+        false
+    } else if line.contains(": error: ") {
+        true
+    } else {
+        return None;
+    };
+    let option = line
+        .trim_end()
+        .strip_suffix(']')
+        .and_then(|l| l.rsplit_once(" ["))
+        .map(|(_, o)| o)
+        .filter(|o| o.starts_with("-W"));
+    match option {
+        Some(o) if fatal => o.strip_prefix("-Werror=").map(|w| (format!("-W{w}"), true)),
+        Some(o) => Some((o.to_owned(), false)),
+        None if fatal => None,
+        None => Some((String::new(), false)),
+    }
+}
+
+/// The warning census of a build: one entry per unit and option, sorted by unit.
+#[must_use]
+pub fn warning_census(records: &[CompileRecord], tree: &Path) -> Vec<Warnings> {
+    let mut census: BTreeMap<(String, String), Warnings> = BTreeMap::new();
+    for r in records.iter().filter(|r| is_unit(r)) {
+        let werror = r.argv.iter().any(|a| a == "-Werror");
+        for line in r.stderr.lines() {
+            let Some((option, fatal)) = warning_option(line) else {
+                continue;
+            };
+            let unit = unit_source(r, tree);
+            let w = census
+                .entry((unit.clone(), option.clone()))
+                .or_insert_with(|| Warnings {
+                    unit,
+                    option,
+                    count: 0,
+                    fatal: 0,
+                    werror,
+                    first: line.trim().to_owned(),
+                });
+            w.count += 1;
+            w.fatal += usize::from(fatal);
+        }
+    }
+    census.into_values().collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -372,5 +447,23 @@ make: *** [Makefile:248: __sub-make] Error 2
             failure_lines(log, 6),
             ["scripts/Kconfig.include:51: Sorry, this assembler is not supported."]
         );
+    }
+
+    #[test]
+    fn warnings_are_counted_by_unit_and_option() {
+        assert_eq!(
+            warning_option("/src/a.c:3:7: warning: unused variable 'x' [-Wunused-variable]"),
+            Some(("-Wunused-variable".into(), false))
+        );
+        assert_eq!(
+            warning_option("/src/a.c:9:1: error: no return statement [-Werror=return-type]"),
+            Some(("-Wreturn-type".into(), true))
+        );
+        assert_eq!(warning_option("/src/a.c:9:1: error: expected ';'"), None);
+        assert_eq!(
+            warning_option("/src/a.c:1:1: warning: #warning hello"),
+            Some((String::new(), false))
+        );
+        assert_eq!(warning_option("/src/a.c:3:7: note: declared here"), None);
     }
 }

@@ -975,6 +975,13 @@ pub fn run(
     }
     std::fs::write(cell_dir.join("errors.jsonl"), lines)
         .map_err(|e| format!("writing errors.jsonl: {e}"))?;
+    let mut lines = String::new();
+    for w in build::warning_census(&records, Path::new("/src")) {
+        lines.push_str(&serde_json::to_string(&w).map_err(|e| e.to_string())?);
+        lines.push('\n');
+    }
+    std::fs::write(cell_dir.join("warnings.jsonl"), lines)
+        .map_err(|e| format!("writing warnings.jsonl: {e}"))?;
     if log.is_file() {
         let _ = std::fs::copy(&log, cell_dir.join("compile.jsonl"));
     }

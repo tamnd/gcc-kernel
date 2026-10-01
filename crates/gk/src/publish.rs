@@ -53,6 +53,9 @@ pub struct Entry {
     /// The first unit that failed and its first error.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub first_error: String,
+    /// How many warnings its units got, from `warnings.jsonl`, or `None` for a cell run before the census.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub warnings: Option<usize>,
     /// How many times the cell booted, or 1 for a cell that never got to boot.
     pub runs: u32,
     /// Whether its boots disagreed.
@@ -91,6 +94,17 @@ fn errors(dir: &Path) -> (usize, String) {
     (lines.len(), first)
 }
 
+/// The number of warnings in a cell's `warnings.jsonl`, or `None` when the cell has none.
+fn warnings(dir: &Path) -> Option<usize> {
+    let text = std::fs::read_to_string(dir.join("warnings.jsonl")).ok()?;
+    Some(
+        text.lines()
+            .filter_map(|l| serde_json::from_str::<crate::build::Warnings>(l).ok())
+            .map(|w| w.count)
+            .sum(),
+    )
+}
+
 fn entry(dir: &Path, r: &CellRecord) -> Entry {
     let c = &r.coordinates;
     let (failing_units, first_error) = errors(dir);
@@ -107,6 +121,7 @@ fn entry(dir: &Path, r: &CellRecord) -> Entry {
         verdict: r.verdict.clone(),
         failing_units,
         first_error,
+        warnings: warnings(dir),
         runs: u32::try_from(r.boots.len().max(1)).unwrap_or(u32::MAX),
         flaky: r.flaky,
         gk: r.gk.clone(),
@@ -189,41 +204,58 @@ pub fn heat_map(repo: &Repo, m: &Matrix, platform: &str) -> Option<String> {
             .collect();
         kernels.sort();
         kernels.dedup();
-        let _ = write!(out, "\n## {config}\n\n| Kernel |");
-        for (_, v) in &gccs {
-            let _ = write!(out, " {v} |");
-        }
-        out.push_str("\n|---|");
-        out.push_str(&":-:|".repeat(gccs.len()));
-        out.push('\n');
-        for k in &kernels {
-            let _ = write!(out, "| {k} |");
-            for (id, _) in &gccs {
-                // A rerun with a new rig or toolchain is a new cell with the same names, and the newest one is the square.
-                let cell = cells
-                    .iter()
-                    .filter(|e| {
-                        e.config == config
-                            && e.gcc == *id
-                            && e.kernel.parse::<Version>().ok().as_ref() == Some(k)
-                    })
-                    .max_by_key(|e| e.started);
-                match cell {
-                    Some(e) => {
-                        let _ = write!(
-                            out,
-                            " {}{} |",
-                            letter(&e.verdict),
-                            if e.flaky { "*" } else { "" }
-                        );
-                    }
-                    None => out.push_str("  |"),
-                }
-            }
-            out.push('\n');
+        let _ = write!(out, "\n## {config}\n\n");
+        table(&mut out, &cells, config, &kernels, &gccs, |e| {
+            format!("{}{}", letter(&e.verdict), if e.flaky { "*" } else { "" })
+        });
+        if cells
+            .iter()
+            .any(|e| e.config == config && e.warnings.is_some_and(|n| n > 0))
+        {
+            let _ = write!(
+                out,
+                "\nWarnings from the compiler on {config}, counted over every unit (spec 11.5), with `warnings.jsonl` in each cell giving them by unit and option.\n\n"
+            );
+            table(&mut out, &cells, config, &kernels, &gccs, |e| {
+                e.warnings.map(|n| n.to_string()).unwrap_or_default()
+            });
         }
     }
     Some(out)
+}
+
+/// One table of a heat map: a row per kernel, a column per GCC, and `square` for the newest cell at each crossing.
+fn table(
+    out: &mut String,
+    cells: &[&Entry],
+    config: &str,
+    kernels: &[Version],
+    gccs: &[(&str, Version)],
+    square: impl Fn(&Entry) -> String,
+) {
+    out.push_str("| Kernel |");
+    for (_, v) in gccs {
+        let _ = write!(out, " {v} |");
+    }
+    out.push_str("\n|---|");
+    out.push_str(&":-:|".repeat(gccs.len()));
+    out.push('\n');
+    for k in kernels {
+        let _ = write!(out, "| {k} |");
+        for (id, _) in gccs {
+            // A rerun with a new rig or toolchain is a new cell with the same names, and the newest one is the square.
+            let cell = cells
+                .iter()
+                .filter(|e| {
+                    e.config == config
+                        && e.gcc == *id
+                        && e.kernel.parse::<Version>().ok().as_ref() == Some(k)
+                })
+                .max_by_key(|e| e.started);
+            let _ = write!(out, " {} |", cell.map(|e| square(e)).unwrap_or_default());
+        }
+        out.push('\n');
+    }
 }
 
 /// Write `matrix/matrix.json` and the heat maps under the repository. Returns how many cells the matrix holds and which reports were written.
@@ -266,6 +298,7 @@ mod tests {
             verdict: verdict.into(),
             failing_units: 0,
             first_error: String::new(),
+            warnings: None,
             runs: 3,
             flaky,
             gk: String::new(),
@@ -282,6 +315,7 @@ mod tests {
         let repo = Repo::load(Path::new("../..")).unwrap();
         let mut newer = cell("7.2.8", "gcc-16.2.0", "runs", false);
         newer.started = 5;
+        newer.warnings = Some(12);
         let m = Matrix {
             schema: SCHEMA,
             cells: vec![
@@ -296,11 +330,13 @@ mod tests {
             .lines()
             .filter(|l| l.starts_with("| 6") || l.starts_with("| 7"))
             .collect();
-        assert_eq!(rows.len(), 2);
+        assert_eq!(rows.len(), 4);
         assert!(rows[0].starts_with("| 6.18 |"));
         assert!(rows[0].ends_with(" W* |"));
         assert!(rows[1].starts_with("| 7.2.8 | F |"));
         assert!(rows[1].ends_with(" R |"));
+        assert!(rows[3].starts_with("| 7.2.8 |  |"));
+        assert!(rows[3].ends_with(" 12 |"));
         assert!(heat_map(&repo, &m, "arm64").is_none());
     }
 }
