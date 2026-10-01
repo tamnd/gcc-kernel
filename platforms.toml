@@ -1,6 +1,6 @@
 # The platforms, with what each one needs at each kernel age (spec 06).
 #
-# Values that change with the kernel are lists of `{ from, value }` steps, and the value for a kernel is the last step at or below it. `image` is relative to `arch/<ARCH>/boot`. A cell whose kernel is older than `first-kernel`, or whose GCC is older than `first-gcc`, is n/a rather than a failure. Budgets assume TCG, since the build machines have no KVM.
+# Values that change with the kernel are lists of `{ from, value }` steps, and the value for a kernel is the last step at or below it. `image` is relative to `arch/<ARCH>/boot`. A cell whose kernel is older than `first-kernel`, or whose GCC is older than `first-gcc`, is n/a rather than a failure. Budgets assume TCG, since the build machines have no KVM. `init` names the bundle and host that build the platform's init program, which every cell from 2.6 on boots (spec 07.4).
 
 [[platform]]
 name = "x86_64"
@@ -16,6 +16,7 @@ machine = [{ from = "2.6.0", value = "pc" }, { from = "3.0", value = "q35" }]
 cpu = [{ from = "2.6.0", value = "qemu64" }, { from = "4.0", value = "max,la57=off" }]
 console = [{ from = "2.6.0", value = "ttyS0" }]
 budget = { build-minutes = 90, boot-seconds = 300 }
+init = { gcc = "gcc-8.5.0", host = "gk-host-trixie" }
 
 [[platform]]
 name = "i386"
@@ -31,6 +32,7 @@ machine = [{ from = "0.01", value = "isapc" }, { from = "2.1", value = "pc" }]
 cpu = [{ from = "0.01", value = "486" }, { from = "2.3", value = "pentium" }, { from = "2.6.24", value = "pentium3" }]
 console = [{ from = "0.01", value = "vga" }, { from = "2.1.25", value = "ttyS0" }]
 budget = { build-minutes = 90, boot-seconds = 300 }
+init = { gcc = "gcc-8.5.0", triple = "x86_64-linux-gnu", flags = ["-m32"], host = "gk-host-trixie" }
 
 [[platform]]
 name = "arm64"
@@ -46,6 +48,7 @@ machine = [{ from = "3.7", value = "virt,gic-version=max" }]
 cpu = [{ from = "3.7", value = "cortex-a57" }, { from = "4.16", value = "max,lpa2=off" }, { from = "5.12", value = "max,pauth-impdef=on" }]
 console = [{ from = "3.7", value = "ttyAMA0" }]
 budget = { build-minutes = 90, boot-seconds = 300 }
+init = { gcc = "gcc-8.5.0", host = "gk-host-trixie" }
 
 [[platform]]
 name = "arm"

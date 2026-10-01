@@ -1,6 +1,6 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `probe`, `cell`, `search --dense`, `store`, `publish`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `probe`, `cell`, `search --dense`, `store`, `publish`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
 mod build;
 mod cell;
@@ -10,6 +10,7 @@ mod forge;
 mod gnu;
 mod gpg;
 mod hosts;
+mod initramfs;
 mod kconfig;
 mod kernelorg;
 mod net;
@@ -38,6 +39,8 @@ commands:
              check every bundle in the cache, in every host
   hosts check
              run every host and forge container and compare its tools with hosts.toml
+  init       build the init program and initramfs that booted cells use: init [P...],
+             every platform with an init pin when none is named
   probe      the accept probe: probe K G --platform P
   cell       run one cell up to L4 and write its directory:
              cell K G --platform P [--jobs N] [--keep] [--ungraded]
@@ -65,6 +68,7 @@ fn main() -> ExitCode {
         Some("check") => check(),
         Some(c @ ("probe" | "cell")) => cell(c, &args[1..]),
         Some("forge") => forge(&args[1..]),
+        Some("init") => init(&args[1..]),
         Some("store") => store_command(&args[1..]),
         Some("search") => search_command(&args[1..]),
         Some("publish") => publish_command(&args[1..]),
@@ -83,6 +87,17 @@ fn main() -> ExitCode {
         Some(other) => {
             eprintln!("gk: unknown command {other:?}\n\n{USAGE}");
             ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk init [P...]`.
+fn init(args: &[String]) -> ExitCode {
+    match Repo::find().and_then(|repo| initramfs::run(&repo, args)) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::FAILURE
         }
     }
 }

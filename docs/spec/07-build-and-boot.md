@@ -89,7 +89,7 @@ qemu-system-<arch> -machine <machine> -cpu <cpu> -smp <n> -m <mem> \
 | 0.99.10 to 1.3.72 | `-kernel zImage`, no initrd, which QEMU refuses for boot protocol below 2.00 | a Minix or ext2 image on IDE, `root=/dev/hda` on the command line | VGA text capture |
 | before 0.99.10 | floppy boot image with `-fda`, root on IDE, root device written into the boot image at offset 508 by the kernel's own `tools/build` and `ROOT_DEV` default | IDE image | VGA text capture |
 
-The initramfs and initrd images are built once per platform and era by the era GCC in the era host, pinned by hash, and are identical for every column of a row. The kernel is the only thing that changes along a row.
+The initramfs and initrd images are built once per platform and era by the era GCC in the era host, pinned by hash, and are identical for every column of a row. The kernel is the only thing that changes along a row. For 2.6 on, `gk init` builds `init.c` with the bundle and host that `platforms.toml` names under `init` for each platform, which is GCC 8.5 in the trixie host until the older columns are forged, and i386 borrows the x86_64 bundle with `-m32`. It writes the newc archive itself, with every owner, time and inode fixed, so the digest depends on the program alone and two machines get the same one.
 
 `gk-init` is PID 1. It:
 1. mounts what the kernel has: `proc`, `sysfs`, `devtmpfs`, `tmpfs`, `debugfs`;
@@ -102,7 +102,7 @@ It is statically linked with no C library, using the raw system call instruction
 
 ## 7.5 The suites
 
-**Smoke, 2.6 on.** About 20 checks, each a line: fork and wait; exec of itself in a child mode; a pipe round trip; signal delivery; `mmap` and `munmap` of 64 MB and a checksum over it; 100 threads through `clone` where the kernel has it; `/proc/self/maps` readable; a file written and read back on tmpfs; `nanosleep` returns; `gettimeofday` advances; `uname` matches the build; every online CPU seen in `/proc/cpuinfo`. The kernel plan's smoke suite is larger because it has a busybox userland. This one has no userland beyond `gk-init`, which keeps it independent of any C library and of any compiler but the era GCC.
+**Smoke, 2.6 on.** 18 checks, each a `GK-CHECK <name> pass` or `fail` line: init is PID 1; fork and wait; exec of itself in a child mode; a pipe round trip, within one process and from a child; signal delivery; `mmap` and `munmap` of 64 MB and a checksum over it; `brk` up and down; `/proc/self/maps` readable; `/dev/null` writable; sysfs mounted; a file written and read back on tmpfs; a directory made, renamed and removed; `dup2`; `nanosleep` of 20 ms seen by the monotonic clock; `uname` reports the kernel the rig booted, which it passes as `gk.kernel`; 100 children forked and reaped; every CPU QEMU was given, passed as `gk.cpus`, seen in `/proc/cpuinfo`. Threads through `clone` with a shared address space need a stack trampoline per platform and come later. The kernel plan's smoke suite is larger because it has a busybox userland. This one has no userland beyond `gk-init`, which keeps it independent of any C library and of any compiler but the era GCC.
 
 **Smoke, 1.x to 2.4.** fork, exec, pipe, write and read back on the root filesystem, `sync`, and the end marker.
 

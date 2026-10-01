@@ -227,6 +227,20 @@ impl Repo {
                     ));
                 }
             }
+            if let Some(init) = &p.init {
+                if !self.gccs.gccs.iter().any(|g| g.id == init.gcc) {
+                    problems.push(format!(
+                        "platforms.toml: {} builds init with {}, which gccs.toml does not have",
+                        p.name, init.gcc
+                    ));
+                }
+                if self.hosts.get(&init.host).is_none_or(|h| h.kind != "host") {
+                    problems.push(format!(
+                        "platforms.toml: {} builds init in {}, which is not a host in hosts.toml",
+                        p.name, init.host
+                    ));
+                }
+            }
         }
     }
 }
