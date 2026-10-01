@@ -21,18 +21,20 @@ Tier 1 alone, upstream last points only, `defconfig` only, is 250 × 36 × 3 = 2
 
 ## 9.2 What a cell costs
 
-Measured figures replace these at G0 (open question 3). The estimates are for one build job with 8 CPUs on gpc, and KVM boots:
+The estimates were for one build job with 8 CPUs on gpc, and KVM boots. G0 measured the modern row (open question 3) and the older rows are still estimates until G1 runs a row in each of those eras:
 
 | Kernel era | `defconfig` build | Boot to L6, one run | L7 KUnit run |
 |---|---|---|---|
 | 0.x to 2.2 | under 1 minute | 15 s (TCG, `isapc`) | none |
 | 2.4, 2.6.0 to 2.6.39 | 1 to 3 minutes | 20 s | none |
 | 3.x, 4.x | 3 to 5 minutes | 20 s | none before 5.5 |
-| 5.x, 6.x, 7.x | 4 to 8 minutes | 25 s | 2 to 6 minutes |
+| 5.x, 6.x, 7.x | 12 to 13 minutes on 6 cores, measured | 25 s | 2 to 6 minutes |
 
 A cell that fails fails fast: `make` without `-k` stops at the first error, and a GCC that is too new for an old kernel usually trips within the first hundred units. A cell that fails at L1 costs seconds, because the accept probe (9.4) runs before any build.
 
-The average real cell costs about 5 minutes of an 8 CPU job, so the 16,000 tier 1 cells are about 1,300 job-hours. On gpc with four concurrent jobs, that is about two weeks. That is acceptable for a first full sweep, once. It is too much for a weekly one, which is what 9.3 is for.
+The measurement is the dense row of 7.2.8 on x86_64 with `defconfig+gk`, every GCC column from 8.5.0 to 16.2.0, all ten at L4, run on 1 October 2026 on server2, a 6 core AMD EPYC VPS with `make -j6`, and published in `matrix/matrix.json`. The build step alone took 722 to 765 seconds for seven of the columns. GCC 8.5.0, 9.5.0 and 11.5.0 took 1131, 1208 and 938 seconds. Other jobs were building on the same machine when the row started, and nothing in those three cells explains them, so they most likely measure the load rather than the compiler. G1 runs every cell three times, which will settle it. A whole cell, with the fetch, the configuration and the checks around the build, adds about 45 seconds. A kernel build scales close to linearly with cores at this size, so the same build on 8 CPUs of gpc should take about 9 or 10 minutes, which is a little more than twice the old estimate.
+
+The average real cell was estimated at about 5 minutes of an 8 CPU job, so the 16,000 tier 1 cells are about 1,300 job-hours. On gpc with four concurrent jobs, that is about two weeks. That is acceptable for a first full sweep, once. It is too much for a weekly one, which is what 9.3 is for. The rest of this document still uses that average. For modern kernels it is about half of what G0 measured, so the real cost is higher, by how much depends on the older eras, which build much faster and which G1 measures.
 
 ## 9.3 Frontier search
 
