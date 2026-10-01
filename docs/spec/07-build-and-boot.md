@@ -112,6 +112,8 @@ It is statically linked with no C library, using the raw system call instruction
 
 **In-kernel self tests before KUnit.** Where they exist and are built in by the fragment: `CONFIG_TEST_*` modules built in, the crypto self tests, the `RCU` torture test with a short duration (on demand), `CONFIG_DEBUG_LOCKING_API_SELFTESTS`. Graded the same way as KUnit.
 
+**Splats, for L8.** A run reaches L8 from L7 when the build logs have no `warning: objtool:` line, its smoke boot logged no splat, and its KUnit boot logged no splat the era GCC's cell did not log too. Some KUnit suites warn on purpose, `drm_atomic` and `int_log` among them on 7.2.8, so a KUnit splat only counts when it is new. Two splats are the same when they match once the CPU, the task and the offsets into functions are taken out, since those change from boot to boot and build to build. The era GCC's own cell has nothing to compare its KUnit splats with and is not held to them. `splats.json` lists what kept each run from L8.
+
 ## 7.6 VGA capture for kernels without a serial console
 
 Kernels before 2.1.25 cannot put their console on a serial port. The rig runs QEMU with `-display none` and reads the VGA text buffer through the QEMU monitor's `pmemsave` of `0xb8000` once a second, turning each screen into lines of text. `gk-init-museum` prints its markers at the start of a line and clears the screen before its first line, so the capture is unambiguous. This is slower and it is only used where there is no alternative.
