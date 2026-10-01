@@ -82,7 +82,7 @@ qemu-system-<arch> -machine <machine> -cpu <cpu> -accel tcg -smp 2 -m 1024 \
   -nographic -monitor none -nic none -no-reboot
 ```
 
-`gk boot` runs it in the `gk-boot` container, which holds QEMU and nothing else and is pinned in `hosts.toml` like the hosts. The container's digest is the cell's `qemu` coordinate. The console comes back on stdout, every line goes to `boot.log`, and what the rig read goes to `boot.json`: the release from `GK-BOOTED`, every `GK-CHECK`, the status from `GK-END`, the first panic line and every warning splat. The run ends when the kernel powers off. The rig stops it when the platform's boot budget runs out, or when the console has been quiet for 5 seconds after the end marker.
+`gk boot` runs it in the `gk-boot` container, which holds QEMU and nothing else and is pinned in `hosts.toml` like the hosts. The container's digest is the cell's `qemu` coordinate. The console comes back on stdout, every line goes to `boot.log`, and what the rig read goes to `boot.json`: the release from `GK-BOOTED`, every `GK-CHECK`, the status from `GK-END`, the first panic line and every warning splat. The run ends when the kernel powers off. The rig stops it when the platform's boot budget runs out, or when the console has been quiet for 5 seconds after the end marker. A cell boots its image this way three times, into `boot-1.log` to `boot-3.log` with a `.json` next to each, unless the first boot never reaches `gk-init`, and `cell.json` records the rung of each boot, the lowest as the cell's rung, and whether they disagreed (02.4).
 
 | Kernels | Boot path | Root | Results through |
 |---|---|---|---|

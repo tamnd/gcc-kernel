@@ -2,12 +2,12 @@
 //!
 //! Every step runs in the kernel's host container with no network. The tree is unpacked once into the cache and mounted read only at `/src`, kbuild writes under `O=/out`, and the bundle is mounted at `/opt/gk/t/<id>`, where `gk forge` installed it. `CROSS_COMPILE` names the bundle's tools on every platform, `x86_64` included, so nothing of the host's own GCC reaches the kernel. `CC` is `gk-cc`, copied into the scratch directory with a `gk-cc.toml` that names the bundle's GCC, so every compiler call kbuild makes lands in `compile.jsonl`.
 //!
-//! For now the ladder stops at L4. Booting arrives with the rig in G1.
+//! A cell on a platform with an init pin, from 2.6 on, then boots the image with `gk boot` for L5 and runs the smoke suite for L6. Its coordinates then carry the boot container and the initramfs. A cell run with `--no-boot` stops at L4 and keeps the identity it had before booting existed.
 
 use crate::build::{self, Calls};
 use crate::fetch::{self, Request};
 use crate::forge::{self, Manifest};
-use crate::{kconfig, net, store};
+use crate::{boot, initramfs, kconfig, net, store};
 use gk_cc::config::ShimConfig;
 use gk_model::cell::{Coordinates, Named};
 use gk_model::platforms::Platform;
@@ -53,8 +53,10 @@ pub struct Setup {
     pub defconfig: String,
     /// The boot image, relative to `arch/<ARCH>/boot`.
     pub image_name: String,
-    /// The six coordinates.
+    /// The six coordinates, and the boot ones once [`Setup::booting`] has run.
     pub coordinates: Coordinates,
+    /// Whether the cell boots after L4.
+    pub boots: bool,
 }
 
 impl Setup {
@@ -143,6 +145,7 @@ impl Setup {
                 digest: image_digest(&image)?,
             },
             qemu: String::new(),
+            initramfs: String::new(),
         };
         Ok(Setup {
             version,
@@ -157,7 +160,26 @@ impl Setup {
             defconfig,
             image_name,
             coordinates,
+            boots: false,
         })
+    }
+
+    /// Whether this cell can boot: the platform has an init pin and the kernel is 2.6 or later, which is all `gk-init` covers so far.
+    #[must_use]
+    pub fn can_boot(&self) -> bool {
+        self.platform.init.is_some() && self.version.series(2) >= [2, 6].to_vec()
+    }
+
+    /// Make the cell boot, which builds the initramfs if it has to and adds the boot container and the initramfs to the coordinates. A cell that cannot boot is left as it is.
+    pub fn booting(mut self, repo: &Repo) -> Result<Self, String> {
+        if !self.can_boot() {
+            return Ok(self);
+        }
+        let (init, _) = initramfs::for_platform(repo, &self.platform)?;
+        self.coordinates.qemu = image_digest(&forge::image_for(repo, "gk-boot")?)?;
+        self.coordinates.initramfs = init.digest;
+        self.boots = true;
+        Ok(self)
     }
 
     /// Where the bundle is mounted in the container.
@@ -394,6 +416,12 @@ pub struct CellRecord {
     pub verdict: String,
     /// Each step climbed.
     pub steps: Vec<Step>,
+    /// The rung each boot reached, in order, when the cell booted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub boots: Vec<String>,
+    /// Whether the boots disagreed (spec 02.4). The rung is then the lowest of them.
+    #[serde(default)]
+    pub flaky: bool,
     /// The accept probe.
     pub probe: Probe,
     /// The fragment's requests that did not take effect.
@@ -413,7 +441,67 @@ pub struct CellRecord {
     pub graded: bool,
 }
 
-/// Run a cell up to L4 and write its directory. Returns the directory and the record.
+/// How many times a cell that reaches L5 boots (spec 02.4).
+pub const BOOTS: usize = 3;
+
+/// The rung one boot reached, from L4 (it did not boot) to L6.
+fn boot_rung(o: &boot::Outcome) -> Rung {
+    if o.passed() {
+        Rung::Smoke
+    } else if o.booted() {
+        Rung::Booted
+    } else {
+        Rung::Linked
+    }
+}
+
+/// Boot a linked cell, three times once it has booted at all, into `boot-1.log` and on. Returns the lowest rung any boot reached, a step for each boot, and the rung of each.
+fn boots(
+    repo: &Repo,
+    s: &Setup,
+    image: &Path,
+    cell_dir: &Path,
+) -> Result<(Rung, Vec<Step>, Vec<Rung>), String> {
+    let mut steps = Vec::new();
+    let mut runs = Vec::new();
+    for n in 1..=BOOTS {
+        let stem = format!("boot-{n}");
+        let o = boot::run(
+            repo,
+            &boot::Boot {
+                platform: &s.platform,
+                version: &s.version,
+                image,
+                suite: "smoke",
+                dir: cell_dir,
+                stem: &stem,
+            },
+        )?;
+        steps.push(Step {
+            rung: Rung::Booted.to_string(),
+            passed: o.booted(),
+            seconds: o.seconds,
+            log: format!("{stem}.log"),
+        });
+        if o.booted() {
+            steps.push(Step {
+                rung: Rung::Smoke.to_string(),
+                passed: o.passed(),
+                seconds: 0.0,
+                log: format!("{stem}.json"),
+            });
+        }
+        runs.push(boot_rung(&o));
+        // A cell that never booted is not one that reaches L5, so it is not repeated.
+        if n == 1 && !o.booted() {
+            break;
+        }
+    }
+    let lowest = runs.iter().copied().min().unwrap_or(Rung::Linked);
+    Ok((lowest, steps, runs))
+}
+
+/// Run a cell up to L4, or up to L6 when it boots, and write its directory. Returns the directory and the record.
 #[allow(clippy::too_many_lines)]
 pub fn run(
     repo: &Repo,
@@ -444,6 +532,8 @@ pub fn run(
         log: String::new(),
     }];
     let mut reached = Rung::Fetched;
+    let mut boot_runs = Vec::new();
+    let mut flaky = false;
 
     let probe_clock = Instant::now();
     let probe = probe(s, &scratch.join("probe"), jobs)?;
@@ -511,6 +601,7 @@ pub fn run(
 
     let mut built = false;
     let mut timed_out = false;
+    let mut image_sha256 = String::new();
     if configured {
         reached = Rung::Configured;
         let config = kconfig::load(&out.join(".config"))?;
@@ -567,6 +658,14 @@ pub fn run(
             });
             if linked {
                 reached = Rung::Linked;
+                image_sha256 = net::sha256_file(&image).unwrap_or_default();
+                if s.boots {
+                    let (lowest, boot_steps, rungs) = boots(repo, s, &image, &cell_dir)?;
+                    steps.extend(boot_steps);
+                    reached = lowest;
+                    flaky = rungs.windows(2).any(|w| w[0] != w[1]);
+                    boot_runs = rungs;
+                }
             }
         }
     }
@@ -597,7 +696,7 @@ pub fn run(
         configured,
         built,
         config_sha256: net::sha256_file(&out.join(".config")).unwrap_or_default(),
-        image_sha256: String::new(),
+        image_sha256,
         wall_seconds: clock.elapsed().as_secs_f64(),
         errors: build::error_census(&records),
         failed_units: errors.iter().map(|e| e.unit.clone()).collect(),
@@ -638,6 +737,8 @@ pub fn run(
         rung: reached.to_string(),
         verdict: format!("{verdict:?}").to_lowercase(),
         steps,
+        boots: boot_runs.iter().map(ToString::to_string).collect(),
+        flaky,
         probe,
         fragment_missed,
         era: s.era.clone(),

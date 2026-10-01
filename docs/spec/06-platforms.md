@@ -49,7 +49,7 @@ Known constraints:
 
 ## 6.5 QEMU
 
-One QEMU build is pinned in `qemu.toml` as the default, the newest release at G0, built from source in the forge with every system target the platforms use, and recorded by hash. Two more are pinned for what the newest one cannot do:
+The default QEMU is the one in the `gk-boot` container, pinned by digest in `hosts.toml`. At G1 that is Debian trixie's QEMU 10.0.13 from the same snapshot as the hosts, not a build from source as first planned: the container digest already pins every byte, and building QEMU in the forge can wait for the day a target needs a QEMU Debian does not ship. Two more are pinned for what the newest one cannot do:
 - **QEMU 9.0.x** for nios2, whose emulation was removed in QEMU 9.1. That is tier 4, so it is only used on demand.
 - **An older QEMU**, chosen at G3, if a museum kernel boots on it and not on the default. Guenter Roeck's kerneltests.org keeps several QEMU versions for the same reason.
 
