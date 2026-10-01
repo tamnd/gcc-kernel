@@ -1,0 +1,29 @@
+# The test fragment for era M14, kernels 6.15 on (spec 07.2). It is merged after the configuration target and only turns things on, except for the four switches at the top.
+
+# Off everywhere, so that every column of a row gets the same configuration. WERROR is already off in defconfig and is stated so that allmodconfig agrees. Plugins need headers the bundles do not have. BTF needs a pahole of the kernel's era, a host tool that varies on its own.
+CONFIG_WERROR=n
+CONFIG_GCC_PLUGINS=n
+CONFIG_RUST=n
+CONFIG_DEBUG_INFO_BTF=n
+
+# The serial consoles the boot rig reads, on x86 and on arm64.
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_CONSOLE=y
+CONFIG_SERIAL_AMBA_PL011=y
+CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
+
+# What gk-init needs: an initramfs, device nodes, and the pseudo file systems it mounts.
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_TMPFS=y
+CONFIG_PROC_FS=y
+CONFIG_SYSFS=y
+
+# Timestamps on the console, and an oops that stops the machine instead of limping on.
+CONFIG_PRINTK_TIME=y
+CONFIG_PANIC_ON_OOPS=y
+
+# Every KUnit suite built in and run at boot, so the rig needs no modprobe.
+CONFIG_KUNIT=y
+CONFIG_KUNIT_ALL_TESTS=y

@@ -81,6 +81,7 @@ impl Repo {
 
     fn check_kernels(&self, problems: &mut Vec<String>) {
         let mut seen = BTreeSet::new();
+        let mut fragments = BTreeSet::new();
         for k in &self.kernels.kernels {
             if !seen.insert(k.version.clone()) {
                 problems.push(format!("kernels.toml: {} is pinned twice", k.version));
@@ -97,8 +98,18 @@ impl Repo {
             if k.sets.is_empty() {
                 problems.push(format!("kernels.toml: {} is in no set", k.version));
             }
-            if self.eras.of(&k.version).is_none() {
-                problems.push(format!("kernels.toml: {} is in no era", k.version));
+            match self.eras.of(&k.version) {
+                None => problems.push(format!("kernels.toml: {} is in no era", k.version)),
+                Some(era) => {
+                    fragments.insert(era.fragment());
+                }
+            }
+        }
+        for fragment in fragments {
+            if !self.root.join(&fragment).is_file() {
+                problems.push(format!(
+                    "{fragment} is missing, and kernels.toml pins kernels of its era"
+                ));
             }
         }
         let versions: Vec<_> = self.kernels.kernels.iter().map(|k| &k.version).collect();
