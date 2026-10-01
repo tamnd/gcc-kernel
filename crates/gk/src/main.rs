@@ -6,6 +6,7 @@ mod boot;
 mod build;
 mod cell;
 mod changed;
+mod differential;
 mod fetch;
 mod forge;
 mod gnu;
@@ -51,6 +52,10 @@ commands:
   search     run every cell of one row: search K --platform P --dense [--jobs N] [--rerun]
              [--keep] [--ungraded] [--no-boot]. Cells already in the store are not run again.
   publish    write matrix/matrix.json from the graded cells in the store [--ungraded]
+  config-diff
+             the configuration differences between GCC columns on one kernel (spec 11.3):
+             config-diff K [G1 G2] --platform P [--config C], every pair of neighbouring
+             columns in the store when no GCCs are named
   store      list the cells in the result store, or:
              store show ID, store check, store pack FILE.tar.zst
   ladder     print the outcome ladder and the verdict each rung earns
@@ -77,6 +82,7 @@ fn main() -> ExitCode {
         Some("store") => store_command(&args[1..]),
         Some("search") => search_command(&args[1..]),
         Some("publish") => publish_command(&args[1..]),
+        Some("config-diff") => config_diff(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
         Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
         Some("pins") if args.get(1).map(String::as_str) == Some("changed") => changed(&args[2..]),
@@ -214,6 +220,20 @@ fn search_command(args: &[String]) -> ExitCode {
     match result {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk config-diff`.
+fn config_diff(args: &[String]) -> ExitCode {
+    match Repo::find().and_then(|repo| differential::command(&repo, args)) {
+        Ok(report) => {
+            print!("{report}");
+            ExitCode::SUCCESS
+        }
         Err(e) => {
             eprintln!("gk: {e}");
             ExitCode::from(2)
