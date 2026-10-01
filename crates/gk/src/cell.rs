@@ -264,7 +264,7 @@ fn unpack_tree(tarball: &Path, version: &Version) -> Result<PathBuf, String> {
 }
 
 /// The digest of an image: the one it is pinned by, or the local image id for a `:dev` tag.
-fn image_digest(image: &str) -> Result<String, String> {
+pub(crate) fn image_digest(image: &str) -> Result<String, String> {
     if let Some((_, digest)) = image.split_once('@') {
         return Ok(digest.to_owned());
     }

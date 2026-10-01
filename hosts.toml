@@ -1,6 +1,6 @@
 # Host environments and forge containers (spec 05.2 and 04.4).
 #
-# A host is where a kernel is built: its GCC is HOSTCC and its make, perl, bison and flex run the build. The compiler under test never comes from the host. It comes in through CROSS_COMPILE as a static bundle built in a forge. `image` is the pushed image by digest and stays empty until the image has been built. The GCC, binutils and make versions are what the distribution archive lists, and `gk hosts check` compares them with what the images report.
+# A host is where a kernel is built: its GCC is HOSTCC and its make, perl, bison and flex run the build. The compiler under test never comes from the host. It comes in through CROSS_COMPILE as a static bundle built in a forge. `image` is the pushed image by digest and stays empty until the image has been built. The GCC, binutils and make versions are what the distribution archive lists, and `gk hosts check` compares them with what the images report. The one `boot` container holds the QEMU that boots every cell, and its digest is part of each booted cell's identity.
 
 [[host]]
 name = "gk-host-minix"
@@ -217,3 +217,10 @@ kind = "forge"
 base = "the emulated Linux 0.12 image"
 arches = ["emulated"]
 gcc = "1.40"
+
+[[host]]
+name = "gk-boot"
+kind = "boot"
+base = "debian:trixie"
+arches = ["amd64"]
+qemu = "10.0.13"

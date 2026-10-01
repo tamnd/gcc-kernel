@@ -385,6 +385,7 @@ struct timespec {
 };
 
 static char *self_path = "/init";
+static char suite_name[64];
 
 /* The checks. Each one is a small function that says whether the kernel did what it should. */
 
@@ -645,8 +646,11 @@ __attribute__((noreturn, used)) void cstart(slong *sp)
 	put(sys_uname(&u) == 0 ? u.release : "unknown");
 	end_line();
 
+	/* param returns a buffer the next call reuses, and the checks call it too. */
 	suite = param("gk.suite");
-	if (!suite)
+	if (suite)
+		suite = memcpy(suite_name, suite, len(suite) + 1);
+	else
 		suite = "smoke";
 	put("GK-BEGIN ");
 	put(suite);
