@@ -1,7 +1,8 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `probe`, `cell`, `search --dense`, `store`, `publish`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `boot`, `probe`, `cell`, `search --dense`, `store`, `publish`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
+mod boot;
 mod build;
 mod cell;
 mod changed;
@@ -41,6 +42,8 @@ commands:
              run every host and forge container and compare its tools with hosts.toml
   init       build the init program and initramfs that booted cells use: init [P...],
              every platform with an init pin when none is named
+  boot       boot a kernel image in the gk-boot container and run a gk-init suite:
+             boot IMAGE --platform P --kernel K [--suite S] [--dir D], writing boot.log and boot.json
   probe      the accept probe: probe K G --platform P
   cell       run one cell up to L4 and write its directory:
              cell K G --platform P [--jobs N] [--keep] [--ungraded]
@@ -69,6 +72,7 @@ fn main() -> ExitCode {
         Some(c @ ("probe" | "cell")) => cell(c, &args[1..]),
         Some("forge") => forge(&args[1..]),
         Some("init") => init(&args[1..]),
+        Some("boot") => boot_command(&args[1..]),
         Some("store") => store_command(&args[1..]),
         Some("search") => search_command(&args[1..]),
         Some("publish") => publish_command(&args[1..]),
@@ -98,6 +102,18 @@ fn init(args: &[String]) -> ExitCode {
         Err(e) => {
             eprintln!("gk: {e}");
             ExitCode::FAILURE
+        }
+    }
+}
+
+/// `gk boot`: exits 0 when the suite passed.
+fn boot_command(args: &[String]) -> ExitCode {
+    match Repo::find().and_then(|repo| boot::command(&repo, args)) {
+        Ok(true) => ExitCode::SUCCESS,
+        Ok(false) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::from(2)
         }
     }
 }

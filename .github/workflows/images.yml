@@ -1,4 +1,4 @@
-# Builds the host and forge containers under provision/ and pushes them to ghcr.io/tamnd/gcc-kernel, when their Dockerfiles change on main or when run by hand.
+# Builds the host, forge and boot containers under provision/ and pushes them to ghcr.io/tamnd/gcc-kernel, when their Dockerfiles change on main or when run by hand.
 #
 # Each image is pushed under its commit and gets a build provenance attestation. The digest is printed in the job summary, and hosts.toml pins it through a normal pull request, so an image only reaches a cell once someone has reviewed its digest. There is no build cache: a publishing workflow should not read a cache that pull requests can write.
 
@@ -10,6 +10,7 @@ on:
     paths:
       - "provision/hosts/**"
       - "provision/forge/**"
+      - "provision/boot/**"
       - ".github/workflows/images.yml"
   workflow_dispatch:
 
@@ -41,6 +42,8 @@ jobs:
             dir: provision/forge/gk-forge-modern
           - name: gk-forge-bullseye
             dir: provision/forge/gk-forge-bullseye
+          - name: gk-boot
+            dir: provision/boot/gk-boot
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

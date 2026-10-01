@@ -1,4 +1,4 @@
-//! `hosts.toml`: the host environments kernels are built in, and the forge containers toolchains are built in (spec 05 and 04.4).
+//! `hosts.toml`: the host environments kernels are built in, the forge containers toolchains are built in, and the QEMU container cells boot in (spec 05, 04.4 and 07.4).
 
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +16,7 @@ pub struct Hosts {
 pub struct Host {
     /// The name, as in `gk-host-trixie`.
     pub name: String,
-    /// `host` for a kernel build host, `forge` for a toolchain forge.
+    /// `host` for a kernel build host, `forge` for a toolchain forge, `boot` for the QEMU container.
     pub kind: String,
     /// The base image, as in `debian:trixie`.
     pub base: String,
@@ -31,6 +31,9 @@ pub struct Host {
     /// The distribution's make.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub make: String,
+    /// The distribution's QEMU, for the boot container.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub qemu: String,
     /// The pushed image, by digest, as in `ghcr.io/tamnd/gcc-kernel/gk-host-trixie@sha256:...`. Empty until the image has been built.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub image: String,
@@ -48,10 +51,10 @@ impl Host {
     /// The Dockerfile that builds it, relative to the repository.
     #[must_use]
     pub fn dockerfile(&self) -> String {
-        let dir = if self.kind == "forge" {
-            "forge"
-        } else {
-            "hosts"
+        let dir = match self.kind.as_str() {
+            "forge" => "forge",
+            "boot" => "boot",
+            _ => "hosts",
         };
         format!("provision/{dir}/{}/Dockerfile", self.name)
     }

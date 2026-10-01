@@ -76,11 +76,13 @@ Two kinds of configuration differences between columns are expected and not fail
 The rig is the kernel plan's rig with its old kernel paths made first class.
 
 ```
-qemu-system-<arch> -machine <machine> -cpu <cpu> -smp <n> -m <mem> \
+qemu-system-<arch> -machine <machine> -cpu <cpu> -accel tcg -smp 2 -m 1024 \
   -kernel <image> -initrd <gk-initramfs> \
-  -append "console=<console> panic=-1 oops=panic gk.suite=<suite>" \
-  -nographic -no-reboot
+  -append "console=<console> panic=-1 oops=panic gk.suite=<suite> gk.kernel=<version> gk.cpus=2" \
+  -nographic -monitor none -nic none -no-reboot
 ```
+
+`gk boot` runs it in the `gk-boot` container, which holds QEMU and nothing else and is pinned in `hosts.toml` like the hosts. The container's digest is the cell's `qemu` coordinate. The console comes back on stdout, every line goes to `boot.log`, and what the rig read goes to `boot.json`: the release from `GK-BOOTED`, every `GK-CHECK`, the status from `GK-END`, the first panic line and every warning splat. The run ends when the kernel powers off. The rig stops it when the platform's boot budget runs out, or when the console has been quiet for 5 seconds after the end marker.
 
 | Kernels | Boot path | Root | Results through |
 |---|---|---|---|
