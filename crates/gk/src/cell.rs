@@ -1185,7 +1185,11 @@ mod tests {
         let log = dir.join("make.log");
         std::fs::write(&log, "  LD      vmlinux.o\nmake[3]: *** [/src/scripts/Makefile.vmlinux_o:79: vmlinux.o] Error 137\nmake[2]: *** [/src/Makefile:1362: vmlinux_o] Error 2\n").unwrap();
         assert!(killed(&log));
-        std::fs::write(&log, "make[4]: *** [/src/scripts/Makefile.build:229: fs/x.o] Error 1\n").unwrap();
+        std::fs::write(
+            &log,
+            "make[4]: *** [/src/scripts/Makefile.build:229: fs/x.o] Error 1\n",
+        )
+        .unwrap();
         assert!(!killed(&log));
         assert!(!killed(&dir.join("missing.log")));
         let _ = std::fs::remove_dir_all(&dir);
