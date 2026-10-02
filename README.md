@@ -6,6 +6,9 @@ It exists because of [rucc](https://github.com/tamnd/rucc), a C compiler in Rust
 
 Recent kernels come first, because that is where rucc is going. Old kernels are there as reference, to show how the kernel and GCC moved together.
 
+<!-- gk:status:begin -->
+<!-- gk:status:end -->
+
 ## How it works
 
 A cell is one kernel, one GCC, one binutils, one platform, one configuration and one host environment. Each cell climbs a ladder, from L0 (the tree is fetched and checks out) through L4 (it links) and L6 (it boots and passes the smoke suite) to L8 (KUnit passes and the console is clean). The highest rung it reaches gives its verdict: works, runs, builds, fails, or n/a.

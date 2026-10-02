@@ -2,6 +2,8 @@
 //!
 //! Each record is a cell's `cell.json` with the heavy fields removed, plus the first error and the count of failing units from `errors.jsonl`. Ungraded cells are left out, because they ran from a checkout with uncommitted changes.
 //!
+//! The status section of `README.md` is rewritten too, between its markers (see [`crate::status`]).
+//!
 //! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one letter per cell. The per-GCC and per-kernel pages wait for `gk explain`.
 
 use crate::cell::CellRecord;
@@ -164,7 +166,7 @@ pub fn matrix(ungraded: bool) -> Result<Matrix, String> {
 }
 
 /// The heat map letter of a cell: `W`, `R`, `B`, `F`, or `·` for n/a.
-fn letter(verdict: &str) -> char {
+pub(crate) fn letter(verdict: &str) -> char {
     match verdict {
         "works" => 'W',
         "runs" => 'R',
@@ -226,7 +228,7 @@ pub fn heat_map(repo: &Repo, m: &Matrix, platform: &str) -> Option<String> {
 }
 
 /// One table of a heat map: a row per kernel, a column per GCC, and `square` for the newest cell at each crossing.
-fn table(
+pub(crate) fn table(
     out: &mut String,
     cells: &[&Entry],
     config: &str,
@@ -278,6 +280,17 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
         let name = format!("reports/matrix-{}.md", p.name);
         std::fs::write(repo.root.join(&name), text).map_err(|e| format!("writing {name}: {e}"))?;
         written.push(name);
+    }
+    let readme = repo.root.join("README.md");
+    if let Ok(text) = std::fs::read_to_string(&readme) {
+        let days = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs() / 86_400);
+        let date = add_days("1970-01-01", i64::try_from(days).unwrap_or(0)).unwrap_or_default();
+        if let Some(new) = crate::status::splice(&text, &crate::status::section(repo, &m, &date)) {
+            std::fs::write(&readme, new).map_err(|e| format!("writing README.md: {e}"))?;
+            written.push("README.md".into());
+        }
     }
     Ok((m.cells.len(), written))
 }
