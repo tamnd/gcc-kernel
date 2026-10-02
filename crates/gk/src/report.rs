@@ -125,7 +125,7 @@ pub fn render(repo: &Repo, gcc: &Gcc, config: &str, cells: &[Cell]) -> String {
             .count();
         let _ = write!(
             out,
-            "\n### {}\n\n{ran} of {} kernels have a cell, and {works} of them run.\n\n| Kernel | Line | Verdict | Rung | Warnings | First error |\n|---|---|---|---|--:|---|\n",
+            "\n### {}\n\nKernels with a cell: {ran} of {}. Of those, {works} run.\n\n| Kernel | Line | Verdict | Rung | Warnings | First error |\n|---|---|---|---|--:|---|\n",
             p.name,
             kernels.len()
         );
