@@ -90,6 +90,7 @@ gcc-kernel/
 | `gk warnings K G --platform P` | the warning census of one cell (11.5) |
 | `gk repro CELL` | print the exact commands to reproduce a cell by hand with plain `docker` and `make`, without `gk` |
 | `gk publish` | write `matrix/` and `reports/` from the result store |
+| `gk report new-gcc G` | write `reports/new-gcc-<version>.md` from the result store (10.8) |
 
 Every command that writes a result records the `gk` commit and refuses to record a graded result from a dirty tree unless `--ungraded` is given.
 
@@ -201,6 +202,8 @@ When `watch.yml` sees a GCC release, it opens a pull request adding the column. 
 2. which kernels the previous release of the same series ran and this one does not, with the classified first errors;
 3. new warnings on current kernels, counted by warning option (11.5);
 4. `.config` differences against the previous column on the Current set.
+
+`gk report new-gcc G` writes it from whatever cells the store holds. A crossing with no cell is shown as not run, so the report can be written while the sweep is going and again when it is done. The file is named by the major and minor version when the patch level is zero, as in `new-gcc-16.2.md`.
 
 The first of these reports will be for whatever GCC is released after G2. It is also the cheapest early warning rucc gets about what "compatible with the latest GCC" is about to mean.
 

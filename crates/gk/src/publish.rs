@@ -105,7 +105,8 @@ fn warnings(dir: &Path) -> Option<usize> {
     )
 }
 
-fn entry(dir: &Path, r: &CellRecord) -> Entry {
+/// The matrix record of one cell.
+pub fn entry(dir: &Path, r: &CellRecord) -> Entry {
     let c = &r.coordinates;
     let (failing_units, first_error) = errors(dir);
     let days = i64::try_from(r.started / 86_400).unwrap_or(0);

@@ -18,6 +18,7 @@ mod kernelorg;
 mod net;
 mod pins;
 mod publish;
+mod report;
 mod search;
 mod store;
 mod tap;
@@ -57,6 +58,8 @@ commands:
              the configuration differences between GCC columns on one kernel (spec 11.3):
              config-diff K [G1 G2] --platform P [--config C], every pair of neighbouring
              columns in the store when no GCCs are named
+  report     report new-gcc G [--config C] [--ungraded] [--stdout]: write reports/new-gcc-<version>.md,
+             the release report of spec 10.8 over the Current set
   store      list the cells in the result store, or:
              store show ID, store check, store pack FILE.tar.zst
   ladder     print the outcome ladder and the verdict each rung earns
@@ -84,6 +87,7 @@ fn main() -> ExitCode {
         Some("search") => search_command(&args[1..]),
         Some("publish") => publish_command(&args[1..]),
         Some("config-diff") => config_diff(&args[1..]),
+        Some("report") => report_command(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
         Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
         Some("pins") if args.get(1).map(String::as_str) == Some("changed") => changed(&args[2..]),
@@ -255,6 +259,19 @@ fn config_diff(args: &[String]) -> ExitCode {
 }
 
 /// `gk publish`.
+fn report_command(args: &[String]) -> ExitCode {
+    match Repo::find().and_then(|repo| report::command(&repo, args)) {
+        Ok(text) => {
+            print!("{text}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
 fn publish_command(args: &[String]) -> ExitCode {
     let ungraded = args.iter().any(|a| a == "--ungraded");
     match Repo::find().and_then(|repo| publish::write(&repo, ungraded)) {

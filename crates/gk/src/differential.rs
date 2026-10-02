@@ -5,11 +5,10 @@
 use crate::{kconfig, store};
 use gk_model::Version;
 use gk_model::repo::Repo;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 /// A cell's `.config`, which cells from before 0.2 kept as `config`.
-fn config_of(dir: &Path) -> Option<PathBuf> {
+pub fn config_of(dir: &Path) -> Option<PathBuf> {
     [".config", "config"]
         .iter()
         .map(|name| dir.join(name))
@@ -54,8 +53,8 @@ fn columns(
     Ok(newest.into_iter().map(|(g, d, _)| (g, d)).collect())
 }
 
-/// The differences between two cells' configurations, as a section of the report.
-fn section(from: &(String, PathBuf), to: &(String, PathBuf)) -> Result<String, String> {
+/// The differences between two cells' configurations: a count and a table, or a line saying there are none.
+pub fn differences(from: &(String, PathBuf), to: &(String, PathBuf)) -> Result<String, String> {
     let load = |dir: &Path| {
         config_of(dir)
             .ok_or_else(|| format!("{} has no .config", dir.display()))
@@ -63,14 +62,24 @@ fn section(from: &(String, PathBuf), to: &(String, PathBuf)) -> Result<String, S
     };
     let (a, b) = (load(&from.1)?, load(&to.1)?);
     let d = kconfig::diff(&a, &b);
-    let mut s = format!("\n## {} to {}\n\n", from.0, to.0);
     if d.is_empty() {
-        s.push_str("No differences.\n");
-    } else {
-        let _ = writeln!(s, "{} symbols differ.\n", d.len());
-        s.push_str(&kconfig::table(&d, &from.0, &to.0));
+        return Ok("No differences.\n".into());
     }
-    Ok(s)
+    Ok(format!(
+        "{} symbols differ.\n\n{}",
+        d.len(),
+        kconfig::table(&d, &from.0, &to.0)
+    ))
+}
+
+/// The differences between two cells' configurations, as a section of the report.
+fn section(from: &(String, PathBuf), to: &(String, PathBuf)) -> Result<String, String> {
+    Ok(format!(
+        "\n## {} to {}\n\n{}",
+        from.0,
+        to.0,
+        differences(from, to)?
+    ))
 }
 
 /// `gk config-diff K [G1 G2] --platform P [--config C]`.
