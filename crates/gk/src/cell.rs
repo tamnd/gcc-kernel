@@ -227,6 +227,16 @@ impl Setup {
             && !BUILD_ONLY.contains(&self.config)
     }
 
+    /// The build budget: the platform's, or ten times it for a build-only configuration, which compiles about ten times as much (spec 06.7).
+    pub fn build_seconds(&self) -> u64 {
+        let minutes = u64::from(self.platform.budget.build_minutes);
+        if BUILD_ONLY.contains(&self.config) {
+            minutes * 600
+        } else {
+            minutes * 60
+        }
+    }
+
     /// Make the cell boot, which builds the initramfs if it has to and adds the boot container and the initramfs to the coordinates. A cell that cannot boot is left as it is.
     pub fn booting(mut self, repo: &Repo) -> Result<Self, String> {
         if !self.can_boot() {
@@ -843,7 +853,7 @@ pub fn run(
         std::fs::create_dir_all(d).map_err(|e| format!("creating {}: {e}", d.display()))?;
     }
     let (gk, graded) = gk_commit(&repo.root);
-    let seconds = u64::from(s.platform.budget.build_minutes) * 60;
+    let seconds = s.build_seconds();
     let mut steps = vec![Step {
         rung: Rung::Fetched.to_string(),
         passed: true,
