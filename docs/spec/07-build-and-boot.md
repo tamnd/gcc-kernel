@@ -59,7 +59,7 @@ The fragment turns two things off, `CONFIG_WERROR` and `CONFIG_GCC_PLUGINS`. Tha
 
 `CONFIG_DEBUG_INFO_BTF=n` keeps `pahole` out of the build. BTF generation depends on the pahole version, a host tool with its own history of breaking kernels, and that is not the question here.
 
-Era fragments drop what the era does not have: KUnit before 5.5, devtmpfs before 2.6.32, `PANIC_ON_OOPS` before 2.6.x, the PL011 console for trees without it. `configs/fragment.<era>` holds each, and `gk` records which requested options did not take effect after the configuration step. An option that did not take effect with the era GCC is expected. One that took effect with the era GCC and not with another column is a finding: it means a Kconfig compiler probe disagreed, which document 11.3 wants.
+Era fragments drop what the era does not have: KUnit before 5.5, devtmpfs before 2.6.32, `PANIC_ON_OOPS` before 2.6.x, the PL011 console for trees without it. The M13 fragment also turns off `KUNIT_FAULT_TEST`, whose suite oopses on purpose and so panics a kernel built with `PANIC_ON_OOPS`. The first M13 cell, 6.12.111 with gcc-12.2.0, died that way in its KUnit boots. `configs/fragment.<era>` holds each, and `gk` records which requested options did not take effect after the configuration step. An option that did not take effect with the era GCC is expected. One that took effect with the era GCC and not with another column is a finding: it means a Kconfig compiler probe disagreed, which document 11.3 wants.
 
 Two kinds of configuration differences between columns are expected and not failures: `CC_VERSION_TEXT`, `GCC_VERSION`, `AS_VERSION`, `LD_VERSION` and the `CC_HAS_*` family that probes the compiler. They are what the configuration differential measures.
 
