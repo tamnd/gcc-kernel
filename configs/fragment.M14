@@ -1,4 +1,4 @@
-# The test fragment for era M14, kernels 6.15 on (spec 07.2). It is merged after the configuration target and only turns things on, except for the four switches at the top.
+# The test fragment for era M14, kernels 6.15 on (spec 07.2). It is merged after the configuration target and only turns things on, except for the four switches at the top and the KUnit fault test.
 
 # Off everywhere, so that every column of a row gets the same configuration. WERROR is already off in defconfig and is stated so that allmodconfig agrees. Plugins need headers the bundles do not have. BTF needs a pahole of the kernel's era, a host tool that varies on its own.
 CONFIG_WERROR=n
@@ -27,3 +27,6 @@ CONFIG_PANIC_ON_OOPS=y
 # Every KUnit suite built in and run at boot, so the rig needs no modprobe.
 CONFIG_KUNIT=y
 CONFIG_KUNIT_ALL_TESTS=y
+
+# The kunit_fault suite oopses on purpose to check that KUnit catches it, which PANIC_ON_OOPS turns into a dead machine. 7.2.8 skips it on its own, but 6.18 does not.
+CONFIG_KUNIT_FAULT_TEST=n

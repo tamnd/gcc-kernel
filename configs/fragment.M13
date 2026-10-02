@@ -28,5 +28,5 @@ CONFIG_PANIC_ON_OOPS=y
 CONFIG_KUNIT=y
 CONFIG_KUNIT_ALL_TESTS=y
 
-# The kunit_fault suite oopses on purpose to check that KUnit catches it, which PANIC_ON_OOPS turns into a dead machine. The 7.2.8 cells show it skipping itself there, so only this era needs it off.
+# The kunit_fault suite oopses on purpose to check that KUnit catches it, which PANIC_ON_OOPS turns into a dead machine.
 CONFIG_KUNIT_FAULT_TEST=n
