@@ -26,7 +26,11 @@ pub const CONFIGS: &[(&str, &str, Option<&str>)] = &[
     (CONFIG, "", None),
     ("tinyconfig+gk", "tinyconfig", Some("configs/tiny.gk")),
     ("allnoconfig+gk", "allnoconfig", Some("configs/tiny.gk")),
+    ("allmodconfig", "allmodconfig", None),
 ];
+
+/// The configurations that are built and never booted. They take only the switches the era's fragment turns off, so that `allmodconfig` stays what the kernel makes of it.
+pub const BUILD_ONLY: &[&str] = &["allmodconfig"];
 
 /// The make target a configuration starts from on one kernel: its own, or the platform's defconfig.
 fn config_target(target: &str, defconfig: &str, version: &Version) -> Result<String, String> {
@@ -218,7 +222,9 @@ impl Setup {
     /// Whether this cell can boot: the platform has an init pin and the kernel is 2.6 or later, which is all `gk-init` covers so far.
     #[must_use]
     pub fn can_boot(&self) -> bool {
-        self.platform.init.is_some() && self.version.series(2) >= [2, 6].to_vec()
+        self.platform.init.is_some()
+            && self.version.series(2) >= [2, 6].to_vec()
+            && !BUILD_ONLY.contains(&self.config)
     }
 
     /// Make the cell boot, which builds the initramfs if it has to and adds the boot container and the initramfs to the coordinates. A cell that cannot boot is left as it is.
@@ -898,6 +904,9 @@ pub fn run(
                     .map_err(|e| format!("reading {}: {e}", f.display()))?;
                 fragment.extend(kconfig::parse_fragment(&text));
             }
+            if BUILD_ONLY.contains(&s.config) {
+                fragment.retain(|(_, v)| v == "n");
+            }
             let dot = out.join(".config");
             let before = std::fs::read_to_string(&dot)
                 .map_err(|e| format!("reading {}: {e}", dot.display()))?;
@@ -1135,4 +1144,22 @@ fn hostname() -> String {
     std::fs::read_to_string("/etc/hostname")
         .map(|s| s.trim().to_owned())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_configuration_has_a_target_and_allmodconfig_is_build_only() {
+        let v: Version = "7.2.8".parse().unwrap();
+        for (name, target, _) in CONFIGS {
+            let t = config_target(target, "defconfig", &v).unwrap();
+            assert!(!t.is_empty(), "{name}");
+        }
+        assert_eq!(config_named("allmodconfig").unwrap().1, "allmodconfig");
+        assert!(BUILD_ONLY.iter().all(|c| config_named(c).is_ok()));
+        let old: Version = "3.16".parse().unwrap();
+        assert!(config_target("tinyconfig", "defconfig", &old).is_err());
+    }
 }

@@ -50,7 +50,8 @@ commands:
   probe      the accept probe: probe K G --platform P
   cell       run one cell and write its directory, booting it to L6 where gk-init covers the kernel:
              cell K G --platform P [--config C] [--jobs N] [--keep] [--ungraded] [--no-boot],
-             where C is defconfig+gk (the default), tinyconfig+gk or allnoconfig+gk
+             where C is defconfig+gk (the default), tinyconfig+gk, allnoconfig+gk or allmodconfig,
+             which is built and never booted
   search     run every cell of one row: search K --platform P --dense [--config C] [--jobs N] [--rerun]
              [--keep] [--ungraded] [--no-boot]. Cells already in the store are not run again.
   publish    write matrix/matrix.json from the graded cells in the store [--ungraded]
