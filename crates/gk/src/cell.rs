@@ -951,6 +951,16 @@ pub fn run(
         let code = make(&args, "make.log", jobs)?;
         built = code == 0;
         timed_out = code == 124;
+        if !built && killed(&cell_dir.join("make.log")) {
+            let _ = std::fs::remove_dir_all(&cell_dir);
+            if !keep {
+                let _ = std::fs::remove_dir_all(&scratch);
+            }
+            return Err(
+                "a build step was killed (exit 137), most likely by the OOM killer, so the cell has no verdict"
+                    .into(),
+            );
+        }
         steps.push(Step {
             rung: Rung::Compiled.to_string(),
             passed: built,
@@ -1156,9 +1166,30 @@ fn hostname() -> String {
         .unwrap_or_default()
 }
 
+/// Whether make reports a recipe killed by SIGKILL, which on these hosts is the OOM killer. That says how much memory the machine had left, not what the GCC did, so it must not become a verdict.
+fn killed(log: &Path) -> bool {
+    std::fs::read_to_string(log).is_ok_and(|text| {
+        text.lines()
+            .any(|l| l.starts_with("make") && l.contains("***") && l.ends_with("Error 137"))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_sigkill_is_not_a_verdict() {
+        let dir = std::env::temp_dir().join(format!("gk-killed-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let log = dir.join("make.log");
+        std::fs::write(&log, "  LD      vmlinux.o\nmake[3]: *** [/src/scripts/Makefile.vmlinux_o:79: vmlinux.o] Error 137\nmake[2]: *** [/src/Makefile:1362: vmlinux_o] Error 2\n").unwrap();
+        assert!(killed(&log));
+        std::fs::write(&log, "make[4]: *** [/src/scripts/Makefile.build:229: fs/x.o] Error 1\n").unwrap();
+        assert!(!killed(&log));
+        assert!(!killed(&dir.join("missing.log")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn every_configuration_has_a_target_and_allmodconfig_is_build_only() {
