@@ -7,6 +7,113 @@ It exists because of [rucc](https://github.com/tamnd/rucc), a C compiler in Rust
 Recent kernels come first, because that is where rucc is going. Old kernels are there as reference, to show how the kernel and GCC moved together.
 
 <!-- gk:status:begin -->
+## Status
+
+This section is written by `gk publish` from [matrix/matrix.json](matrix/matrix.json) and is replaced every time the results are published. Last published 2026-10-02, with 19 cells in the matrix.
+
+### Progress
+
+The current stripe of G1 is every Current kernel with every upstream GCC column on the tier 1 platforms, with `defconfig+gk` and `tinyconfig+gk`. The GCC 16 column is every release from 5.0 on with the newest GCC 16.
+
+```text
+x86_64 defconfig+gk      [#####.........................]   12/84    14%
+x86_64 tinyconfig+gk     [..............................]    0/84     0%
+i386 defconfig+gk        [#.............................]    2/84     2%
+i386 tinyconfig+gk       [..............................]    0/84     0%
+arm64 defconfig+gk       [..............................]    0/84     0%
+arm64 tinyconfig+gk      [#.............................]    1/84     1%
+total                    [#.............................]   15/504    2%
+```
+
+```text
+x86_64 gcc-16.2.0        [#.............................]    1/50     2%
+i386 gcc-16.2.0          [#.............................]    1/50     2%
+arm64 gcc-16.2.0         [..............................]    0/50     0%
+total                    [#.............................]    2/150    1%
+```
+
+### Verdicts
+
+The newest cell at each crossing, over every platform and configuration.
+
+```text
+works        #################################        5
+runs         ###########################              4
+builds       ######################################## 6
+fails                                                 0
+```
+
+The median build time of `defconfig+gk` cells per GCC column, in minutes. The machines are shared, so these move with their load.
+
+```text
+8.5.0        ###########################              32 min, 1 cell
+9.5.0        ########################                 28 min, 1 cell
+10.5.0       ###########                              13 min, 1 cell
+11.5.0       #############                            16 min, 1 cell
+12.2.0       ###############                          18 min, 1 cell
+12.5.0       ##########                               12 min, 1 cell
+13.5.0       ###########                              12 min, 1 cell
+14.2.0       ######################################## 46 min, 2 cells
+14.4.0       ##########                               12 min, 1 cell
+15.3.0       ###########                              13 min, 1 cell
+16.1.0       #######################                  27 min, 1 cell
+16.2.0       ######################################## 46 min, 2 cells
+```
+
+### Latest cells
+
+| Date | Kernel | GCC | Platform | Config | Verdict | Rung | Minutes |
+|---|---|---|---|---|---|---|--:|
+| 2026-10-02 | 7.2.8 | 9.5.0 | x86_64 | defconfig+gk | works | L8 | 45 |
+| 2026-10-02 | 6.12.111 | 12.2.0 | x86_64 | defconfig+gk | runs | L6 | 20 |
+| 2026-10-02 | 7.2.8 | 16.1.0 | x86_64 | defconfig+gk | works | L8 | 42 |
+| 2026-10-02 | 7.2.8 | 8.5.0 | x86_64 | defconfig+gk | runs | L6 | 69 |
+| 2026-10-02 | 7.2.8 | 16.2.0 | i386 | defconfig+gk | works | L8 | 73 |
+| 2026-10-02 | 7.2.8 | 14.2.0 | x86_64 | defconfig+gk | runs | L7 | 69 |
+| 2026-10-02 | 7.2.8 | 14.2.0 | i386 | defconfig+gk | works | L8 | 74 |
+| 2026-10-02 | 7.2.8 | 16.2.0 | arm64 | tinyconfig+gk | runs | L6 | 16 |
+| 2026-10-01 | 7.2.8 | 16.2.0 | x86_64 | defconfig+gk | works | L8 | 61 |
+| 2026-10-01 | 7.2.8 | 15.3.0 | x86_64 | defconfig+gk | builds | L4 | 13 |
+
+### Matrices
+
+One letter per cell: W works, R runs, B builds, F fails, · n/a, and blank where the cell has not run yet. A `*` marks a flaky cell, whose boots disagreed and which keeps the lowest. A table appears once its first cell has run, and then every Current kernel has a row in it. The full heat maps, with warning counts, are in [reports](reports).
+
+#### x86_64 defconfig+gk, 12 cells
+
+| Kernel | 8.5.0 | 9.5.0 | 10.5.0 | 11.5.0 | 12.2.0 | 12.5.0 | 13.5.0 | 14.2.0 | 14.4.0 | 15.3.0 | 16.1.0 | 16.2.0 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| 5.10.270 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 5.15.221 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.1.188 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.6.157 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.12.111 |  |  |  |  | R |  |  |  |  |  |  |  |
+| 6.18.54 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 7.2.8 | R* | W | B | B |  | B | B | R | B | B | W | W |
+
+#### i386 defconfig+gk, 2 cells
+
+| Kernel | 8.5.0 | 9.5.0 | 10.5.0 | 11.5.0 | 12.2.0 | 12.5.0 | 13.5.0 | 14.2.0 | 14.4.0 | 15.3.0 | 16.1.0 | 16.2.0 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| 5.10.270 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 5.15.221 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.1.188 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.6.157 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.12.111 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.18.54 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 7.2.8 |  |  |  |  |  |  |  | W |  |  |  | W |
+
+#### arm64 tinyconfig+gk, 1 cell
+
+| Kernel | 8.5.0 | 9.5.0 | 10.5.0 | 11.5.0 | 12.2.0 | 12.5.0 | 13.5.0 | 14.2.0 | 14.4.0 | 15.3.0 | 16.1.0 | 16.2.0 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| 5.10.270 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 5.15.221 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.1.188 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.6.157 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.12.111 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.18.54 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 7.2.8 |  |  |  |  |  |  |  |  |  |  |  | R |
 <!-- gk:status:end -->
 
 ## How it works
