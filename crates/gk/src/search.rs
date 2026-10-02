@@ -1,11 +1,12 @@
 //! `gk search`: run the cells of one matrix row, a kernel on a platform across the GCC columns.
 //!
-//! Only the dense search exists so far, every upstream column that targets the platform in version order. The frontier search of spec 09.3 arrives with G2. A cell already in the store with the same identity is not run again unless `--rerun` is given, so a search that dies halfway picks up where it stopped.
+//! Only the dense search exists so far, every upstream column that targets the platform in version order, except that the kernel's era GCC runs first because the others grade their KUnit runs against it. The frontier search of spec 09.3 arrives with G2. A cell already in the store with the same identity is not run again unless `--rerun` is given, so a search that dies halfway picks up where it stopped.
 
 use crate::cell::{self, CellRecord, Setup};
 use crate::store;
 use gk_model::Version;
 use gk_model::repo::Repo;
+use gk_model::toolchains::Gcc;
 
 /// How to search. Each switch is a command line flag, which is why there are so many bools.
 #[derive(Debug, Clone, Copy)]
@@ -43,7 +44,7 @@ pub enum Column {
 
 /// The GCC columns of a row: every upstream column with a bundle target for the platform, oldest first.
 #[must_use]
-pub fn columns<'a>(repo: &'a Repo, triple: &str) -> Vec<&'a gk_model::toolchains::Gcc> {
+pub fn columns<'a>(repo: &'a Repo, triple: &str) -> Vec<&'a Gcc> {
     let mut gccs: Vec<_> = repo
         .gccs
         .gccs
@@ -77,7 +78,7 @@ pub fn run(
         return Err(format!("no GCC column targets {}", p.triple));
     }
     let mut row = Vec::new();
-    for g in cols {
+    for g in era_first(cols, repo.eras.of(&version).map(|e| e.gcc.as_str())) {
         let column = if p.applies(&version, &g.version) {
             one(repo, &version, &g.id, platform, opts)
         } else {
@@ -89,7 +90,18 @@ pub fn run(
         print_column(&g.id, &column);
         row.push((g.id.clone(), column));
     }
+    let version = |id: &str| repo.gccs.get(id).map(|g| g.version.clone());
+    row.sort_by_key(|(id, _)| version(id));
     Ok(row)
+}
+
+/// The columns with the era GCC's moved to the front. Every other cell of the row grades its KUnit run against the era cell (spec 02.4), so that cell has to be in the store before they reach L7.
+fn era_first<'a>(mut cols: Vec<&'a Gcc>, era: Option<&str>) -> Vec<&'a Gcc> {
+    if let Some(at) = cols.iter().position(|g| Some(g.id.as_str()) == era) {
+        let g = cols.remove(at);
+        cols.insert(0, g);
+    }
+    cols
 }
 
 fn one(repo: &Repo, version: &Version, gcc: &str, platform: &str, opts: Options) -> Column {
@@ -150,5 +162,19 @@ mod tests {
         assert_eq!(ids.first(), Some(&"gcc-8.5.0"));
         assert_eq!(ids.last(), Some(&"gcc-16.2.0"));
         assert_eq!(ids.len(), 12);
+    }
+
+    #[test]
+    fn the_era_column_runs_first() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let cols = columns(&repo, "x86_64-linux-gnu");
+        let order: Vec<&str> = era_first(cols.clone(), Some("gcc-14.2.0"))
+            .iter()
+            .map(|g| g.id.as_str())
+            .collect();
+        assert_eq!(order[0], "gcc-14.2.0");
+        assert_eq!(order[1], "gcc-8.5.0");
+        assert_eq!(order.len(), cols.len());
+        assert_eq!(era_first(cols.clone(), None).len(), cols.len());
     }
 }
