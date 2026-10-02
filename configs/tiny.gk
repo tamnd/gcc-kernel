@@ -1,4 +1,14 @@
-# What tinyconfig+gk and allnoconfig+gk add before the era's fragment (spec 07.2). Those targets switch off every option they can, and the fragment already brings back the console, the initramfs and the file systems gk-init mounts. This file brings back the rest of what gk-init needs to start, so a tiny cell that does not boot failed on the compiler and not on a missing feature.
+# What tinyconfig+gk and allnoconfig+gk add before the era's fragment (spec 07.2). Those targets switch off every option they can, and tinyconfig turns on EXPERT first, so even the options most kernels never show are off. This file brings back what the fragment's own requests depend on and what gk-init needs to start, so a tiny cell that does not boot failed on the compiler and not on a missing feature.
 
 # gk-init is a static ELF program.
 CONFIG_BINFMT_ELF=y
+
+# The console. The fragment's serial drivers depend on TTY, and nothing reaches the console without PRINTK.
+CONFIG_TTY=y
+CONFIG_PRINTK=y
+
+# The fragment's TMPFS depends on SHMEM.
+CONFIG_SHMEM=y
+
+# Without BUG, WARN_ON prints nothing, and L8 would pass a tiny cell it never saw.
+CONFIG_BUG=y
