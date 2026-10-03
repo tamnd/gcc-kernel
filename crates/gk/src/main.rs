@@ -16,6 +16,7 @@ mod gnu;
 mod gpg;
 mod history;
 mod hosts;
+mod html;
 mod initramfs;
 mod kconfig;
 mod kernelorg;
@@ -40,7 +41,8 @@ commands:
              or write them with --write
   pins changed BASE
              print the accept probes that the pins changed since the git revision BASE call for,
-             one \"K G\" line each, and with --bundles the GCC columns they need
+             one \"K G\" line each, and with --bundles the GCC columns they need,
+             or with --sweep the incremental runs of spec 09.7 as gk command lines
   fetch      download and check pinned tarballs into the cache:
              --kernel K, --gcc G, --binutils B (each can repeat), or --all
   forge      build a static toolchain bundle: forge G [--target T] [--jobs N]
@@ -61,7 +63,9 @@ commands:
              [--keep] [--ungraded] [--no-boot]. Cells already in the store are not run again.
   publish    write matrix/matrix.json, the heat maps, warning census and config differential in reports/
              and the status section of README.md
-             from the graded cells in the store [--ungraded]
+             from the graded cells in the store [--ungraded], and with --html [DIR] the static site
+             into DIR, which is site when not given. --site-only makes the site from the committed
+             matrix/matrix.json and writes nothing else
   config-diff
              the configuration differences between GCC columns on one kernel (spec 11.3):
              config-diff K [G1 G2] --platform P [--config C], every pair of neighbouring
@@ -173,13 +177,18 @@ fn pins(write: bool) -> ExitCode {
     }
 }
 
-/// `gk pins changed BASE [--bundles]`.
+/// `gk pins changed BASE [--bundles | --sweep]`.
 fn changed(args: &[String]) -> ExitCode {
     let bundles = args.iter().any(|a| a == "--bundles");
     let Some(base) = args.iter().find(|a| !a.starts_with('-')) else {
         eprintln!("gk pins changed: name the git revision to compare against");
         return ExitCode::from(2);
     };
+    if args.iter().any(|a| a == "--sweep") {
+        return text_command(|repo| {
+            changed::sweep(repo, base).map(|runs| runs.iter().map(|r| r.clone() + "\n").collect())
+        });
+    }
     match Repo::find().and_then(|repo| changed::probes(&repo, base)) {
         Ok(probes) if bundles => {
             for id in changed::bundles(&probes) {
@@ -376,9 +385,42 @@ fn text_command(run: impl FnOnce(&Repo) -> Result<String, String>) -> ExitCode {
     }
 }
 
+/// `gk publish [--ungraded] [--html [DIR]] [--site-only]`. With `--site-only` the site is made from the committed `matrix/matrix.json` and nothing else is written.
 fn publish_command(args: &[String]) -> ExitCode {
     let ungraded = args.iter().any(|a| a == "--ungraded");
-    match Repo::find().and_then(|repo| publish::write(&repo, ungraded)) {
+    let html = args.iter().position(|a| a == "--html").map(|i| {
+        args.get(i + 1)
+            .filter(|a| !a.starts_with('-'))
+            .map_or("site", String::as_str)
+            .to_owned()
+    });
+    let site_only = args.iter().any(|a| a == "--site-only");
+    let result = Repo::find().and_then(|repo| {
+        let (n, mut reports) = if site_only {
+            (0, Vec::new())
+        } else {
+            publish::write(&repo, ungraded)?
+        };
+        if let Some(dir) = &html {
+            let m = if site_only {
+                let path = repo.root.join("matrix").join("matrix.json");
+                let text = std::fs::read_to_string(&path)
+                    .map_err(|e| format!("reading {}: {e}", path.display()))?;
+                serde_json::from_str(&text)
+                    .map_err(|e| format!("reading {}: {e}", path.display()))?
+            } else {
+                publish::matrix(&repo, ungraded)?
+            };
+            reports.extend(html::write(
+                &repo,
+                &m,
+                std::path::Path::new(dir),
+                &publish::today(),
+            )?);
+        }
+        Ok((n, reports))
+    });
+    match result {
         Ok((n, reports)) => {
             println!("{n} cells in matrix/matrix.json");
             for r in reports {

@@ -1,0 +1,62 @@
+# The incremental runs of spec 09.7 on the self hosted machines, and the store mirror that publish.yml reads.
+#
+# When a pin change lands on main, `gk pins changed` against the commit before it says what to run: a new kernel is searched on every tier 1 platform, and a new GCC column runs on the current stripe. A dispatch can instead name the gk command lines to run, one per line, as in `search 6.18.54 --platform arm64`. Everything runs niced, so rucc-kernel's runs on the same machines come first (09.8).
+#
+# At the end the store is packed and attached to the release `sweep-<date>`, which publish.yml picks up.
+
+name: sweep
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - kernels.toml
+      - gccs.toml
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: gk command lines to run, one per line
+        required: false
+        default: ""
+
+concurrency:
+  group: sweep
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  sweep:
+    name: incremental runs
+    runs-on: [self-hosted, linux, gk]
+    timeout-minutes: 4320
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: run
+        env:
+          BASE: ${{ github.event.before }}
+          RUNS: ${{ inputs.runs }}
+        run: |
+          if [ -n "$RUNS" ]; then
+            printf '%s\n' "$RUNS" > runs.txt
+            ./scripts/sweep.sh runs.txt
+          else
+            ./scripts/sweep.sh "$BASE"
+          fi
+      - name: mirror the store
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="sweep-$(date -u +%Y-%m-%d)"
+          ./target/release/gk store pack "$tag.tar.zst"
+          gh release view "$tag" > /dev/null 2>&1 || gh release create "$tag" --title "$tag" --notes "The result store as of $tag, for publish.yml." --latest=false
+          gh release upload "$tag" "$tag.tar.zst" --clobber
+          rm -f "$tag.tar.zst"
