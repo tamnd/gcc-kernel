@@ -84,7 +84,12 @@ mkdir b-gcc
     --disable-libquadmath --disable-libatomic --disable-libsanitizer --disable-libvtv \
     --disable-libstdcxx --disable-libcc1 --disable-decimal-float --disable-libmudflap \
     --disable-libmpx --disable-werror
-  make MAKEINFO=true -j"$jobs" all-gcc
+  # Before 4.3 the top level does not hand the LDFLAGS seen by configure down to the gcc directory, so the driver and cc1 come out dynamic unless make is told as well.
+  if [ "$gcc_series" -lt 403 ]; then
+    make MAKEINFO=true -j"$jobs" LDFLAGS=-static all-gcc
+  else
+    make MAKEINFO=true -j"$jobs" all-gcc
+  fi
   if [ "$gcc_series" -ge 403 ]; then
     make MAKEINFO=true -j"$jobs" all-target-libgcc
   fi
@@ -103,6 +108,14 @@ mkdir b-gcc
     make MAKEINFO=true install-target-libgcc DESTDIR="$stage"
   fi
 ) > gcc.log 2>&1 || { tail -n 80 gcc.log >&2; exit 1; }
+
+# A bundle runs in hosts as old as sarge, which have neither the forge's libc nor a 64 bit loader, so every program in it has to be static. Plugins such as liblto_plugin.so are shared objects and are left alone.
+for f in "$stage$prefix"/bin/* "$stage$prefix/$GK_TARGET"/bin/* "$stage$prefix"/libexec/gcc/"$GK_TARGET"/*/*; do
+  if [ -f "$f" ] && file "$f" | grep -q 'executable.*dynamically linked'; then
+    log "$f is dynamically linked"
+    exit 1
+  fi
+done
 
 log "packing"
 # The man and info pages are all there is under share, and pod2man stamps the day it ran into every binutils man page, so two forges of the same bundle on different days would differ. Nothing in a cell reads them.
