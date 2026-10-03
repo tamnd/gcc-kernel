@@ -267,7 +267,7 @@ pub(crate) fn table(
     }
 }
 
-/// Write `matrix/matrix.json` and the heat maps under the repository. Returns how many cells the matrix holds and which reports were written.
+/// Write `matrix/matrix.json`, the heat maps, the warning census and the configuration differential under the repository. Returns how many cells the matrix holds and which reports were written.
 pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String> {
     let m = matrix(ungraded)?;
     let dir = repo.root.join("matrix");
@@ -286,6 +286,22 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
         let name = format!("reports/matrix-{}.md", p.name);
         std::fs::write(repo.root.join(&name), text).map_err(|e| format!("writing {name}: {e}"))?;
         written.push(name);
+    }
+    let cells = crate::report::cells(ungraded)?;
+    for (name, text) in [
+        (
+            "reports/warning-census.md",
+            crate::census::warnings(repo, &cells),
+        ),
+        (
+            "reports/config-differential.md",
+            crate::census::config_differential(repo, &cells),
+        ),
+    ] {
+        std::fs::create_dir_all(&reports)
+            .map_err(|e| format!("creating {}: {e}", reports.display()))?;
+        std::fs::write(repo.root.join(name), text).map_err(|e| format!("writing {name}: {e}"))?;
+        written.push(name.into());
     }
     let readme = repo.root.join("README.md");
     if let Ok(text) = std::fs::read_to_string(&readme) {

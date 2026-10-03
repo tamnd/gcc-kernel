@@ -175,7 +175,7 @@ fn gcc16_column(repo: &Repo) -> Rows {
 }
 
 /// A horizontal bar chart of labelled counts, scaled to the largest.
-fn chart(out: &mut String, rows: &[(String, f64, String)]) {
+pub(crate) fn chart(out: &mut String, rows: &[(String, f64, String)]) {
     let max = rows.iter().map(|r| r.1).fold(0.0_f64, f64::max);
     out.push_str("```text\n");
     for (label, value, note) in rows {
@@ -337,7 +337,7 @@ pub fn section(repo: &Repo, m: &Matrix, date: &str) -> String {
 
     let _ = write!(
         out,
-        "\n### Matrices\n\nOne square per cell: {LEGEND} A table appears once its first cell has run, and then every Current kernel has a row in it. The full heat maps, with warning counts, are in [reports](reports).\n"
+        "\n### Matrices\n\nOne square per cell: {LEGEND} A table appears once its first cell has run, and then every Current kernel has a row in it. The full heat maps, with warning counts, are in [reports](reports), next to the [warning census](reports/warning-census.md) and the [configuration differential](reports/config-differential.md) of the Current set.\n"
     );
     let current: Vec<Version> = repo
         .kernels

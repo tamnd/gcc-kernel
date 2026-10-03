@@ -317,7 +317,7 @@ fn option(w: &Warnings) -> String {
 }
 
 /// Text that is safe inside a markdown table cell, cut to a readable length.
-fn cell_text(s: &str) -> String {
+pub(crate) fn cell_text(s: &str) -> String {
     let s: String = s.replace('|', "\\|").replace('\n', " ");
     if s.chars().count() > 120 {
         s.chars().take(117).collect::<String>() + "..."
