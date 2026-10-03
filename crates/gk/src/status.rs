@@ -2,7 +2,7 @@
 //!
 //! The section sits between two marker comments and is replaced whole each time, so the rest of the README stays hand written. It has progress bars for the stripes G1 runs, a chart of verdicts and one of build times per GCC column, the newest cells, and a heat map per platform and configuration with a row for every Current kernel, so the empty squares show what is still to run.
 
-use crate::publish::{Entry, Matrix, letter, table};
+use crate::publish::{Entry, LEGEND, Matrix, square, table};
 use gk_model::Version;
 use gk_model::repo::Repo;
 use std::fmt::Write as _;
@@ -21,14 +21,29 @@ type Crossing = (Version, String, String, &'static str);
 /// Crossings grouped under a label, one progress line each.
 type Rows = Vec<(String, Vec<Crossing>)>;
 
-/// A bar `width` characters long, `#` for the done part and `.` for the rest.
+/// The blocks for one to seven eighths of a character.
+const EIGHTHS: [char; 7] = ['▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+
+/// `eighths` eighths of a character drawn in blocks, padded with `pad` to `width` characters.
+fn blocks(eighths: usize, width: usize, pad: char) -> String {
+    let eighths = eighths.min(width * 8);
+    let mut out = "█".repeat(eighths / 8);
+    if !eighths.is_multiple_of(8) {
+        out.push(EIGHTHS[eighths % 8 - 1]);
+    }
+    let used = eighths.div_ceil(8);
+    out.extend(std::iter::repeat_n(pad, width - used));
+    out
+}
+
+/// A progress bar `width` characters long, solid for the done part and shaded for the rest. Anything done shows at least an eighth.
 fn bar(done: usize, total: usize, width: usize) -> String {
-    let filled = if total == 0 {
+    let eighths = if total == 0 {
         0
     } else {
-        (done * width).div_ceil(total).min(width)
+        (done * width * 8).div_ceil(total)
     };
-    format!("{}{}", "#".repeat(filled), ".".repeat(width - filled))
+    blocks(eighths, width, '░')
 }
 
 /// `1 cell`, `2 cells`.
@@ -86,7 +101,7 @@ fn progress(out: &mut String, m: &Matrix, rows: &[(String, Vec<Crossing>)]) {
         total += t;
         let _ = writeln!(
             lines,
-            "{label:<24} [{}] {d:>4}/{t:<4} {:>3}%",
+            "{label:<24} {} {d:>4}/{t:<4} {:>3}%",
             bar(d, t, 30),
             percent(d, t)
         );
@@ -95,7 +110,7 @@ fn progress(out: &mut String, m: &Matrix, rows: &[(String, Vec<Crossing>)]) {
     out.push_str(&lines);
     let _ = writeln!(
         out,
-        "{:<24} [{}] {done:>4}/{total:<4} {:>3}%",
+        "{:<24} {} {done:>4}/{total:<4} {:>3}%",
         "total",
         bar(done, total, 30),
         percent(done, total)
@@ -164,22 +179,51 @@ fn chart(out: &mut String, rows: &[(String, f64, String)]) {
     let max = rows.iter().map(|r| r.1).fold(0.0_f64, f64::max);
     out.push_str("```text\n");
     for (label, value, note) in rows {
-        // The chart is 40 characters wide at most; a non-zero value always gets one mark.
-        #[allow(
-            clippy::cast_possible_truncation,
-            clippy::cast_sign_loss,
-            clippy::cast_precision_loss
-        )]
+        // The chart is 40 characters wide at most, drawn in eighths; a non-zero value always gets one.
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let n = if max > 0.0 {
-            ((value / max) * 40.0)
+            ((value / max) * 320.0)
                 .round()
                 .max(if *value > 0.0 { 1.0 } else { 0.0 }) as usize
         } else {
             0
         };
-        let _ = writeln!(out, "{label:<12} {:<40} {note}", "#".repeat(n));
+        let _ = writeln!(out, "{label:<12} {} {note}", blocks(n, 40, ' '));
     }
     out.push_str("```\n");
+}
+
+/// A table of the newest cells per GCC column: how many of each verdict, and a bar for the share that works.
+fn by_gcc(out: &mut String, gccs: &[(&str, Version)], latest: &[&Entry]) {
+    let rows: Vec<(&Version, Vec<&&Entry>)> = gccs
+        .iter()
+        .map(|(id, v)| {
+            (
+                v,
+                latest.iter().filter(|e| e.gcc == *id).collect::<Vec<_>>(),
+            )
+        })
+        .filter(|(_, cells)| !cells.is_empty())
+        .collect();
+    if rows.is_empty() {
+        return;
+    }
+    out.push_str("\n### By GCC column\n\nThe newest cell at each crossing again, over every kernel, platform and configuration.\n\n| GCC | Cells | 🟩 | 🟨 | 🟧 | 🟥 | ⚠️ | Works |\n|---|--:|--:|--:|--:|--:|--:|---|\n");
+    for (v, cells) in rows {
+        let n = |verdict: &str| cells.iter().filter(|e| e.verdict == verdict).count();
+        let works = n("works");
+        let _ = writeln!(
+            out,
+            "| {v} | {} | {works} | {} | {} | {} | {} | `{}` {}% |",
+            cells.len(),
+            n("runs"),
+            n("builds"),
+            n("fails"),
+            cells.iter().filter(|e| e.flaky).count(),
+            bar(works, cells.len(), 10),
+            percent(works, cells.len())
+        );
+    }
 }
 
 /// The status section, markers included.
@@ -216,10 +260,24 @@ pub fn section(repo: &Repo, m: &Matrix, date: &str) -> String {
         .map(|v| {
             let n = latest.iter().filter(|e| e.verdict == *v).count();
             #[allow(clippy::cast_precision_loss)]
-            ((*v).to_owned(), n as f64, n.to_string())
+            (
+                format!("{} {v}", crate::publish::letter(v)),
+                n as f64,
+                n.to_string(),
+            )
         })
         .collect();
     chart(&mut out, &verdicts);
+    out.push_str("\nThe same cells by the rung they reached (spec 02.2), L8 being clean all the way through KUnit and the splat check.\n\n");
+    let rungs: Vec<(String, f64, String)> = (0..=8)
+        .map(|r| {
+            let rung = format!("L{r}");
+            let n = latest.iter().filter(|e| e.rung == rung).count();
+            #[allow(clippy::cast_precision_loss)]
+            (rung, n as f64, n.to_string())
+        })
+        .collect();
+    chart(&mut out, &rungs);
 
     let mut gccs: Vec<(&str, Version)> = repo
         .gccs
@@ -254,6 +312,8 @@ pub fn section(repo: &Repo, m: &Matrix, date: &str) -> String {
         chart(&mut out, &times);
     }
 
+    by_gcc(&mut out, &gccs, &latest);
+
     let mut recent = latest.clone();
     recent.sort_by_key(|e| std::cmp::Reverse(e.started));
     if !recent.is_empty() {
@@ -261,12 +321,13 @@ pub fn section(repo: &Repo, m: &Matrix, date: &str) -> String {
         for e in recent.iter().take(10) {
             let _ = writeln!(
                 out,
-                "| {} | {} | {} | {} | {} | {} | {} | {:.0} |",
+                "| {} | {} | {} | {} | {} | {} {} | {} | {:.0} |",
                 e.date,
                 e.kernel,
                 e.gcc.trim_start_matches("gcc-"),
                 e.platform,
                 e.config,
+                square(e),
                 e.verdict,
                 e.rung,
                 e.seconds / 60.0
@@ -274,7 +335,10 @@ pub fn section(repo: &Repo, m: &Matrix, date: &str) -> String {
         }
     }
 
-    out.push_str("\n### Matrices\n\nOne letter per cell: W works, R runs, B builds, F fails, · n/a, and blank where the cell has not run yet. A `*` marks a flaky cell, whose boots disagreed and which keeps the lowest. A table appears once its first cell has run, and then every Current kernel has a row in it. The full heat maps, with warning counts, are in [reports](reports).\n");
+    let _ = write!(
+        out,
+        "\n### Matrices\n\nOne square per cell: {LEGEND} A table appears once its first cell has run, and then every Current kernel has a row in it. The full heat maps, with warning counts, are in [reports](reports).\n"
+    );
     let current: Vec<Version> = repo
         .kernels
         .in_set("current")
@@ -329,9 +393,7 @@ pub fn section(repo: &Repo, m: &Matrix, date: &str) -> String {
                 p.name,
                 count(ran.len(), "cell")
             );
-            table(&mut out, &cells, config, &kernels, &cols, |e| {
-                format!("{}{}", letter(&e.verdict), if e.flaky { "*" } else { "" })
-            });
+            table(&mut out, &cells, config, &kernels, &cols, square);
         }
     }
     out.push_str(END);
@@ -354,12 +416,15 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn bars_fill_in_proportion() {
-        assert_eq!(bar(0, 10, 10), "..........");
-        assert_eq!(bar(1, 10, 10), "#.........");
-        assert_eq!(bar(1, 504, 30), "#.............................");
-        assert_eq!(bar(10, 10, 10), "##########");
-        assert_eq!(bar(0, 0, 4), "....");
+    fn bars_fill_in_eighths() {
+        assert_eq!(bar(0, 10, 10), "░░░░░░░░░░");
+        assert_eq!(bar(1, 10, 10), "█░░░░░░░░░");
+        assert_eq!(bar(1, 504, 30), "▏░░░░░░░░░░░░░░░░░░░░░░░░░░░░░");
+        assert_eq!(bar(3, 16, 4), "▊░░░");
+        assert_eq!(bar(1, 2, 3), "█▌░");
+        assert_eq!(bar(10, 10, 10), "██████████");
+        assert_eq!(bar(0, 0, 4), "░░░░");
+        assert_eq!(blocks(9, 3, ' '), "█▏ ");
     }
 
     #[test]
@@ -382,7 +447,8 @@ mod tests {
         let s = section(&repo, &m, "2026-10-02");
         assert!(s.starts_with(BEGIN) && s.trim_end().ends_with(END));
         assert!(s.contains("x86_64 defconfig+gk"));
-        assert!(s.contains("works "));
+        assert!(s.contains("🟩 works"));
+        assert!(s.contains("| GCC | Cells |"));
         let current = repo.kernels.in_set("current");
         for k in current {
             assert!(s.contains(&format!("| {} |", k.version)), "{}", k.version);

@@ -4,7 +4,7 @@
 //!
 //! The status section of `README.md` is rewritten too, between its markers (see [`crate::status`]).
 //!
-//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one letter per cell. The per-GCC and per-kernel pages wait for `gk explain`.
+//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one colored square per cell. The per-GCC and per-kernel pages wait for `gk explain`.
 
 use crate::cell::CellRecord;
 use crate::store;
@@ -165,16 +165,24 @@ pub fn matrix(ungraded: bool) -> Result<Matrix, String> {
     })
 }
 
-/// The heat map letter of a cell: `W`, `R`, `B`, `F`, or `·` for n/a.
-pub(crate) fn letter(verdict: &str) -> char {
+/// The heat map square of a verdict: green works, yellow runs, orange builds, red fails, or `·` for n/a.
+pub(crate) fn letter(verdict: &str) -> &'static str {
     match verdict {
-        "works" => 'W',
-        "runs" => 'R',
-        "builds" => 'B',
-        "fails" => 'F',
-        _ => '·',
+        "works" => "🟩",
+        "runs" => "🟨",
+        "builds" => "🟧",
+        "fails" => "🟥",
+        _ => "·",
     }
 }
+
+/// The square of a cell in a heat map, with ⚠️ after it when its boots disagreed.
+pub(crate) fn square(e: &Entry) -> String {
+    format!("{}{}", letter(&e.verdict), if e.flaky { "⚠️" } else { "" })
+}
+
+/// The legend under every heat map.
+pub(crate) const LEGEND: &str = "🟩 works, 🟨 runs, 🟧 builds, 🟥 fails, · n/a, and blank where the cell has not run yet. ⚠️ marks a flaky cell, whose boots disagreed and which keeps the lowest rung.";
 
 /// The heat map of one platform, or `None` when it has no cells.
 #[must_use]
@@ -197,7 +205,7 @@ pub fn heat_map(repo: &Repo, m: &Matrix, platform: &str) -> Option<String> {
     configs.dedup();
 
     let mut out = format!(
-        "# {platform}\n\nOne letter per cell: W works, R runs, B builds, F fails, · n/a, and blank where the cell has not run. A cell marked with `*` was flaky, its boots disagreed and it keeps the lowest. Written by `gk publish` from `matrix/matrix.json`.\n"
+        "# {platform}\n\nOne square per cell: {LEGEND} Written by `gk publish` from `matrix/matrix.json`.\n"
     );
     for config in configs {
         let mut kernels: Vec<Version> = cells
@@ -208,9 +216,7 @@ pub fn heat_map(repo: &Repo, m: &Matrix, platform: &str) -> Option<String> {
         kernels.sort();
         kernels.dedup();
         let _ = write!(out, "\n## {config}\n\n");
-        table(&mut out, &cells, config, &kernels, &gccs, |e| {
-            format!("{}{}", letter(&e.verdict), if e.flaky { "*" } else { "" })
-        });
+        table(&mut out, &cells, config, &kernels, &gccs, square);
         if cells
             .iter()
             .any(|e| e.config == config && e.warnings.is_some_and(|n| n > 0))
@@ -325,7 +331,7 @@ mod tests {
     }
 
     #[test]
-    fn a_heat_map_has_a_row_per_kernel_and_a_letter_per_cell() {
+    fn a_heat_map_has_a_row_per_kernel_and_a_square_per_cell() {
         let repo = Repo::load(Path::new("../..")).unwrap();
         let mut newer = cell("7.2.8", "gcc-16.2.0", "runs", false);
         newer.started = 5;
@@ -346,9 +352,9 @@ mod tests {
             .collect();
         assert_eq!(rows.len(), 4);
         assert!(rows[0].starts_with("| 6.18 |"));
-        assert!(rows[0].ends_with(" W* |"));
-        assert!(rows[1].starts_with("| 7.2.8 | F |"));
-        assert!(rows[1].ends_with(" R |"));
+        assert!(rows[0].ends_with(" 🟩⚠️ |"));
+        assert!(rows[1].starts_with("| 7.2.8 | 🟥 |"));
+        assert!(rows[1].ends_with(" 🟨 |"));
         assert!(rows[3].starts_with("| 7.2.8 |  |"));
         assert!(rows[3].ends_with(" 12 |"));
         assert!(heat_map(&repo, &m, "arm64").is_none());
