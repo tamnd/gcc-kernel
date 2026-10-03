@@ -279,6 +279,15 @@ pub(crate) fn table(
     }
 }
 
+/// Today's date, `YYYY-MM-DD`.
+#[must_use]
+pub fn today() -> String {
+    let days = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() / 86_400);
+    add_days("1970-01-01", i64::try_from(days).unwrap_or(0)).unwrap_or_default()
+}
+
 /// Write `matrix/matrix.json`, the heat maps, the warning census, the configuration differential, the era check and the holes under the repository. Returns how many cells the matrix holds and which reports were written.
 pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String> {
     let m = matrix(repo, ungraded)?;
@@ -318,15 +327,11 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
         written.push(name.into());
     }
     let readme = repo.root.join("README.md");
-    if let Ok(text) = std::fs::read_to_string(&readme) {
-        let days = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_secs() / 86_400);
-        let date = add_days("1970-01-01", i64::try_from(days).unwrap_or(0)).unwrap_or_default();
-        if let Some(new) = crate::status::splice(&text, &crate::status::section(repo, &m, &date)) {
-            std::fs::write(&readme, new).map_err(|e| format!("writing README.md: {e}"))?;
-            written.push("README.md".into());
-        }
+    if let Ok(text) = std::fs::read_to_string(&readme)
+        && let Some(new) = crate::status::splice(&text, &crate::status::section(repo, &m, &today()))
+    {
+        std::fs::write(&readme, new).map_err(|e| format!("writing README.md: {e}"))?;
+        written.push("README.md".into());
     }
     Ok((m.cells.len(), written))
 }

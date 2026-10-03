@@ -327,9 +327,18 @@ pub(crate) fn cell_text(s: &str) -> String {
     }
 }
 
-/// `gk report new-gcc G [--config C] [--ungraded] [--stdout]`. Writes the report and returns its path, or returns the report itself with `--stdout`.
+/// The upstream column released last, which is the one the report is about when `publish.yml` writes it.
+fn latest(repo: &Repo) -> Option<&Gcc> {
+    repo.gccs
+        .gccs
+        .iter()
+        .filter(|g| g.flavor == "upstream" && !g.released.is_empty())
+        .max_by(|a, b| (&a.released, &a.version).cmp(&(&b.released, &b.version)))
+}
+
+/// `gk report new-gcc G|latest [--config C] [--ungraded] [--stdout]`. Writes the report and returns its path, or returns the report itself with `--stdout`.
 pub fn command(repo: &Repo, args: &[String]) -> Result<String, String> {
-    let usage = "usage: gk report new-gcc G [--config C] [--ungraded] [--stdout]";
+    let usage = "usage: gk report new-gcc G|latest [--config C] [--ungraded] [--stdout]";
     let (mut words, mut config) = (Vec::new(), crate::cell::CONFIG.to_owned());
     let (mut ungraded, mut stdout) = (false, false);
     let mut it = args.iter();
@@ -345,12 +354,15 @@ pub fn command(repo: &Repo, args: &[String]) -> Result<String, String> {
     let ["new-gcc", g] = words.iter().map(String::as_str).collect::<Vec<_>>()[..] else {
         return Err(usage.into());
     };
-    let gcc = repo
-        .gccs
-        .gccs
-        .iter()
-        .find(|x| x.id == g || x.id.strip_prefix("gcc-") == Some(g))
-        .ok_or_else(|| format!("{g} is not in gccs.toml"))?;
+    let gcc = if g == "latest" {
+        latest(repo).ok_or("gccs.toml has no upstream column with a release date")?
+    } else {
+        repo.gccs
+            .gccs
+            .iter()
+            .find(|x| x.id == g || x.id.strip_prefix("gcc-") == Some(g))
+            .ok_or_else(|| format!("{g} is not in gccs.toml"))?
+    };
     let text = render(repo, gcc, &config, &cells(repo, ungraded)?);
     if stdout {
         return Ok(text);
@@ -437,5 +449,18 @@ mod tests {
     fn report_names_drop_a_zero_patch_level() {
         assert_eq!(short(&"16.2.0".parse().unwrap()), "16.2");
         assert_eq!(short(&"4.9.4".parse().unwrap()), "4.9.4");
+    }
+
+    #[test]
+    fn latest_is_the_upstream_column_released_last() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let g = latest(&repo).unwrap();
+        assert!(
+            repo.gccs
+                .gccs
+                .iter()
+                .filter(|x| x.flavor == "upstream")
+                .all(|x| x.released <= g.released)
+        );
     }
 }

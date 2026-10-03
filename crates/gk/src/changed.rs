@@ -89,6 +89,47 @@ fn plan(repo: &Repo, old: &Repo) -> Result<Vec<(Version, String)>, String> {
     Ok(out)
 }
 
+/// The incremental runs of spec 09.7 that the pins changed since `base` call for, as `gk` command lines.
+pub fn sweep(repo: &Repo, base: &str) -> Result<Vec<String>, String> {
+    Ok(sweep_plan(repo, &at(repo, base)?))
+}
+
+/// A new kernel is searched on every tier 1 platform it is graded on. A new GCC column is run on the current stripe, every kernel of the `current` set on every tier 1 platform it targets, with both configurations of the stripe. Its search against every other row is the weekly sweep's job, not this one's.
+fn sweep_plan(repo: &Repo, old: &Repo) -> Vec<String> {
+    let tier1: Vec<_> = repo
+        .platforms
+        .platforms
+        .iter()
+        .filter(|p| p.tier == 1)
+        .collect();
+    let mut out = Vec::new();
+    for k in &repo.kernels.kernels {
+        if old.kernels.get(&k.version) == Some(k) {
+            continue;
+        }
+        for p in tier1.iter().filter(|p| p.first_kernel <= k.version) {
+            out.push(format!("search {} --platform {}", k.version, p.name));
+        }
+    }
+    let current = repo.kernels.in_set("current");
+    for g in &repo.gccs.gccs {
+        if old.gccs.get(&g.id) == Some(g) || g.flavor != "upstream" {
+            continue;
+        }
+        for p in tier1.iter().filter(|p| g.targets.contains(&p.triple)) {
+            for k in current.iter().filter(|k| p.applies(&k.version, &g.version)) {
+                for config in ["defconfig+gk", "tinyconfig+gk"] {
+                    out.push(format!(
+                        "cell {} {} --platform {} --config {config}",
+                        k.version, g.id, p.name
+                    ));
+                }
+            }
+        }
+    }
+    out
+}
+
 /// The bundles the probes need, as GCC columns, without repeats.
 #[must_use]
 pub fn bundles(probes: &[(Version, String)]) -> Vec<&str> {
@@ -135,5 +176,16 @@ mod tests {
         assert!(probes.contains(&("7.2.8".parse().unwrap(), "gcc-14.2.0".to_string())));
         assert!(probes.iter().any(|(_, g)| g == "gcc-15.3.0"));
         assert!(bundles(&probes).len() <= probes.len());
+        let runs = sweep_plan(&r, &old);
+        for p in ["x86_64", "i386", "arm64"] {
+            assert!(
+                runs.contains(&format!("search 7.2.8 --platform {p}")),
+                "{runs:?}"
+            );
+            assert!(runs.contains(&format!(
+                "cell 7.2.8 gcc-15.3.0 --platform {p} --config tinyconfig+gk"
+            )));
+        }
+        assert!(sweep_plan(&r, &r).is_empty());
     }
 }

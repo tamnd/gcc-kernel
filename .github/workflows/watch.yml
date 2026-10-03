@@ -1,0 +1,89 @@
+# Daily: apply sets.toml to kernel.org and the GNU mirror, and open a pin pull request when anything changed (spec 03.7 and 10.9).
+#
+# `gk pins` exits 1 when the pins would change. The job then writes them, commits to the `pins/watch` branch and opens a pull request, or updates the one already open. The body lists what changed and the accept probes and bundles the change owes. A pull request opened with the workflow token does not start other workflows, so ci.yml and pr.yml run once someone pushes to it or closes and reopens it.
+
+name: watch
+
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: watch
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  pins:
+    name: new kernels, GCCs and binutils
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      pull-requests: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: build gk
+        run: cargo build --release --locked -p gk
+      - name: gk pins
+        id: pins
+        run: |
+          set +e
+          ./target/release/gk pins > pins.txt
+          status=$?
+          set -e
+          cat pins.txt
+          case $status in
+            0) echo "changed=false" >> "$GITHUB_OUTPUT" ;;
+            1) echo "changed=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$status" ;;
+          esac
+      - name: write the pins and open a pull request
+        if: steps.pins.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./target/release/gk pins --write
+          ./target/release/gk check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B pins/watch
+          git add kernels.toml gccs.toml binutils.toml
+          git commit -q -m "Update the pins from kernel.org and the GNU mirror"
+          {
+            echo "\`gk pins\` found these changes on $(date -u +%Y-%m-%d):"
+            echo
+            echo '```text'
+            cat pins.txt
+            echo '```'
+            echo
+            echo "The accept probes they owe, as kernel and GCC:"
+            echo
+            echo '```text'
+            ./target/release/gk pins changed origin/main
+            echo '```'
+            echo
+            echo "Once this lands, sweep.yml runs these on the self hosted machines:"
+            echo
+            echo '```text'
+            ./target/release/gk pins changed origin/main --sweep
+            echo '```'
+          } > body.md
+          git push -q --force origin pins/watch
+          if gh pr view pins/watch --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit pins/watch --body-file body.md
+          else
+            gh pr create --head pins/watch --base main --title "Update the pins from kernel.org and the GNU mirror" --body-file body.md --label kind/chore --label area/gk
+          fi
