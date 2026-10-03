@@ -106,7 +106,7 @@ pub struct Setup {
     pub coordinates: Coordinates,
     /// Whether the cell boots after L4.
     pub boots: bool,
-    /// The KUnit modules the fragment skips, from its `# gk:kunit-skip` lines.
+    /// The KUnit test options the fragment turns off, from its `# gk:kunit-skip` lines.
     pub kunit_skip: Vec<String>,
 }
 
@@ -564,7 +564,7 @@ struct Booted {
     steps: Vec<Step>,
 }
 
-/// One boot of a cell's image. Only the KUnit boot skips the modules the fragment names.
+/// One boot of a cell's image.
 fn boot_once(
     repo: &Repo,
     s: &Setup,
@@ -573,7 +573,6 @@ fn boot_once(
     suite: &str,
     stem: &str,
 ) -> Result<boot::Outcome, String> {
-    let skip: &[String] = if suite == "kunit" { &s.kunit_skip } else { &[] };
     boot::run(
         repo,
         &boot::Boot {
@@ -583,7 +582,6 @@ fn boot_once(
             suite,
             dir,
             stem,
-            skip,
         },
     )
 }
@@ -931,6 +929,19 @@ pub fn run(
                 .map_err(|e| format!("writing {}: {e}", dot.display()))?;
             configured = make(&["olddefconfig"], "fragment.log", 1)? == 0;
             fragment_missed = kconfig::missed(&kconfig::load(&dot)?, &fragment);
+            if configured && !s.kunit_skip.is_empty() && !BUILD_ONLY.contains(&s.config) {
+                // With KUNIT_ALL_TESTS off the tests keep the values it gave them, and their options can be turned off one by one.
+                let off: Vec<(String, String)> = std::iter::once("KUNIT_ALL_TESTS")
+                    .chain(s.kunit_skip.iter().map(String::as_str))
+                    .map(|o| (o.to_owned(), "n".to_owned()))
+                    .collect();
+                let resolved = std::fs::read_to_string(&dot)
+                    .map_err(|e| format!("reading {}: {e}", dot.display()))?;
+                std::fs::write(&dot, kconfig::merge(&resolved, &off))
+                    .map_err(|e| format!("writing {}: {e}", dot.display()))?;
+                configured = make(&["olddefconfig"], "kunit-skip.log", 1)? == 0;
+                fragment_missed.extend(kconfig::missed(&kconfig::load(&dot)?, &off[1..]));
+            }
             let _ = std::fs::copy(&dot, cell_dir.join(".config"));
         }
         steps.push(Step {
@@ -1173,7 +1184,7 @@ fn hostname() -> String {
         .unwrap_or_default()
 }
 
-/// The modules named on the `# gk:kunit-skip` lines of a fragment. Kconfig reads those lines as comments, and the KUnit boot skips the suites of these modules. A suite goes there when it fails under TCG on a loaded host for reasons that have nothing to do with the compiler, and when `KUNIT_ALL_TESTS` hides its option so the fragment cannot turn it off. Being in the fragment puts the list in the cell's identity.
+/// The options named on the `# gk:kunit-skip` lines of a fragment, which Kconfig reads as comments. A KUnit test goes there when it fails under TCG on a loaded host for reasons that have nothing to do with the compiler. `KUNIT_ALL_TESTS` hides its option, so a plain `=n` in the fragment would not take, and the configuration step turns these off in a second pass with `KUNIT_ALL_TESTS` off instead. Being in the fragment puts the list in the cell's identity.
 fn kunit_skip(fragment: &str) -> Vec<String> {
     fragment
         .lines()
@@ -1196,9 +1207,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_fragment_names_the_skipped_modules() {
-        let text = "CONFIG_KUNIT=y\n# gk:kunit-skip drm_sched_tests test_ratelimit\n# a comment\n";
-        assert_eq!(kunit_skip(text), ["drm_sched_tests", "test_ratelimit"]);
+    fn the_fragment_names_the_skipped_tests() {
+        let text = "CONFIG_KUNIT=y\n# gk:kunit-skip DRM_SCHED_KUNIT_TEST RATELIMIT_KUNIT_TEST\n# a comment\n";
+        assert_eq!(
+            kunit_skip(text),
+            ["DRM_SCHED_KUNIT_TEST", "RATELIMIT_KUNIT_TEST"]
+        );
         assert!(kunit_skip("CONFIG_KUNIT=y\n").is_empty());
     }
 
