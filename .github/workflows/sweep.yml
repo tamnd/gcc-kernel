@@ -2,7 +2,7 @@
 #
 # When a pin change lands on main, `gk pins changed` against the commit before it says what to run: a new kernel is searched on every tier 1 platform, and a new GCC column runs on the current stripe. A dispatch can instead name the gk command lines to run, one per line, as in `search 6.18.54 --platform arm64`. Everything runs niced, so rucc-kernel's runs on the same machines come first (09.8).
 #
-# At the end the store is packed and attached to the release `sweep-<date>`, which publish.yml picks up.
+# At the end the store is packed and attached to the release `sweep-<date>`, and publish.yml is started to read it.
 
 name: sweep
 
@@ -32,6 +32,7 @@ jobs:
     timeout-minutes: 4320
     permissions:
       contents: write
+      actions: write
     defaults:
       run:
         shell: bash
@@ -60,3 +61,4 @@ jobs:
           gh release view "$tag" > /dev/null 2>&1 || gh release create "$tag" --title "$tag" --notes "The result store as of $tag, for publish.yml." --latest=false
           gh release upload "$tag" "$tag.tar.zst" --clobber
           rm -f "$tag.tar.zst"
+          gh workflow run publish.yml
