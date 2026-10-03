@@ -3,6 +3,69 @@
 # Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download.
 
 [[binutils]]
+id = "binutils-2.23.1"
+version = "2.23.1"
+released = "2012-11-13"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.23.1.tar.bz2"
+sha256 = "2ab2e5b03e086d12c6295f831adad46b3e1410a3a234933a2e8fac66cb2e7a19"
+
+[[binutils]]
+id = "binutils-2.23.2"
+version = "2.23.2"
+released = "2013-03-26"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.23.2.tar.bz2"
+sha256 = "fe914e56fed7a9ec2eb45274b1f2e14b0d8b4f41906a5194eac6883cfe5c1097"
+
+[[binutils]]
+id = "binutils-2.24"
+version = "2.24"
+released = "2013-12-02"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.24.tar.bz2"
+sha256 = "e5e8c5be9664e7f7f96e0d09919110ab5ad597794f5b1809871177a0f0f14137"
+
+[[binutils]]
+id = "binutils-2.25"
+version = "2.25"
+released = "2014-12-23"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.25.tar.bz2"
+sha256 = "22defc65cfa3ef2a3395faaea75d6331c6e62ea5dfacfed3e2ec17b08c882923"
+
+[[binutils]]
+id = "binutils-2.25.1"
+version = "2.25.1"
+released = "2015-07-21"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.25.1.tar.bz2"
+sha256 = "b5b14added7d78a8d1ca70b5cb75fef57ce2197264f4f5835326b0df22ac9f22"
+
+[[binutils]]
+id = "binutils-2.26"
+version = "2.26"
+released = "2016-01-25"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.26.tar.bz2"
+sha256 = "c2ace41809542f5237afc7e3b8f32bb92bc7bc53c6232a84463c423b0714ecd9"
+
+[[binutils]]
+id = "binutils-2.26.1"
+version = "2.26.1"
+released = "2016-06-29"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.26.1.tar.bz2"
+sha256 = "39c346c87aa4fb14b2f786560aec1d29411b6ec34dce3fe7309fe3dd56949fd8"
+
+[[binutils]]
+id = "binutils-2.27"
+version = "2.27"
+released = "2016-08-03"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.27.tar.bz2"
+sha256 = "369737ce51587f92466041a97ab7d2358c6d9e1b6490b3940eb09fb0a9a6ac88"
+
+[[binutils]]
+id = "binutils-2.28"
+version = "2.28"
+released = "2017-03-02"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.28.tar.bz2"
+sha256 = "6297433ee120b11b4b0a1c8f3512d7d73501753142ab9e2daa13c5a3edd32a72"
+
+[[binutils]]
 id = "binutils-2.28.1"
 version = "2.28.1"
 released = "2017-07-25"

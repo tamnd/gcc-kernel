@@ -65,30 +65,44 @@ pub fn gcc_releases(listing: &[Entry]) -> Vec<(String, String)> {
         .collect()
 }
 
-/// The binutils `.tar.xz` releases, as version and date.
+/// The binutils releases, as version, date and URL. A release is taken as `.tar.xz` where the mirror has one and as `.tar.bz2` otherwise, which is all there is before 2.28.1.
 #[must_use]
-pub fn binutils_releases(listing: &[Entry]) -> Vec<(String, String)> {
-    listing
-        .iter()
-        .filter_map(|e| {
-            let v = e.name.strip_prefix("binutils-")?.strip_suffix(".tar.xz")?;
-            v.bytes()
-                .all(|c| c.is_ascii_digit() || c == b'.')
-                .then(|| (v.to_owned(), e.date.clone()))
-        })
-        .collect()
+pub fn binutils_releases(listing: &[Entry]) -> Vec<(String, String, String)> {
+    let mut out: Vec<(String, String, String)> = Vec::new();
+    for ext in ["tar.xz", "tar.bz2"] {
+        for e in listing {
+            let Some(v) = e
+                .name
+                .strip_prefix("binutils-")
+                .and_then(|n| n.strip_suffix(ext))
+                .and_then(|n| n.strip_suffix('.'))
+            else {
+                continue;
+            };
+            if v.bytes().all(|c| c.is_ascii_digit() || c == b'.')
+                && !out.iter().any(|(have, _, _)| have == v)
+            {
+                out.push((
+                    v.to_owned(),
+                    e.date.clone(),
+                    format!("{BINUTILS_URL}/{}", e.name),
+                ));
+            }
+        }
+    }
+    out
 }
 
-/// The URL of a GCC release tarball.
+/// The URL of a GCC release tarball, from the listing of its own directory: `.tar.xz` where there is one, then `.tar.bz2`, then `.tar.gz`. Which releases have which is not a rule of the version, as 5.5.0 has `.tar.xz` and 6.3.0 does not.
 #[must_use]
-pub fn gcc_url(version: &str) -> String {
-    format!("{GCC_URL}/gcc-{version}/gcc-{version}.tar.xz")
-}
-
-/// The URL of a binutils release tarball.
-#[must_use]
-pub fn binutils_url(version: &str) -> String {
-    format!("{BINUTILS_URL}/binutils-{version}.tar.xz")
+pub fn gcc_url(version: &str, listing: &[Entry]) -> Option<String> {
+    ["tar.xz", "tar.bz2", "tar.gz"].iter().find_map(|ext| {
+        let name = format!("gcc-{version}.{ext}");
+        listing
+            .iter()
+            .any(|e| e.name == name)
+            .then(|| format!("{GCC_URL}/gcc-{version}/{name}"))
+    })
 }
 
 #[cfg(test)]
@@ -99,12 +113,14 @@ mod tests {
 <tr><td valign="top"><img src="/icons/folder.gif" alt="[DIR]"></td><td><a href="gcc-16.1.0/">gcc-16.1.0/</a></td><td align="right">2026-04-30 05:30  </td><td align="right">  - </td></tr>
 <tr><td valign="top"><img src="/icons/folder.gif" alt="[DIR]"></td><td><a href="gcc-16.2.0/">gcc-16.2.0/</a></td><td align="right">2026-08-07 04:40  </td><td align="right">  - </td></tr>
 <tr><td><a href="binutils-2.47.tar.xz">binutils-2.47.tar.xz</a></td><td align="right">2026-07-20 10:01  </td></tr>
-<tr><td><a href="binutils-2.47.tar.xz.sig">binutils-2.47.tar.xz.sig</a></td><td align="right">2026-07-20 10:01  </td></tr>"#;
+<tr><td><a href="binutils-2.47.tar.xz.sig">binutils-2.47.tar.xz.sig</a></td><td align="right">2026-07-20 10:01  </td></tr>
+<tr><td><a href="binutils-2.47.tar.bz2">binutils-2.47.tar.bz2</a></td><td align="right">2026-07-20 10:01  </td></tr>
+<tr><td><a href="binutils-2.24.tar.bz2">binutils-2.24.tar.bz2</a></td><td align="right">2013-12-02 10:01  </td></tr>"#;
 
     #[test]
     fn listings_read_as_names_and_dates() {
         let entries = parse_listing(LISTING);
-        assert_eq!(entries.len(), 4);
+        assert_eq!(entries.len(), 6);
         assert_eq!(
             gcc_releases(&entries),
             [
@@ -114,7 +130,27 @@ mod tests {
         );
         assert_eq!(
             binutils_releases(&entries),
-            [("2.47".to_owned(), "2026-07-20".to_owned())]
+            [
+                (
+                    "2.47".to_owned(),
+                    "2026-07-20".to_owned(),
+                    format!("{BINUTILS_URL}/binutils-2.47.tar.xz")
+                ),
+                (
+                    "2.24".to_owned(),
+                    "2013-12-02".to_owned(),
+                    format!("{BINUTILS_URL}/binutils-2.24.tar.bz2")
+                )
+            ]
         );
+        let dir = parse_listing(
+            r#"<tr><td><a href="gcc-6.3.0.tar.bz2">gcc-6.3.0.tar.bz2</a></td><td align="right">2016-12-21 10:51  </td></tr>
+<tr><td><a href="gcc-6.3.0.tar.gz">gcc-6.3.0.tar.gz</a></td><td align="right">2016-12-21 10:52  </td></tr>"#,
+        );
+        assert_eq!(
+            gcc_url("6.3.0", &dir).as_deref(),
+            Some("https://ftp.gnu.org/gnu/gcc/gcc-6.3.0/gcc-6.3.0.tar.bz2")
+        );
+        assert_eq!(gcc_url("6.5.0", &dir), None);
     }
 }

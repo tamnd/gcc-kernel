@@ -31,6 +31,12 @@ pub struct Set {
     /// For a set of mainline releases, the first one. Every `X.Y` release from it on is in the set.
     #[serde(default)]
     pub releases_from: Option<Version>,
+    /// For a set of last points, the first line. The newest point release of every `X.Y` line from it on that had any is in the set.
+    #[serde(default)]
+    pub last_points_from: Option<Version>,
+    /// For a set of last points, the lines it takes, as `4.9`, when they are not every line from one on.
+    #[serde(default)]
+    pub last_points_of: Vec<Version>,
 }
 
 /// The rules for binutils.
@@ -72,6 +78,28 @@ impl Sets {
             .min()
     }
 
+    /// The sets the newest point release of the line `line`, as `4.9`, falls in.
+    #[must_use]
+    pub fn for_last_point(&self, line: &Version) -> Vec<String> {
+        self.sets
+            .iter()
+            .filter(|s| {
+                s.last_points_from.as_ref().is_some_and(|from| line >= from)
+                    || s.last_points_of.contains(line)
+            })
+            .map(|s| s.name.clone())
+            .collect()
+    }
+
+    /// The oldest line any set asks for a last point of.
+    #[must_use]
+    pub fn first_line(&self) -> Option<&Version> {
+        self.sets
+            .iter()
+            .flat_map(|s| s.last_points_from.iter().chain(&s.last_points_of))
+            .min()
+    }
+
     /// Whether a set name is one of these rules. A pin whose sets are all rules is rewritten by `gk pins`; any other pin is kept as it is.
     #[must_use]
     pub fn has(&self, name: &str) -> bool {
@@ -92,6 +120,14 @@ monikers = ["stable", "longterm"]
 name = "releases"
 releases-from = "5.0"
 
+[[set]]
+name = "last-points"
+last-points-from = "3.0"
+
+[[set]]
+name = "longterm-stripe"
+last-points-of = ["3.2", "4.9"]
+
 [gnu]
 binutils-from = "2.30"
 "#;
@@ -105,6 +141,16 @@ binutils-from = "2.30"
         assert_eq!(sets.for_release(&"5.4".parse().unwrap()), ["releases"]);
         assert!(sets.for_release(&"4.20".parse().unwrap()).is_empty());
         assert_eq!(sets.first_release().unwrap().as_str(), "5.0");
-        assert_eq!(sets.gnu.binutils_from.unwrap().as_str(), "2.30");
+        assert_eq!(sets.gnu.binutils_from.as_ref().unwrap().as_str(), "2.30");
+        assert_eq!(
+            sets.for_last_point(&"4.9".parse().unwrap()),
+            ["last-points", "longterm-stripe"]
+        );
+        assert_eq!(
+            sets.for_last_point(&"3.1".parse().unwrap()),
+            ["last-points"]
+        );
+        assert!(sets.for_last_point(&"2.6".parse().unwrap()).is_empty());
+        assert_eq!(sets.first_line().unwrap().as_str(), "3.0");
     }
 }

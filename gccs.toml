@@ -1,6 +1,149 @@
 # The GCC columns of the matrix (spec 04).
 #
-# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, and the other targets join with their platforms.
+# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, and the other targets join with their platforms.
+
+[[gcc]]
+id = "gcc-4.6.4"
+version = "4.6.4"
+flavor = "upstream"
+released = "2013-04-12"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.6.4/gcc-4.6.4.tar.bz2"
+sha256 = "35af16afa0b67af9b8eb15cafb76d2bc5f568540552522f5dc2c88dd45d977e8"
+forge = "gk-forge-jessie"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.6. GCC 4.6 has no aarch64 back end."
+
+[[gcc]]
+id = "gcc-4.7.2"
+version = "4.7.2"
+flavor = "upstream"
+released = "2012-09-20"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.7.2/gcc-4.7.2.tar.bz2"
+sha256 = "8a9283d7010fb9fe5ece3ca507e0af5c19412626384f8a5e9434251ae100b084"
+forge = "gk-forge-jessie"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["point"]
+why = "The era GCC of M7, kernels 3.0 to 3.17. GCC 4.7 has no aarch64 back end."
+
+[[gcc]]
+id = "gcc-4.7.4"
+version = "4.7.4"
+flavor = "upstream"
+released = "2014-06-12"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.7.4/gcc-4.7.4.tar.bz2"
+sha256 = "92e61c6dc3a0a449e62d72a38185fda550168a86702dea07125ebd3ec3996282"
+forge = "gk-forge-jessie"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.7."
+
+[[gcc]]
+id = "gcc-4.8.5"
+version = "4.8.5"
+flavor = "upstream"
+released = "2015-06-23"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.8.5/gcc-4.8.5.tar.bz2"
+sha256 = "22fb1e7e0f68a63cee631d85b20461d1ea6bda162f03096350e38c8d427ecf23"
+forge = "gk-forge-jessie"
+targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.8, and the first series with an aarch64 back end."
+
+[[gcc]]
+id = "gcc-4.9.2"
+version = "4.9.2"
+flavor = "upstream"
+released = "2014-10-30"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.9.2/gcc-4.9.2.tar.bz2"
+sha256 = "2020c98295856aa13fda0f2f3a4794490757fc24bcca918d52cc8b4917b972dd"
+forge = "gk-forge-jessie"
+targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["point"]
+why = "The era GCC of M8, kernels 3.18 to 4.1."
+
+[[gcc]]
+id = "gcc-4.9.4"
+version = "4.9.4"
+flavor = "upstream"
+released = "2016-08-03"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.9.4/gcc-4.9.4.tar.bz2"
+sha256 = "6c11d292cd01b294f9f84c9a59c230d80e9e4a47e5c6355f046bb36d4f358092"
+forge = "gk-forge-jessie"
+targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.9."
+
+[[gcc]]
+id = "gcc-5.5.0"
+version = "5.5.0"
+flavor = "upstream"
+released = "2017-10-10"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-5.5.0/gcc-5.5.0.tar.xz"
+sha256 = "530cea139d82fe542b358961130c69cfde8b3d14556370b65823d2f91f0ced87"
+forge = "gk-forge-bullseye"
+targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 5."
+
+[[gcc]]
+id = "gcc-6.3.0"
+version = "6.3.0"
+flavor = "upstream"
+released = "2016-12-21"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-6.3.0/gcc-6.3.0.tar.bz2"
+sha256 = "f06ae7f3f790fbf0f018f6d40e844451e6bc3b7bc96e128e63b09825c1f8b29f"
+forge = "gk-forge-bullseye"
+targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["point"]
+why = "The era GCC of M9, kernels 4.2 to 4.17."
+
+[[gcc]]
+id = "gcc-6.5.0"
+version = "6.5.0"
+flavor = "upstream"
+released = "2018-10-30"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-6.5.0/gcc-6.5.0.tar.xz"
+sha256 = "7ef1796ce497e89479183702635b14bb7a46b53249209a5e0f999bebf4740945"
+forge = "gk-forge-bullseye"
+targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 6."
+
+[[gcc]]
+id = "gcc-7.5.0"
+version = "7.5.0"
+flavor = "upstream"
+released = "2019-11-14"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-7.5.0/gcc-7.5.0.tar.xz"
+sha256 = "b81946e7f01f90528a1f7352ab08cc602b9ccc05d4e44da4bd501c5a189ee661"
+forge = "gk-forge-bullseye"
+targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 7."
+
+[[gcc]]
+id = "gcc-8.3.0"
+version = "8.3.0"
+flavor = "upstream"
+released = "2019-02-22"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-8.3.0/gcc-8.3.0.tar.xz"
+sha256 = "64baadfe6cc0f4947a84cb12d7f0dfaf45bb58b7e92461639596c21e02d97d2c"
+forge = "gk-forge-bullseye"
+targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["point"]
+why = "The era GCC of M10, kernels 4.18 to 5.4."
 
 [[gcc]]
 id = "gcc-8.5.0"
