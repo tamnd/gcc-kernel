@@ -7,6 +7,7 @@
 //! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one colored square per cell. The per-GCC and per-kernel pages wait for `gk explain`.
 
 use crate::cell::CellRecord;
+use crate::classify::{self, Compiled};
 use crate::store;
 use gk_model::Version;
 use gk_model::repo::Repo;
@@ -55,6 +56,12 @@ pub struct Entry {
     /// The first unit that failed and its first error.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub first_error: String,
+    /// The class of the first error from `signatures.toml`, or `unclassified`, for a failed cell (spec 08.6).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub class: String,
+    /// The kernel commits that fixed the class, with the first tag that has each.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixed_by: Vec<String>,
     /// How many warnings its units got, from `warnings.jsonl`, or `None` for a cell run before the census.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub warnings: Option<usize>,
@@ -108,9 +115,10 @@ fn warnings(dir: &Path) -> Option<usize> {
 }
 
 /// The matrix record of one cell.
-pub fn entry(dir: &Path, r: &CellRecord) -> Entry {
+pub fn entry(repo: &Repo, catalog: &[Compiled<'_>], dir: &Path, r: &CellRecord) -> Entry {
     let c = &r.coordinates;
     let (failing_units, first_error) = errors(dir);
+    let (class, fixed_by) = classify::published(repo, catalog, dir, r).unwrap_or_default();
     let days = i64::try_from(r.started / 86_400).unwrap_or(0);
     Entry {
         cell: r.cell.clone(),
@@ -123,7 +131,9 @@ pub fn entry(dir: &Path, r: &CellRecord) -> Entry {
         rung: r.rung.clone(),
         verdict: r.verdict.clone(),
         failing_units,
-        first_error,
+        first_error: first_error.chars().take(200).collect(),
+        class,
+        fixed_by,
         warnings: warnings(dir),
         runs: u32::try_from(r.boots.len().max(1)).unwrap_or(u32::MAX),
         flaky: r.flaky,
@@ -137,11 +147,12 @@ pub fn entry(dir: &Path, r: &CellRecord) -> Entry {
 }
 
 /// The matrix of every graded cell in the store, or every cell with `ungraded`.
-pub fn matrix(ungraded: bool) -> Result<Matrix, String> {
+pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
+    let catalog = classify::compile(repo);
     let mut cells: Vec<Entry> = store::cells()?
         .iter()
         .filter(|(_, r)| ungraded || r.graded)
-        .map(|(dir, r)| entry(dir, r))
+        .map(|(dir, r)| entry(repo, &catalog, dir, r))
         .collect();
     let gcc_version = |id: &str| {
         id.rsplit_once("gcc-")
@@ -269,7 +280,7 @@ pub(crate) fn table(
 
 /// Write `matrix/matrix.json`, the heat maps, the warning census and the configuration differential under the repository. Returns how many cells the matrix holds and which reports were written.
 pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String> {
-    let m = matrix(ungraded)?;
+    let m = matrix(repo, ungraded)?;
     let dir = repo.root.join("matrix");
     std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
     let text = serde_json::to_string_pretty(&m).map_err(|e| e.to_string())? + "\n";
@@ -287,7 +298,7 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
         std::fs::write(repo.root.join(&name), text).map_err(|e| format!("writing {name}: {e}"))?;
         written.push(name);
     }
-    let cells = crate::report::cells(ungraded)?;
+    let cells = crate::report::cells(repo, ungraded)?;
     for (name, text) in [
         (
             "reports/warning-census.md",
@@ -334,6 +345,8 @@ mod tests {
             verdict: verdict.into(),
             failing_units: 0,
             first_error: String::new(),
+            class: String::new(),
+            fixed_by: Vec::new(),
             warnings: None,
             runs: 3,
             flaky,

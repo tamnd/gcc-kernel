@@ -8,6 +8,7 @@ repository.workspace = true
 description = "The gcc-kernel model: pin files, cells, the outcome ladder and verdicts"
 
 [dependencies]
+regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

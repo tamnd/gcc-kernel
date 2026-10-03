@@ -352,6 +352,8 @@ mod tests {
                 verdict: "works".into(),
                 failing_units: 0,
                 first_error: String::new(),
+                class: String::new(),
+                fixed_by: Vec::new(),
                 warnings: Some(warnings.iter().map(|w| w.1).sum()),
                 runs: 3,
                 flaky: false,

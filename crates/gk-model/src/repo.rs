@@ -7,6 +7,7 @@ use crate::hosts::Hosts;
 use crate::kernels::Kernels;
 use crate::platforms::Platforms;
 use crate::sets::Sets;
+use crate::signatures::Signatures;
 use crate::toolchains::{AllBinutils, Gccs};
 use crate::{is_sha256, step_for};
 use serde::de::DeserializeOwned;
@@ -32,6 +33,8 @@ pub struct Repo {
     pub platforms: Platforms,
     /// `sets.toml`.
     pub sets: Sets,
+    /// `signatures.toml`.
+    pub signatures: Signatures,
 }
 
 fn read<T: DeserializeOwned + Default>(root: &Path, name: &str) -> Result<T, String> {
@@ -55,6 +58,7 @@ impl Repo {
             hosts: read(root, "hosts.toml")?,
             platforms: read(root, "platforms.toml")?,
             sets: read(root, "sets.toml")?,
+            signatures: read(root, "signatures.toml")?,
         })
     }
 
@@ -76,6 +80,7 @@ impl Repo {
         self.check_toolchains(&mut problems);
         self.check_eras(&mut problems);
         self.check_platforms(&mut problems);
+        problems.extend(self.signatures.check());
         problems
     }
 

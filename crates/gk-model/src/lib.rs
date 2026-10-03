@@ -10,6 +10,7 @@ pub mod ladder;
 pub mod platforms;
 pub mod repo;
 pub mod sets;
+pub mod signatures;
 pub mod toolchains;
 pub mod version;
 
