@@ -45,12 +45,20 @@ const GCCS_HEADER: &str = "# The GCC columns of the matrix (spec 04).\n#\n# Writ
 fn kernels(repo: &Repo) -> Result<Kernels, String> {
     let sets = &repo.sets;
     let releases = kernelorg::parse_releases(&net::fetch_text(kernelorg::RELEASES_URL)?)?;
-    let mut sums: BTreeMap<u32, BTreeMap<String, String>> = BTreeMap::new();
-    let mut sums_of = |major: u32| -> Result<BTreeMap<String, String>, String> {
+    // File name to hash and directory, for every directory of a major version.
+    let mut sums: BTreeMap<u32, BTreeMap<String, (String, String)>> = BTreeMap::new();
+    let mut sums_of = |major: u32| -> Result<BTreeMap<String, (String, String)>, String> {
         if let Some(s) = sums.get(&major) {
             return Ok(s.clone());
         }
-        let s = kernelorg::parse_sums(&net::fetch_text(&kernelorg::sums_url(major))?);
+        let mut s = BTreeMap::new();
+        for dir in kernelorg::dirs(major) {
+            for (name, hash) in
+                kernelorg::parse_sums(&net::fetch_text(&kernelorg::sums_url(&dir))?)
+            {
+                s.entry(name).or_insert((hash, dir.clone()));
+            }
+        }
         sums.insert(major, s.clone());
         Ok(s)
     };
@@ -69,7 +77,7 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
             continue;
         }
         let name = format!("linux-{}.tar.xz", r.version);
-        let Some(sha256) = sums_of(major)?.get(&name).cloned() else {
+        let Some((sha256, dir)) = sums_of(major)?.get(&name).cloned() else {
             eprintln!(
                 "gk pins: sha256sums.asc of v{major}.x does not list {name} yet, so the pins of {} are kept",
                 version
@@ -86,7 +94,7 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
             version.clone(),
             Kernel {
                 version,
-                url: kernelorg::tarball_url(major, &r.version),
+                url: kernelorg::tarball_url(&dir, &r.version),
                 sha256,
                 sets: in_sets,
                 moniker: r.moniker.clone(),
@@ -95,7 +103,7 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
     }
     if let Some(first) = sets.first_release() {
         for major in first.parts()[0]..=newest_major {
-            for (name, sha256) in sums_of(major)? {
+            for (name, (sha256, dir)) in sums_of(major)? {
                 let Some(v) = name
                     .strip_prefix("linux-")
                     .and_then(|n| n.strip_suffix(".tar.xz"))
@@ -105,14 +113,14 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
                 let Ok(version) = v.parse::<Version>() else {
                     continue;
                 };
-                if version.parts().len() != 2 || version.is_pre() {
+                if version.parts().len() != kernelorg::release_depth(major) || version.is_pre() {
                     continue;
                 }
                 let in_sets = sets.for_release(&version);
                 if in_sets.is_empty() {
                     continue;
                 }
-                let url = kernelorg::tarball_url(major, v);
+                let url = kernelorg::tarball_url(&dir, v);
                 let k = out.entry(version.clone()).or_insert_with(|| Kernel {
                     version,
                     url,
@@ -125,9 +133,10 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
         }
     }
     if let Some(first) = sets.first_line() {
-        let mut newest: BTreeMap<Version, (Version, String)> = BTreeMap::new();
+        let mut newest: BTreeMap<Version, (Version, String, String)> = BTreeMap::new();
         for major in first.parts()[0]..=newest_major {
-            for (name, sha256) in sums_of(major)? {
+            let depth = kernelorg::release_depth(major);
+            for (name, (sha256, dir)) in sums_of(major)? {
                 let Some(version) = name
                     .strip_prefix("linux-")
                     .and_then(|n| n.strip_suffix(".tar.xz"))
@@ -135,25 +144,29 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
                 else {
                     continue;
                 };
-                if version.parts().len() != 3 || version.is_pre() {
+                if version.parts().len() != depth + 1 || version.is_pre() {
                     continue;
                 }
-                let Ok(line) =
-                    format!("{}.{}", version.parts()[0], version.parts()[1]).parse::<Version>()
+                let Ok(line) = version.parts()[..depth]
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(".")
+                    .parse::<Version>()
                 else {
                     continue;
                 };
-                if newest.get(&line).is_none_or(|(v, _)| *v < version) {
-                    newest.insert(line, (version, sha256));
+                if newest.get(&line).is_none_or(|(v, _, _)| *v < version) {
+                    newest.insert(line, (version, sha256, dir));
                 }
             }
         }
-        for (line, (version, sha256)) in newest {
+        for (line, (version, sha256, dir)) in newest {
             let in_sets = sets.for_last_point(&line);
             if in_sets.is_empty() {
                 continue;
             }
-            let url = kernelorg::tarball_url(version.parts()[0], version.as_str());
+            let url = kernelorg::tarball_url(&dir, version.as_str());
             let k = out.entry(version.clone()).or_insert_with(|| Kernel {
                 version,
                 url,
