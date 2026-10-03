@@ -1,0 +1,517 @@
+# The failure catalog of spec 08. Every failed cell is run through these by `gk classify`.
+#
+# A signature applies to a cell that failed at one of its rungs when every pattern of `match` finds something in the matching part of the cell: `first-error` (the refusal, the first error of the first failing unit, or the first bad console line), `unit`, `console`, `config` or `command`. The patterns are Rust regular expressions. The ranges `gcc`, `binutils` and `kernel` are versions joined by `,` for all and `|` for any, and `platform` is a list. A cell that matches the patterns but falls outside the ranges is reported as a new finding instead of being classified.
+#
+# The seed is spec 08.4. Where a fix is a policy the kernel kept, `fixed-by` names the commit with no tag. The runtime signatures (L5 to L7) are wide on purpose until real cells narrow them.
+#
+# objtool warnings fail L4 where CONFIG_OBJTOOL_WERROR makes them fatal and L8 otherwise, so the objtool signatures cover both.
+
+# Refusals and blacklists, oldest first.
+
+[[signature]]
+class = "gcc-too-old-295"
+rung = "L1"
+match = { first-error = 'Sorry, your GCC is too old\. It builds incorrect kernels' }
+kind = "refusal"
+summary = "2.6.0 to 2.6.15 refuse anything below GCC 2.95 in init/main.c"
+gcc = "<2.95"
+kernel = "<2.6.16"
+
+[[signature]]
+class = "gcc-296-frame-pointer"
+rung = "L1"
+match = { first-error = 'frame pointer', config = '(?m)^CONFIG_FRAME_POINTER=y' }
+kind = "refusal"
+summary = "2.6.0 to 2.6.15 refuse GCC 2.96 when frame pointers are on"
+fixed-by = [ { commit = "a136564", first-tag = "v2.6.16-rc1", note = "removes the gcc-2 checks" } ]
+gcc = "=2.96"
+
+[[signature]]
+class = "gcc3-0-1-refused"
+rung = "L1"
+match = { first-error = 'too old|please upgrade' }
+kind = "refusal"
+summary = "From 2.6.29 the kernel refuses GCC 3.0 and 3.1"
+fixed-by = [ { commit = "6680598", note = "the refusal is the policy" } ]
+gcc = "=3.0 | =3.1"
+kernel = ">=2.6.29"
+
+[[signature]]
+class = "arm-gcc3-below-33"
+rung = "L1"
+match = { first-error = 'Known good compilers|too buggy|miscompile' }
+kind = "refusal"
+summary = "arm refuses GCC 3 below 3.3 in asm-offsets.c"
+fixed-by = [ { commit = "a136564", note = "the refusal is the policy" } ]
+gcc = ">=3.0, <3.3"
+platform = ["arm"]
+
+[[signature]]
+class = "gcc41-weak"
+rung = "L1"
+match = { first-error = 'miscompiles the __weak directive' }
+kind = "blacklist"
+summary = "GCC 4.1.0 and 4.1.1 miscompile __weak (GCC PR 27781) and the kernel refuses them"
+fixed-by = [ { commit = "f9d1425", note = "the blacklist is the policy" } ]
+gcc = "4.1.0 | 4.1.1"
+kernel = ">=2.6.29"
+
+[[signature]]
+class = "no-compiler-header"
+rung = "L1"
+match = { first-error = 'linux/compiler-gcc(\d+)\.h: No such file or directory' }
+kind = "refusal"
+summary = "Kernels 2.6.29 to 4.1 include one header per GCC major version and have none for this one"
+fixed-by = [
+  { commit = "cb984d101b30", first-tag = "v4.2-rc1", stable = ["3.10"] },
+  { commit = "71458cfc782e", first-tag = "v3.18-rc1", stable = ["3.10", "3.13"], note = "adds compiler-gcc5.h only" },
+]
+gcc = ">=5"
+kernel = ">=2.6.29, <=4.1"
+
+[[signature]]
+class = "compiler-h-gnuc-gt-4"
+rung = "L1"
+match = { first-error = 'no compiler-gcc\.h file for this gcc version' }
+kind = "refusal"
+summary = "2.6.12 to 2.6.28 stop on any GCC major above 4 in compiler.h"
+fixed-by = [
+  { commit = "f153b82", first-tag = "v2.6.29-rc1", note = "changes the refusal into a missing header" },
+  { commit = "cb984d101b30", first-tag = "v4.2-rc1", stable = ["3.10"] },
+]
+gcc = ">=5"
+kernel = ">=2.6.12, <2.6.29"
+
+[[signature]]
+class = "arm-gcc48-pr58854"
+rung = "L1"
+match = { first-error = 'too buggy; it is known to miscompile kernels|PR58854' }
+kind = "blacklist"
+summary = "arm refuses GCC 4.8.0 to 4.8.2, which corrupt file systems (GCC PR 58854)"
+fixed-by = [ { commit = "7fc150543c73", note = "the blacklist is the policy, removed in 5.8 with the 4.9 minimum" } ]
+gcc = ">=4.8.0, <=4.8.2"
+platform = ["arm"]
+kernel = ">=3.18, <5.8"
+
+[[signature]]
+class = "gcc-min-46"
+rung = "L1"
+match = { first-error = 'compiler is too old|please use 4\.6' }
+kind = "refusal"
+summary = "4.19 to 5.7 need GCC 4.6"
+fixed-by = [ { commit = "cafa0010cd51", note = "the minimum is the policy" } ]
+gcc = "<4.6"
+kernel = ">=4.19, <5.8"
+
+[[signature]]
+class = "gcc-min-49"
+rung = "L1"
+match = { first-error = 'too old|please use 4\.[89]|not supported' }
+kind = "refusal"
+summary = "5.8 to 5.14 need GCC 4.9, for _Generic"
+fixed-by = [ { commit = "6ec4476ac825", note = "the minimum is the policy" } ]
+gcc = "<4.9"
+kernel = ">=5.8, <5.15"
+
+[[signature]]
+class = "gcc-min-51"
+rung = "L1"
+match = { first-error = 'not supported|too old|Minimum GCC version:\s+5\.1' }
+kind = "refusal"
+summary = "5.15 to 6.15 need GCC 5.1"
+fixed-by = [ { commit = "76ae847497bc", note = "the minimum is the policy" } ]
+gcc = "<5.1"
+kernel = ">=5.15"
+
+[[signature]]
+class = "gcc-min-81"
+rung = "L1"
+match = { first-error = 'not supported|too old|Minimum GCC version:\s+8\.1' }
+kind = "refusal"
+summary = "x86 from 6.15 and every architecture from 6.16 need GCC 8.1"
+fixed-by = [
+  { commit = "a3e8fe814ad1", note = "x86 only, from 6.15" },
+  { commit = "118c40b7b503", note = "every architecture, from 6.16, with binutils 2.30" },
+]
+gcc = ">=5.1, <8.1"
+kernel = ">=6.15"
+
+# Miscompiles, found only by booting.
+
+[[signature]]
+class = "asm-goto-miscompile"
+rung = "L5..L7"
+match = { first-error = 'Kernel panic|BUG:|Oops|general protection fault|Unable to handle kernel' }
+kind = "miscompile"
+summary = "GCC up to 4.8.1 miscompiles asm goto (GCC PR 58670) and the kernel crashes where it uses jump labels"
+fixed-by = [
+  { commit = "3f0116c", first-tag = "v3.12-rc5" },
+  { commit = "a9f180345f53", first-tag = "v3.14-rc3", note = "makes the workaround unconditional" },
+]
+gcc = ">=4.5, <=4.8.1"
+kernel = "<3.12"
+
+[[signature]]
+class = "gcc49-load-balance"
+rung = "L5..L7"
+match = { first-error = 'Kernel panic|BUG:|Oops|general protection fault|Unable to handle kernel|detected stalls|soft lockup' }
+kind = "miscompile"
+summary = "GCC 4.9.0 and 4.9.1 spill a register wrong in the scheduler's load_balance() (GCC PR 61801)"
+fixed-by = [ { commit = "2062afb4f804", first-tag = "v3.16-rc7", stable = ["3.13"] } ]
+gcc = "4.9.0 | 4.9.1"
+kernel = "<3.16"
+
+[[signature]]
+class = "gcc10-start-secondary"
+rung = "L5"
+match = { first-error = 'stack-protector: Kernel stack is corrupted in: start_secondary' }
+kind = "miscompile-by-assumption"
+summary = "GCC 10 tail-calls cpu_startup_entry() after the stack canary is set up"
+fixed-by = [ { commit = "a9a3ed1eff36", first-tag = "v5.7", stable = ["4.4", "4.9", "4.14", "4.19", "5.4"] } ]
+gcc = ">=10"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "gcc15-union-padding"
+rung = "L5..L7"
+match = { first-error = 'Kernel panic|BUG:|Oops|general protection fault|Unable to handle kernel|KASAN:|UBSAN:' }
+kind = "miscompile-by-assumption"
+summary = "From GCC 15, {0} no longer zeroes a whole union, and a kernel that relied on it may misbehave"
+fixed-by = [ { commit = "dce4aab8441d", first-tag = "v6.14", note = "-fzero-init-padding-bits=all, on 6.12.y and later but not 6.6 or 6.1" } ]
+gcc = ">=15"
+kernel = "<6.14"
+
+# Compiler crashes and old compilers.
+
+[[signature]]
+class = "arm-gcc47-ice-migrate"
+rung = "L3"
+match = { first-error = 'internal compiler error', unit = 'mm/migrate' }
+kind = "ice"
+summary = "arm GCC 4.7 and 4.8 crash on mm/migrate.c without ICE_noinline"
+fixed-by = [ { commit = "6ec4476ac825", note = "ICE_noinline goes with the 4.9 minimum in 5.8" } ]
+gcc = ">=4.7, <=4.8"
+platform = ["arm"]
+
+[[signature]]
+class = "too-old-asm-goto"
+rung = "L3"
+match = { first-error = 'lacks asm-goto support|asm goto' }
+kind = "too-old"
+summary = "GCC below 4.5 has no asm goto, which x86 requires from 4.20"
+fixed-by = [ { commit = "e501ce957a78", first-tag = "v4.20-rc1", note = "the requirement, after years of the CC_HAS_ASM_GOTO probe" } ]
+gcc = "<4.5"
+
+[[signature]]
+class = "too-old-generic"
+rung = "L3"
+match = { first-error = '_Generic|expected expression before' }
+kind = "too-old"
+summary = "GCC below 4.9 has no _Generic, which the kernel uses from 5.8"
+fixed-by = [ { commit = "6ec4476ac825", note = "the minimum is the policy" } ]
+gcc = "<4.9"
+
+# The rig, not the compiler.
+
+[[signature]]
+class = "over-budget"
+rung = "L3..L7"
+match = { first-error = 'went over its budget|^timed out after' }
+kind = "timeout"
+summary = "The step ran out of its time budget with no other sign of failure, which on a loaded machine says more about the machine than the cell"
+
+# Changed defaults.
+
+[[signature]]
+class = "distro-pie"
+rung = "L3"
+match = { first-error = 'code model kernel does not support PIC mode' }
+kind = "default-change"
+summary = "Debian and Ubuntu GCC 6 and later build PIE by default, which the kernel's code model rejects"
+fixed-by = [
+  { commit = "8ae94224c9d7", first-tag = "v4.9-rc6", stable = ["3.12", "3.16", "4.8"] },
+  { commit = "c6a385539175", first-tag = "v4.9-rc6", stable = ["3.12", "3.16", "4.8"] },
+]
+gcc = ">=6"
+flavor = ["debian", "ubuntu"]
+
+[[signature]]
+class = "fno-common"
+rung = "L3"
+match = { first-error = 'multiple definition of `' }
+kind = "default-change"
+summary = "GCC 10 defaults to -fno-common, and host programs such as dtc with tentative definitions stop linking"
+fixed-by = [ { commit = "e33a814e772c", first-tag = "v5.6", stable = ["4.4", "4.9", "4.14", "4.19", "5.4"] } ]
+gcc = ">=10"
+
+[[signature]]
+class = "gnu23-bool"
+rung = "L3"
+match = { first-error = '''-std=c23|cannot use keyword '(?:true|false)'|'bool' cannot be defined|expected [^\n]* before '(?:bool|true|false)'|two or more data types in declaration specifiers''' }
+kind = "default-change"
+summary = "GCC 15 defaults to -std=gnu23, making bool, true and false keywords in code that resets KBUILD_CFLAGS"
+fixed-by = [
+  { commit = "b3bee1e7c3f2", first-tag = "v6.7", note = "x86 boot" },
+  { commit = "ee2ab467bddf", first-tag = "v6.14", stable = ["6.1", "6.6", "6.12"], note = "x86 boot" },
+  { commit = "8ba14d9f490a", first-tag = "v6.14", note = "EFI stub" },
+  { commit = "3b8b80e99376", first-tag = "v6.14", note = "s390" },
+  { commit = "947d5d036c78", first-tag = "v6.13", note = "loongarch" },
+  { commit = "5a821e2d69e2", first-tag = "v6.16", stable = ["6.6", "6.12"], note = "powerpc boot" },
+  { commit = "7cbb015e2d3d", first-tag = "v6.16", note = "parisc" },
+  { commit = "0f4ae7c6ecb8", first-tag = "v6.16", note = "mips vDSO" },
+]
+gcc = ">=15"
+
+# New errors and new warnings under -Werror.
+
+[[signature]]
+class = "gcc7-format-werror"
+rung = "L3"
+match = { first-error = '\[-Werror=(?:format-truncation|format-overflow|int-in-bool-context)=?\]' }
+kind = "new-warning-werror"
+summary = "GCC 7's format and int-in-bool warnings, fatal where a directory builds with -Werror"
+fixed-by = [ { commit = "bd664f6b3e37", first-tag = "v4.13-rc1", stable = ["3.16", "4.4", "4.9"] } ]
+gcc = ">=7"
+
+[[signature]]
+class = "gcc8-packed-not-aligned"
+rung = "L3"
+match = { first-error = '\[-Werror=packed-not-aligned\]' }
+kind = "new-warning-werror"
+summary = "GCC 8's -Wpacked-not-aligned under -Werror"
+fixed-by = [ { commit = "321cb0308a9e", first-tag = "v4.16-rc1" } ]
+gcc = ">=8"
+
+[[signature]]
+class = "gcc8-attribute-alias"
+rung = "L3"
+match = { first-error = '\[-Werror=(?:missing-)?attribute-alias=?\d?\]' }
+kind = "new-warning-werror"
+summary = "GCC 8's -Wattribute-alias on SYSCALL_DEFINEx under -Werror"
+fixed-by = [ { commit = "bee20031772a", first-tag = "v4.18-rc3" } ]
+gcc = ">=8"
+
+[[signature]]
+class = "gcc8-stringop-truncation"
+rung = "L3"
+match = { first-error = '\[-Werror=stringop-truncation\]' }
+kind = "new-warning-werror"
+summary = "GCC 8's -Wstringop-truncation under -Werror"
+fixed-by = [ { commit = "217c3e019675", first-tag = "v4.19-rc2", stable = ["4.9"] } ]
+gcc = ">=8"
+
+[[signature]]
+class = "gcc9-missing-attributes"
+rung = "L3"
+match = { first-error = '\[-Werror=missing-attributes\]' }
+kind = "new-warning-werror"
+summary = "GCC 9's -Wmissing-attributes on module_init and module_exit aliases"
+fixed-by = [
+  { commit = "c0d9782f5b6d", first-tag = "v5.0-rc8", stable = ["4.9", "4.19"] },
+  { commit = "a6e60d84989f", first-tag = "v5.0-rc8", stable = ["4.9", "4.19"] },
+]
+gcc = ">=9"
+
+[[signature]]
+class = "gcc9-packed-member"
+rung = "L3"
+match = { first-error = '\[-Werror=address-of-packed-member\]' }
+kind = "new-warning-werror"
+summary = "GCC 9's -Waddress-of-packed-member under -Werror"
+fixed-by = [ { commit = "6f303d60534c", first-tag = "v5.1" } ]
+gcc = ">=9"
+
+[[signature]]
+class = "gcc10-warnings-werror"
+rung = "L3"
+match = { first-error = '\[-Werror=(?:zero-length-bounds|stringop-overflow=?|restrict|array-bounds=?)\d?\]' }
+kind = "new-warning-werror"
+summary = "GCC 10's -Wzero-length-bounds, -Wstringop-overflow and -Warray-bounds under -Werror"
+fixed-by = [
+  { commit = "5c45de21a222", first-tag = "v5.7" },
+  { commit = "5a76021c2eff", first-tag = "v5.7" },
+]
+gcc = ">=10, <12"
+
+[[signature]]
+class = "gcc11-stringop-overread"
+rung = "L3"
+match = { first-error = '\[-Werror=(?:stringop-overread|array-parameter=?\d?|misleading-indentation)\]' }
+kind = "new-warning-werror"
+summary = "GCC 11's -Wstringop-overread and -Warray-parameter under -Werror"
+fixed-by = [ { commit = "e7c6e405e171", first-tag = "v5.13" } ]
+gcc = ">=11"
+
+[[signature]]
+class = "gcc12-array-bounds"
+rung = "L3"
+match = { first-error = '\[-Werror=array-bounds=?\d?\]' }
+kind = "new-warning-werror"
+summary = "GCC 12's -Warray-bounds everywhere under -Werror"
+fixed-by = [ { commit = "f0be87c42cbd", first-tag = "v5.19", stable = ["5.15"] } ]
+gcc = ">=12"
+
+[[signature]]
+class = "gcc12-dangling-pointer"
+rung = "L3"
+match = { first-error = '\[-Werror=dangling-pointer=?\d?\]' }
+kind = "new-warning-werror"
+summary = "GCC 12's -Wdangling-pointer under -Werror"
+fixed-by = [ { commit = "49beadbd47c2", first-tag = "v5.19", stable = ["4.14", "4.19", "5.4", "5.10", "5.15"] } ]
+gcc = ">=12"
+
+[[signature]]
+class = "gcc13-enum-type"
+rung = "L3"
+match = { first-error = 'enum-int-mismatch|due to enum/integer mismatch|conflicting types for' }
+kind = "new-error"
+summary = "GCC 13 types an enum with values above LONG_MAX as 64-bit on 32-bit architectures"
+fixed-by = [ { commit = "525ff9c29657", first-tag = "v6.5" } ]
+gcc = ">=13"
+platform = ["i386", "arm"]
+
+[[signature]]
+class = "gcc14-new-errors"
+rung = "L3"
+match = { first-error = '\[-W(?:error=)?(?:implicit-int|implicit-function-declaration|declaration-missing-parameter-type|return-mismatch|int-conversion|incompatible-pointer-types)\]' }
+kind = "new-error"
+summary = "GCC 14 makes six diagnostics errors by default, and each unit that trips one was fixed on its own"
+gcc = ">=14"
+
+[[signature]]
+class = "gcc15-unterminated-string"
+rung = "L3"
+match = { first-error = '\[-Werror=unterminated-string-initialization\]' }
+kind = "new-warning-werror"
+summary = "GCC 15's -Wunterminated-string-initialization under -Werror"
+fixed-by = [
+  { commit = "d5d45a7f2619", first-tag = "v6.15", stable = ["6.12"] },
+  { commit = "9d7a0577c9db", first-tag = "v6.15", stable = ["6.12"] },
+]
+gcc = ">=15"
+
+[[signature]]
+class = "gcc16-unused-but-set"
+rung = "L3"
+match = { first-error = '\[-Werror=unused-but-set-(?:variable|parameter)=?\d?\]' }
+kind = "new-warning-werror"
+summary = "GCC 16 raises -Wunused-but-set-variable and -parameter to level 3 by default"
+fixed-by = [
+  { commit = "97fb54d86d21", first-tag = "v7.0" },
+  { commit = "729a2e8e9ac4", first-tag = "v7.0" },
+]
+gcc = ">=16"
+
+# objtool and modpost.
+
+[[signature]]
+class = "gcc8-objtool-cold"
+rung = "L4..L8"
+match = { first-error = 'objtool: [^\n]*\.cold' }
+kind = "objtool"
+summary = "objtool does not know GCC 8's .cold subfunctions"
+fixed-by = [ { commit = "13810435b9a7", first-tag = "v4.17-rc6", stable = ["4.14"] } ]
+gcc = ">=8"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "gcc8-objtool-switch"
+rung = "L4..L8"
+match = { first-error = 'objtool: [^\n]*(?:stack state mismatch|switch jump table)' }
+kind = "objtool"
+summary = "objtool does not follow GCC 8's switch tables"
+fixed-by = [ { commit = "fd35c88b7441", first-tag = "v4.17-rc6", stable = ["4.14"] } ]
+gcc = ">=8"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "gcc14-objtool-endbr"
+rung = "L4..L8"
+match = { first-error = 'objtool: [^\n]*(?:ENDBR|falls through to next function)' }
+kind = "objtool"
+summary = "GCC 14.2 leaves functions without ENDBR or falling through (GCC PR 116174), with no workaround in the kernel"
+gcc = "=14.2"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "gcc16-modpost-ipa-init"
+rung = "L4"
+match = { first-error = 'modpost: [^\n]*section mismatch' }
+kind = "modpost"
+summary = "GCC 16 inlines __init callees through IPA and modpost reports section mismatches"
+fixed-by = [ { commit = "4c9ad387aa2d", first-tag = "v7.1" } ]
+gcc = ">=16"
+
+# binutils.
+
+[[signature]]
+class = "binutils-plt32"
+rung = "L4..L5"
+match = { first-error = 'R_X86_64_PLT32|[Uu]nknown rela relocation: 4|Unsupported relocation type' }
+kind = "binutils-relocation"
+summary = "binutils 2.31 emits R_X86_64_PLT32, which the relocs tool and the module loader reject"
+fixed-by = [ { commit = "b21ebf2fb4cd", first-tag = "v4.16", stable = ["3.18", "4.4", "4.9", "4.14"] } ]
+binutils = ">=2.31"
+platform = ["x86_64"]
+
+[[signature]]
+class = "binutils-separate-code"
+rung = "L5"
+match = { console = '\A\s*\z' }
+kind = "binutils-layout"
+summary = "binutils 2.31's -z separate-code and 4 KB page size break the kernel's 2 MB alignment, and it boots silently into nothing"
+fixed-by = [ { commit = "e3d03598e8ae", first-tag = "v4.16", stable = ["4.4", "4.9", "4.14"] } ]
+binutils = ">=2.31"
+platform = ["x86_64"]
+
+[[signature]]
+class = "binutils-got32x"
+rung = "L5"
+match = { first-error = 'R_386_GOT32X|Failed to allocate space for phdrs' }
+kind = "binutils-relocation"
+summary = "binutils 2.26 relaxes to R_386_GOT32X and the compressed kernel fails to boot"
+fixed-by = [ { commit = "6d92bc9d483a", first-tag = "v4.6", stable = ["3.10", "3.12", "4.4"] } ]
+binutils = ">=2.26"
+platform = ["i386"]
+
+[[signature]]
+class = "binutils-riscv-zicsr"
+rung = "L3"
+match = { first-error = 'unrecognized opcode `(?:csr|fence\.i)' }
+kind = "binutils-isa"
+summary = "binutils 2.38 splits Zicsr and Zifencei out of the base ISA"
+fixed-by = [ { commit = "6df2a016c0c8", first-tag = "v5.17", stable = ["4.19", "5.4", "5.10", "5.15"] } ]
+binutils = ">=2.38"
+platform = ["riscv64"]
+
+[[signature]]
+class = "binutils-rwx-warning"
+rung = "L4"
+match = { first-error = 'LOAD segment with RWX permissions|missing \.note\.GNU-stack' }
+kind = "binutils-warning"
+summary = "binutils 2.39 warns about RWX segments and executable stacks, fatal with CONFIG_WERROR from 6.18"
+fixed-by = [
+  { commit = "0d362be5b142", first-tag = "v6.0", stable = ["4.14", "4.19", "5.4", "5.10", "5.15"] },
+  { commit = "ffcf9c5700e4", first-tag = "v6.0", stable = ["4.14", "4.19", "5.4", "5.10", "5.15"] },
+]
+binutils = ">=2.39"
+
+[[signature]]
+class = "binutils-loongarch-relax"
+rung = "L5..L7"
+match = { first-error = '[Uu]nknown relocation type|[Uu]nsupported relocation type' }
+kind = "binutils-relocation"
+summary = "binutils 2.41 relaxes by default and loongarch modules fail to load"
+fixed-by = [ { commit = "03c53eb90c0c", first-tag = "v6.5" } ]
+binutils = ">=2.41"
+platform = ["loongarch64"]
+
+[[signature]]
+class = "binutils-ppc-ztext"
+rung = "L4"
+match = { first-error = 'read-only segment has dynamic relocations' }
+kind = "binutils-link"
+summary = "binutils 2.46 links with -z text by default on powerpc"
+fixed-by = [ { commit = "97f902dd4c99", first-tag = "v7.2" } ]
+binutils = ">=2.46"
+platform = ["ppc64le"]

@@ -60,7 +60,8 @@ fn previous<'a>(repo: &'a Repo, gcc: &Gcc) -> (Option<&'a Gcc>, Option<&'a Gcc>)
 }
 
 /// Every graded cell in the store with its warnings, or every cell with `ungraded`.
-pub fn cells(ungraded: bool) -> Result<Vec<Cell>, String> {
+pub fn cells(repo: &Repo, ungraded: bool) -> Result<Vec<Cell>, String> {
+    let catalog = crate::classify::compile(repo);
     Ok(store::cells()?
         .into_iter()
         .filter(|(_, r)| ungraded || r.graded)
@@ -71,7 +72,7 @@ pub fn cells(ungraded: bool) -> Result<Vec<Cell>, String> {
                 .filter_map(|l| serde_json::from_str(l).ok())
                 .collect();
             Cell {
-                entry: publish::entry(&dir, &r),
+                entry: publish::entry(repo, &catalog, &dir, &r),
                 dir,
                 warnings,
             }
@@ -350,7 +351,7 @@ pub fn command(repo: &Repo, args: &[String]) -> Result<String, String> {
         .iter()
         .find(|x| x.id == g || x.id.strip_prefix("gcc-") == Some(g))
         .ok_or_else(|| format!("{g} is not in gccs.toml"))?;
-    let text = render(repo, gcc, &config, &cells(ungraded)?);
+    let text = render(repo, gcc, &config, &cells(repo, ungraded)?);
     if stdout {
         return Ok(text);
     }
@@ -384,6 +385,8 @@ mod tests {
                 } else {
                     String::new()
                 },
+                class: String::new(),
+                fixed_by: Vec::new(),
                 warnings: Some(warnings.iter().map(|w| w.1).sum()),
                 runs: 3,
                 flaky: false,

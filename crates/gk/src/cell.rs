@@ -396,7 +396,7 @@ impl Probe {
 
 /// The accept probe of spec 09.4: the configuration target, which runs the Kconfig and `cc-version.sh` checks, then `init/main.i`, which runs every `#error` in the compiler headers with kbuild's own flags.
 ///
-/// A refusal is a configuration step that fails or an `#error` directive that fires. Anything else that fails is inconclusive and is left to the build, because `init/main.i` depends on `prepare`, which compiles `bounds.c` and `asm-offsets.c` for real.
+/// A refusal is a configuration step that fails, an `#error` directive that fires, or a missing `compiler-gccN.h`, which is how 2.6.29 to 4.1 refuse a GCC major they have no header for. Anything else that fails is inconclusive and is left to the build, because `init/main.i` depends on `prepare`, which compiles `bounds.c` and `asm-offsets.c` for real.
 pub fn probe(s: &Setup, dir: &Path, jobs: usize) -> Result<Probe, String> {
     let clock = Instant::now();
     let out = dir.join("out");
@@ -435,7 +435,10 @@ pub fn probe(s: &Setup, dir: &Path, jobs: usize) -> Result<Probe, String> {
         let text = std::fs::read_to_string(&main_log).unwrap_or_default();
         let errors: Vec<String> = text
             .lines()
-            .filter(|l| l.contains("error: #error"))
+            .filter(|l| {
+                l.contains("error: #error")
+                    || (l.contains("linux/compiler-gcc") && l.contains("No such file"))
+            })
             .take(6)
             .map(str::to_owned)
             .collect();
@@ -509,6 +512,12 @@ pub struct CellRecord {
     pub gk: String,
     /// False when the checkout had uncommitted changes, which makes the result one nobody should grade.
     pub graded: bool,
+    /// The class of its first error, from `gk classify` (spec 08.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub classes: Vec<String>,
+    /// The signatures that match it but whose ranges leave it out, from `gk classify`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub findings: Vec<String>,
 }
 
 /// How many times a cell that reaches L5 boots (spec 02.4).
@@ -1107,7 +1116,7 @@ pub fn run(
     }
 
     let verdict = Verdict::of(Some(reached), Rung::Clean);
-    let record = CellRecord {
+    let mut record = CellRecord {
         cell: id,
         coordinates: s.coordinates.clone(),
         rung: reached.to_string(),
@@ -1123,7 +1132,14 @@ pub fn run(
         machine: hostname(),
         gk,
         graded,
+        classes: Vec::new(),
+        findings: Vec::new(),
     };
+    if let Some(f) = crate::classify::failure(&cell_dir, &record) {
+        let v = crate::classify::judge(repo, &crate::classify::compile(repo), &record, &f);
+        record.classes = v.class.into_iter().collect();
+        record.findings = v.findings;
+    }
     let json = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?;
     std::fs::write(cell_dir.join("cell.json"), json + "\n")
         .map_err(|e| format!("writing cell.json: {e}"))?;

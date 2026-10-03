@@ -1,12 +1,13 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `boot`, `probe`, `cell`, `search --dense`, `store`, `publish`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `boot`, `probe`, `cell`, `search --dense`, `store`, `publish`, `report`, `config-diff`, `classify`, `triage`, `explain`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
 mod boot;
 mod build;
 mod cell;
 mod census;
 mod changed;
+mod classify;
 mod differential;
 mod fetch;
 mod forge;
@@ -65,6 +66,11 @@ commands:
              columns in the store when no GCCs are named
   report     report new-gcc G [--config C] [--ungraded] [--stdout]: write reports/new-gcc-<version>.md,
              the release report of spec 10.8 over the Current set
+  classify   run signatures.toml over every failed cell in the store and write the class into
+             its cell.json, or only print them with --dry-run
+  triage     the failed cells no signature names, clustered by first error, largest first
+  explain    explain K G P [--config C]: the cell's first error, its class, and whether the fix
+             is in the kernel's tree
   store      list the cells in the result store, or:
              store show ID, store check, store pack FILE.tar.zst
   ladder     print the outcome ladder and the verdict each rung earns
@@ -93,6 +99,12 @@ fn main() -> ExitCode {
         Some("publish") => publish_command(&args[1..]),
         Some("config-diff") => config_diff(&args[1..]),
         Some("report") => report_command(&args[1..]),
+        Some("classify") => classify_command(&args[1..]),
+        Some("triage") => text_command(classify::triage),
+        Some("explain") => {
+            let rest = &args[1..];
+            text_command(|repo| classify::explain(repo, rest))
+        }
         Some("fetch") => fetch(&args[1..]),
         Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
         Some("pins") if args.get(1).map(String::as_str) == Some("changed") => changed(&args[2..]),
@@ -266,6 +278,26 @@ fn config_diff(args: &[String]) -> ExitCode {
 /// `gk publish`.
 fn report_command(args: &[String]) -> ExitCode {
     match Repo::find().and_then(|repo| report::command(&repo, args)) {
+        Ok(text) => {
+            print!("{text}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `gk classify [--dry-run]`.
+fn classify_command(args: &[String]) -> ExitCode {
+    let write = !args.iter().any(|a| a == "--dry-run");
+    text_command(|repo| classify::classify(repo, write))
+}
+
+/// A command that prints what it returns.
+fn text_command(run: impl FnOnce(&Repo) -> Result<String, String>) -> ExitCode {
+    match Repo::find().and_then(|repo| run(&repo)) {
         Ok(text) => {
             print!("{text}");
             ExitCode::SUCCESS
