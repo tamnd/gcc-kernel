@@ -146,12 +146,13 @@ pub fn entry(repo: &Repo, catalog: &[Compiled<'_>], dir: &Path, r: &CellRecord) 
     }
 }
 
-/// The matrix of every graded cell in the store, or every cell with `ungraded`.
+/// The matrix of every graded cell in the store, or every cell with `ungraded`. Cells on a commit of the history clone, which `gk bisect-kernel` runs, are left out.
 pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
     let catalog = classify::compile(repo);
     let mut cells: Vec<Entry> = store::cells()?
         .iter()
         .filter(|(_, r)| ungraded || r.graded)
+        .filter(|(_, r)| !r.coordinates.kernel.digest.starts_with("git:"))
         .map(|(dir, r)| entry(repo, &catalog, dir, r))
         .collect();
     let gcc_version = |id: &str| {

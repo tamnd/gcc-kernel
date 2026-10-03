@@ -121,7 +121,6 @@ impl Setup {
         platform: &str,
         config: &str,
     ) -> Result<Self, String> {
-        let &(config, target, extra) = config_named(config)?;
         let version: Version = kernel
             .trim_start_matches("linux-")
             .parse()
@@ -130,6 +129,43 @@ impl Setup {
             .kernels
             .get(&version)
             .ok_or_else(|| format!("{version} is not in kernels.toml"))?;
+        let kernel = Named {
+            name: format!("linux-{version}"),
+            digest: format!("sha256:{}", k.sha256),
+        };
+        let tree = fetched_tree(repo, &version, k.file_name())?;
+        Self::resolve(repo, version, kernel, tree, gcc, platform, config)
+    }
+
+    /// A cell on one commit of the history clone, whose tree is already exported to `tree` (spec 03.5). The kernel is named after the version its `Makefile` gives and the commit, and its digest is the commit.
+    pub fn at_commit(
+        repo: &Repo,
+        commit: &str,
+        version: &Version,
+        tree: PathBuf,
+        gcc: &str,
+        platform: &str,
+        config: &str,
+    ) -> Result<Self, String> {
+        let kernel = Named {
+            name: format!("linux-{version}-g{}", &commit[..12.min(commit.len())]),
+            digest: format!("git:{commit}"),
+        };
+        Self::resolve(repo, version.clone(), kernel, tree, gcc, platform, config)
+    }
+
+    /// Everything but the kernel, which the caller has found.
+    #[allow(clippy::too_many_lines)]
+    fn resolve(
+        repo: &Repo,
+        version: Version,
+        kernel: Named,
+        tree: PathBuf,
+        gcc: &str,
+        platform: &str,
+        config: &str,
+    ) -> Result<Self, String> {
+        let &(config, target, extra) = config_named(config)?;
         let g = repo
             .gccs
             .gccs
@@ -168,7 +204,6 @@ impl Setup {
             .iter()
             .find(|b| b.version.as_str() == bundle.binutils)
             .ok_or_else(|| format!("binutils {} is not in binutils.toml", bundle.binutils))?;
-        let tree = fetched_tree(repo, &version, k.file_name())?;
         let bundle_dir = forge::unpacked(&bundle)?;
         let image = forge::image_for(repo, &host)?;
         let fragment = repo.root.join(era.fragment());
@@ -179,10 +214,7 @@ impl Setup {
                 .extend(std::fs::read(f).map_err(|e| format!("reading {}: {e}", f.display()))?);
         }
         let coordinates = Coordinates {
-            kernel: Named {
-                name: format!("linux-{version}"),
-                digest: format!("sha256:{}", k.sha256),
-            },
+            kernel,
             gcc: Named {
                 name: g.id.clone(),
                 digest: bundle.digest.clone(),
