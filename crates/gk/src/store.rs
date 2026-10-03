@@ -114,7 +114,8 @@ pub fn pack(out: &Path) -> Result<usize, String> {
         .arg("-C")
         .arg(root())
         .args(["--sort=name", "--owner=0", "--group=0", "--numeric-owner"])
-        .args(["--use-compress-program", "zstd -19 -T0"])
+        // Two threads: at level 19 each one holds hundreds of megabytes, and with one per core the packing machine ran out of memory.
+        .args(["--use-compress-program", "zstd -19 -T2"])
         .arg("-cf")
         .arg(out)
         .arg("-T")
