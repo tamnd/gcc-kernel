@@ -9,7 +9,7 @@ Recent kernels come first, because that is where rucc is going. Old kernels are 
 <!-- gk:status:begin -->
 ## Status
 
-This section is written by `gk publish` from [matrix/matrix.json](matrix/matrix.json) and is replaced every time the results are published. Last published 2026-10-03, with 83 cells in the matrix.
+This section is written by `gk publish` from [matrix/matrix.json](matrix/matrix.json) and is replaced every time the results are published. Last published 2026-10-03, with 87 cells in the matrix.
 
 ### Progress
 
@@ -37,9 +37,9 @@ total                    ▌░░░░░░░░░░░░░░░░░�
 The newest cell at each crossing, over every platform and configuration.
 
 ```text
-🟩 works      ████████████████████████████████████████ 23
-🟨 runs       ████████████████████████▍                14
-🟧 builds     █▊                                       1
+🟩 works      ████████████████████████████████████████ 22
+🟨 runs       █████████████████████████▌               14
+🟧 builds     ███▋                                     2
 🟥 fails                                               0
 ```
 
@@ -51,10 +51,10 @@ L1                                                    0
 L2                                                    0
 L3                                                    0
 L4                                                    0
-L5           █▊                                       1
-L6           ███████████████▋                         9
-L7           ████████▊                                5
-L8           ████████████████████████████████████████ 23
+L5           ███▋                                     2
+L6           ████████████████▍                        9
+L7           █████████▏                               5
+L8           ████████████████████████████████████████ 22
 ```
 
 The median build time of `defconfig+gk` cells per GCC column, in minutes. The machines are shared, so these move with their load.
@@ -63,8 +63,8 @@ The median build time of `defconfig+gk` cells per GCC column, in minutes. The ma
 8.5.0        ████████████████████████████████████▍    32 min, 4 cells
 9.5.0        █████████████████████▊                   19 min, 3 cells
 10.5.0       ████████████████████████▋                22 min, 3 cells
-11.5.0       ██████████████▌                          13 min, 3 cells
-12.2.0       ████████████████▏                        14 min, 4 cells
+11.5.0       █████████████████████████▎               22 min, 3 cells
+12.2.0       ██████████████████████████▎              23 min, 4 cells
 12.5.0       ██████████████▌                          13 min, 3 cells
 13.5.0       ███████████████▊                         14 min, 3 cells
 14.2.0       ████████████████████████████████████████ 36 min, 4 cells
@@ -84,7 +84,7 @@ The newest cell at each crossing again, over every kernel, platform and configur
 | 9.5.0 | 3 | 2 | 1 | 0 | 0 | 0 | `██████▊░░░` 66% |
 | 10.5.0 | 3 | 3 | 0 | 0 | 0 | 0 | `██████████` 100% |
 | 11.5.0 | 3 | 2 | 1 | 0 | 0 | 0 | `██████▊░░░` 66% |
-| 12.2.0 | 4 | 3 | 1 | 0 | 0 | 0 | `███████▌░░` 75% |
+| 12.2.0 | 4 | 2 | 1 | 1 | 0 | 1 | `█████░░░░░` 50% |
 | 12.5.0 | 3 | 2 | 1 | 0 | 0 | 0 | `██████▊░░░` 66% |
 | 13.5.0 | 3 | 1 | 2 | 0 | 0 | 1 | `███▍░░░░░░` 33% |
 | 14.2.0 | 4 | 2 | 2 | 0 | 0 | 1 | `█████░░░░░` 50% |
@@ -97,16 +97,16 @@ The newest cell at each crossing again, over every kernel, platform and configur
 
 | Date | Kernel | GCC | Platform | Config | Verdict | Rung | Minutes |
 |---|---|---|---|---|---|---|--:|
+| 2026-10-03 | 7.2.8 | 12.2.0 | x86_64 | defconfig+gk | 🟧⚠️ builds | L5 | 50 |
+| 2026-10-03 | 7.2.8 | 12.2.0 | i386 | defconfig+gk | 🟩 works | L8 | 43 |
+| 2026-10-03 | 7.2.8 | 11.5.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 51 |
+| 2026-10-03 | 7.2.8 | 11.5.0 | i386 | defconfig+gk | 🟩 works | L8 | 42 |
 | 2026-10-03 | 7.2.8 | 10.5.0 | i386 | defconfig+gk | 🟩 works | L8 | 41 |
 | 2026-10-03 | 7.2.8 | 10.5.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 52 |
 | 2026-10-03 | 7.2.8 | 9.5.0 | i386 | defconfig+gk | 🟩 works | L8 | 37 |
 | 2026-10-03 | 7.2.8 | 9.5.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 50 |
 | 2026-10-03 | 7.2.8 | 8.5.0 | i386 | defconfig+gk | 🟩 works | L8 | 37 |
 | 2026-10-03 | 7.2.8 | 8.5.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 53 |
-| 2026-10-03 | 7.2.8 | 14.2.0 | x86_64 | defconfig+gk | 🟨 runs | L7 | 59 |
-| 2026-10-03 | 7.2.8 | 14.2.0 | i386 | defconfig+gk | 🟩 works | L8 | 46 |
-| 2026-10-03 | 6.18.54 | 10.5.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 22 |
-| 2026-10-03 | 6.18.54 | 9.5.0 | x86_64 | defconfig+gk | 🟨 runs | L7 | 22 |
 
 ### Matrices
 
@@ -122,7 +122,7 @@ One square per cell: 🟩 works, 🟨 runs, 🟧 builds, 🟥 fails, · n/a, and
 | 6.6.157 |  |  |  |  |  |  |  |  |  |  |  |  |
 | 6.12.111 |  |  |  |  | 🟩 |  |  |  |  |  |  |  |
 | 6.18.54 | 🟨 | 🟨 | 🟩 | 🟨 | 🟨 | 🟨 | 🟨 | 🟨⚠️ | 🟨 | 🟧⚠️ | 🟨 |  |
-| 7.2.8 | 🟩 | 🟩 | 🟩 | 🟩 | 🟩 | 🟩 | 🟨⚠️ | 🟨 | 🟩 | 🟩 | 🟩 | 🟩 |
+| 7.2.8 | 🟩 | 🟩 | 🟩 | 🟩 | 🟧⚠️ | 🟩 | 🟨⚠️ | 🟨 | 🟩 | 🟩 | 🟩 | 🟩 |
 
 #### i386 defconfig+gk, 11 cells
 
