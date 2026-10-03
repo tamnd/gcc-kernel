@@ -1,6 +1,20 @@
 # The GCC columns of the matrix (spec 04).
 #
-# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 3.3 to 4.5 and the era GCCs of M4 to M6 (the mirror has no signatures for releases before 3.3, so those wait for a pin of their own), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.
+# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 3.3 to 4.5 and the era GCCs of M4 to M6 (the mirror has no signatures for releases before 3.3, so those rows say so and are held to their SHA-256 alone), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.
+
+[[gcc]]
+id = "gcc-3.2.3"
+version = "3.2.3"
+flavor = "upstream"
+released = "2003-04-22"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-3.2.3/gcc-3.2.3.tar.bz2"
+sha256 = "9229434cfdfb79d3183149ac09e1093be642d4be377cc491e75c23b856243fda"
+unsigned = "The mirror has only an unsigned md5.sum for releases before 3.3."
+forge = "gk-forge-etch"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 3.2."
 
 [[gcc]]
 id = "gcc-3.3.6"

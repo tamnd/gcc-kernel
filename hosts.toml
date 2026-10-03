@@ -194,7 +194,7 @@ gcc = "4.4.5"
 name = "gk-forge-etch"
 kind = "forge"
 base = "debian/eol:etch"
-arches = ["i386"]
+arches = ["amd64"]
 gcc = "4.1.1"
 
 [[host]]

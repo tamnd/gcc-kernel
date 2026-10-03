@@ -1,6 +1,6 @@
 //! `gk fetch`: download kernel trees and toolchain tarballs into the cache, and check them.
 //!
-//! A kernel tarball is held to its pin, and the pin is held to kernel.org's signed `sha256sums.asc`, checked against `keys/kernel.org.asc`. A GCC or binutils tarball is held to its pin and to its detached signature, checked against `keys/gnu.asc`. A tarball already in the cache is only hashed again.
+//! A kernel tarball is held to its pin, and the pin is held to kernel.org's signed `sha256sums.asc`, checked against `keys/kernel.org.asc`. A GCC or binutils tarball is held to its pin and to its detached signature, checked against `keys/gnu.asc`, unless its row says why the mirror has no signature for it, as for every GCC before 3.3. A tarball already in the cache is only hashed again.
 
 use crate::gpg::Keyring;
 use crate::{kernelorg, net};
@@ -30,6 +30,9 @@ pub fn cache_dir() -> PathBuf {
     home.join(".cache/gk")
 }
 
+/// A GCC or binutils tarball to fetch: its id, URL, pin, and why it has no signature, if it has none.
+type Tarball = (String, String, String, String);
+
 /// Run `gk fetch`.
 pub fn run(repo: &Repo, req: &Request) -> Result<(), String> {
     let cache = cache_dir();
@@ -42,24 +45,40 @@ pub fn run(repo: &Repo, req: &Request) -> Result<(), String> {
                 .ok_or_else(|| format!("kernel {v} is not in kernels.toml"))?,
         );
     }
-    let mut tarballs: Vec<(String, String, String)> = Vec::new();
+    let gcc = |g: &gk_model::toolchains::Gcc| -> Tarball {
+        (
+            g.id.clone(),
+            g.url.clone(),
+            g.sha256.clone(),
+            g.unsigned.clone(),
+        )
+    };
+    let binutils = |b: &gk_model::toolchains::Binutils| -> Tarball {
+        (
+            b.id.clone(),
+            b.url.clone(),
+            b.sha256.clone(),
+            b.unsigned.clone(),
+        )
+    };
+    let mut tarballs: Vec<Tarball> = Vec::new();
     for g in &req.gccs {
-        let gcc = repo
+        let found = repo
             .gccs
             .gccs
             .iter()
             .find(|c| c.id == *g || c.version.as_str() == g)
             .ok_or_else(|| format!("gcc {g} is not in gccs.toml"))?;
-        tarballs.push((gcc.id.clone(), gcc.url.clone(), gcc.sha256.clone()));
+        tarballs.push(gcc(found));
     }
     for b in &req.binutils {
-        let bu = repo
+        let found = repo
             .binutils
             .releases
             .iter()
             .find(|r| r.id == *b || r.version.as_str() == b)
             .ok_or_else(|| format!("binutils {b} is not in binutils.toml"))?;
-        tarballs.push((bu.id.clone(), bu.url.clone(), bu.sha256.clone()));
+        tarballs.push(binutils(found));
     }
     if req.all {
         kernels = repo.kernels.kernels.iter().collect();
@@ -68,66 +87,80 @@ pub fn run(repo: &Repo, req: &Request) -> Result<(), String> {
             .gccs
             .iter()
             .filter(|g| !g.url.is_empty())
-            .map(|g| (g.id.clone(), g.url.clone(), g.sha256.clone()))
-            .chain(
-                repo.binutils
-                    .releases
-                    .iter()
-                    .map(|b| (b.id.clone(), b.url.clone(), b.sha256.clone())),
-            )
+            .map(gcc)
+            .chain(repo.binutils.releases.iter().map(binutils))
             .collect();
     }
     if kernels.is_empty() && tarballs.is_empty() {
         return Err("nothing to fetch: give --kernel, --gcc, --binutils or --all".to_owned());
     }
     if !kernels.is_empty() {
-        let keys = Keyring::open(&repo.root.join("keys/kernel.org.asc"), &cache)?;
-        let mut sums: std::collections::BTreeMap<
-            String,
-            std::collections::BTreeMap<String, String>,
-        > = std::collections::BTreeMap::new();
-        for k in kernels {
-            let path = cache.join("kernels").join(k.file_name());
-            if held(&path, &k.sha256)? {
-                println!("linux {}: cached", k.version);
-                continue;
-            }
-            let dir = k.url.rsplit_once('/').map_or("", |(d, _)| d).to_owned();
-            if !sums.contains_key(&dir) {
-                let asc = cache.join("kernels").join(format!(
-                    "sha256sums-{}.asc",
-                    dir.rsplit('/').next().unwrap_or("dir")
-                ));
-                net::download(&format!("{dir}/sha256sums.asc"), &asc)?;
-                let (text, _) = keys.verify_clear(&asc)?;
-                sums.insert(dir.clone(), kernelorg::parse_sums(&text));
-            }
-            let signed = sums[&dir].get(k.file_name());
-            if signed != Some(&k.sha256) {
-                return Err(format!(
-                    "linux {}: the pin does not match kernel.org's signed sha256sums.asc",
-                    k.version
-                ));
-            }
-            fetch_one(&k.url, &path, &k.sha256)?;
-            println!("linux {}: fetched, pin matches the signed list", k.version);
-        }
+        fetch_kernels(repo, &cache, &kernels)?;
     }
     if !tarballs.is_empty() {
-        let keys = Keyring::open(&repo.root.join("keys/gnu.asc"), &cache)?;
-        for (id, url, sha256) in tarballs {
-            let name = url.rsplit('/').next().unwrap_or("download");
-            let path = cache.join("toolchains").join(name);
-            if held(&path, &sha256)? {
-                println!("{id}: cached");
-                continue;
-            }
-            let sig = path.with_file_name(format!("{name}.sig"));
-            net::download(&format!("{url}.sig"), &sig)?;
-            fetch_one(&url, &path, &sha256)?;
-            let fpr = keys.verify_detached(&sig, &path)?;
-            println!("{id}: fetched, signed by {fpr}");
+        fetch_tarballs(repo, &cache, &tarballs)?;
+    }
+    Ok(())
+}
+
+/// Fetch kernel trees, each held to its pin and the pin to kernel.org's signed list.
+fn fetch_kernels(
+    repo: &Repo,
+    cache: &Path,
+    kernels: &[&gk_model::kernels::Kernel],
+) -> Result<(), String> {
+    let keys = Keyring::open(&repo.root.join("keys/kernel.org.asc"), cache)?;
+    let mut sums: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> =
+        std::collections::BTreeMap::new();
+    for k in kernels {
+        let path = cache.join("kernels").join(k.file_name());
+        if held(&path, &k.sha256)? {
+            println!("linux {}: cached", k.version);
+            continue;
         }
+        let dir = k.url.rsplit_once('/').map_or("", |(d, _)| d).to_owned();
+        if !sums.contains_key(&dir) {
+            let asc = cache.join("kernels").join(format!(
+                "sha256sums-{}.asc",
+                dir.rsplit('/').next().unwrap_or("dir")
+            ));
+            net::download(&format!("{dir}/sha256sums.asc"), &asc)?;
+            let (text, _) = keys.verify_clear(&asc)?;
+            sums.insert(dir.clone(), kernelorg::parse_sums(&text));
+        }
+        let signed = sums[&dir].get(k.file_name());
+        if signed != Some(&k.sha256) {
+            return Err(format!(
+                "linux {}: the pin does not match kernel.org's signed sha256sums.asc",
+                k.version
+            ));
+        }
+        fetch_one(&k.url, &path, &k.sha256)?;
+        println!("linux {}: fetched, pin matches the signed list", k.version);
+    }
+    Ok(())
+}
+
+/// Fetch GCC and binutils tarballs, each held to its pin and, unless its row says why it cannot be, to its signature.
+fn fetch_tarballs(repo: &Repo, cache: &Path, tarballs: &[Tarball]) -> Result<(), String> {
+    let keys = Keyring::open(&repo.root.join("keys/gnu.asc"), cache)?;
+    for (id, url, sha256, unsigned) in tarballs {
+        let name = url.rsplit('/').next().unwrap_or("download");
+        let path = cache.join("toolchains").join(name);
+        if held(&path, sha256)? {
+            println!("{id}: cached");
+            continue;
+        }
+        if !unsigned.is_empty() {
+            fetch_one(url, &path, sha256)?;
+            println!("{id}: fetched, held to its pin alone: {unsigned}");
+            continue;
+        }
+        let sig = path.with_file_name(format!("{name}.sig"));
+        net::download(&format!("{url}.sig"), &sig)?;
+        fetch_one(url, &path, sha256)?;
+        let fpr = keys.verify_detached(&sig, &path)?;
+        println!("{id}: fetched, signed by {fpr}");
     }
     Ok(())
 }
