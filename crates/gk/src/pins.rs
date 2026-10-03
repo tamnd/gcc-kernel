@@ -38,9 +38,10 @@ pub fn run(repo: &Repo, write: bool) -> Result<bool, String> {
 
 const KERNELS_HEADER: &str = "# Every kernel tree that is a row of the matrix, with its tarball and SHA-256.\n#\n# Written by `gk pins --write` from the rules in sets.toml, kernel.org's releases.json and the signed sha256sums.asc of each directory. Pins in a set that sets.toml has no rule for are kept as they are.\n";
 const BINUTILS_HEADER: &str = "# Every binutils release a GCC column can be paired with (spec 04.5).\n#\n# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download.\n";
-const GCCS_HEADER: &str = "# The GCC columns of the matrix (spec 04).\n#\n# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty.\n";
+const GCCS_HEADER: &str = "# The GCC columns of the matrix (spec 04).\n#\n# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, and the other targets join with their platforms.\n";
 
 /// The kernel pins the rules give, together with the pins no rule covers.
+#[allow(clippy::too_many_lines)]
 fn kernels(repo: &Repo) -> Result<Kernels, String> {
     let sets = &repo.sets;
     let releases = kernelorg::parse_releases(&net::fetch_text(kernelorg::RELEASES_URL)?)?;
@@ -55,6 +56,8 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
     };
     let mut out: BTreeMap<Version, Kernel> = BTreeMap::new();
     let mut newest_major = 0;
+    // The lines whose newest release kernel.org lists before its sha256sums.asc does. Their old pins stay until the list catches up.
+    let mut lagging: Vec<Vec<u32>> = Vec::new();
     for r in &releases {
         let Ok(version) = r.version.parse::<Version>() else {
             continue;
@@ -66,10 +69,19 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
             continue;
         }
         let name = format!("linux-{}.tar.xz", r.version);
-        let sha256 = sums_of(major)?
-            .get(&name)
-            .cloned()
-            .ok_or_else(|| format!("sha256sums.asc of v{major}.x does not list {name}"))?;
+        let Some(sha256) = sums_of(major)?.get(&name).cloned() else {
+            eprintln!(
+                "gk pins: sha256sums.asc of v{major}.x does not list {name} yet, so the pins of {} are kept",
+                version
+                    .series(2)
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(".")
+            );
+            lagging.push(version.series(2));
+            continue;
+        };
         out.insert(
             version.clone(),
             Kernel {
@@ -112,7 +124,56 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
             }
         }
     }
+    if let Some(first) = sets.first_line() {
+        let mut newest: BTreeMap<Version, (Version, String)> = BTreeMap::new();
+        for major in first.parts()[0]..=newest_major {
+            for (name, sha256) in sums_of(major)? {
+                let Some(version) = name
+                    .strip_prefix("linux-")
+                    .and_then(|n| n.strip_suffix(".tar.xz"))
+                    .and_then(|v| v.parse::<Version>().ok())
+                else {
+                    continue;
+                };
+                if version.parts().len() != 3 || version.is_pre() {
+                    continue;
+                }
+                let Ok(line) =
+                    format!("{}.{}", version.parts()[0], version.parts()[1]).parse::<Version>()
+                else {
+                    continue;
+                };
+                if newest.get(&line).is_none_or(|(v, _)| *v < version) {
+                    newest.insert(line, (version, sha256));
+                }
+            }
+        }
+        for (line, (version, sha256)) in newest {
+            let in_sets = sets.for_last_point(&line);
+            if in_sets.is_empty() {
+                continue;
+            }
+            let url = kernelorg::tarball_url(version.parts()[0], version.as_str());
+            let k = out.entry(version.clone()).or_insert_with(|| Kernel {
+                version,
+                url,
+                sha256,
+                sets: Vec::new(),
+                moniker: String::new(),
+            });
+            merge(&mut k.sets, &in_sets);
+        }
+    }
     for old in &repo.kernels.kernels {
+        if lagging.contains(&old.version.series(2)) {
+            match out.get_mut(&old.version) {
+                Some(k) => merge(&mut k.sets, &old.sets),
+                None => {
+                    out.insert(old.version.clone(), old.clone());
+                }
+            }
+            continue;
+        }
         if old.sets.iter().all(|s| sets.has(s)) {
             continue;
         }
@@ -171,12 +232,11 @@ fn binutils(
         .iter()
         .map(|b| (b.version.clone(), b.clone()))
         .collect();
-    for (v, date) in gnu::binutils_releases(&listing) {
+    for (v, date, url) in gnu::binutils_releases(&listing) {
         let version: Version = v.parse().map_err(|e| format!("binutils {v}: {e:?}"))?;
         if version < *from || out.contains_key(&version) {
             continue;
         }
-        let url = gnu::binutils_url(&v);
         let sha256 = if write {
             hash_of(&url, cache)?
         } else {
@@ -210,7 +270,10 @@ fn gccs(repo: &Repo, write: bool, cache: &Path, lines: &mut Vec<String>) -> Resu
     for g in out.gccs.iter_mut().filter(|g| g.flavor == "upstream") {
         let v = g.version.as_str().to_owned();
         if g.url.is_empty() {
-            g.url = gnu::gcc_url(&v);
+            let dir = gnu::parse_listing(&net::fetch_text(&format!("{}/gcc-{v}/", gnu::GCC_URL))?);
+            g.url = gnu::gcc_url(&v, &dir).ok_or_else(|| {
+                format!("{} has no tarball in its directory on the GNU mirror", g.id)
+            })?;
             lines.push(format!("~ {} url", g.id));
         }
         if g.released.is_empty() {

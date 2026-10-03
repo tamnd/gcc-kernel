@@ -170,6 +170,13 @@ arches = ["amd64"]
 gcc = "10.2.1"
 
 [[host]]
+name = "gk-forge-stretch"
+kind = "forge"
+base = "debian/eol:stretch"
+arches = ["amd64"]
+gcc = "6.3.0"
+
+[[host]]
 name = "gk-forge-jessie"
 kind = "forge"
 base = "debian/eol:jessie"

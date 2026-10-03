@@ -382,7 +382,15 @@ mod tests {
         assert_eq!(rows.len(), 4);
         assert!(rows[0].starts_with("| 6.18 |"));
         assert!(rows[0].ends_with(" 🟩⚠️ |"));
-        assert!(rows[1].starts_with("| 7.2.8 | 🟥 |"));
+        // The oldest columns have no cell, so the first square is gcc-8.5.0's.
+        assert!(rows[1].starts_with("| 7.2.8 |"));
+        assert_eq!(
+            rows[1]
+                .split('|')
+                .map(str::trim)
+                .find(|c| !c.is_empty() && *c != "7.2.8"),
+            Some("🟥")
+        );
         assert!(rows[1].ends_with(" 🟨 |"));
         assert!(rows[3].starts_with("| 7.2.8 |  |"));
         assert!(rows[3].ends_with(" 12 |"));

@@ -178,15 +178,16 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn the_x86_64_row_has_every_g0_column_in_order() {
+    fn the_x86_64_row_has_every_column_in_order() {
         let repo = Repo::load(Path::new("../..")).unwrap();
         let ids: Vec<&str> = columns(&repo, "x86_64-linux-gnu")
             .iter()
             .map(|g| g.id.as_str())
             .collect();
-        assert_eq!(ids.first(), Some(&"gcc-8.5.0"));
+        assert_eq!(ids.first(), Some(&"gcc-4.6.4"));
         assert_eq!(ids.last(), Some(&"gcc-16.2.0"));
-        assert_eq!(ids.len(), 12);
+        assert_eq!(ids.len(), 23);
+        assert_eq!(columns(&repo, "aarch64-linux-gnu").len(), 20);
     }
 
     #[test]
@@ -198,7 +199,7 @@ mod tests {
             .map(|g| g.id.as_str())
             .collect();
         assert_eq!(order[0], "gcc-14.2.0");
-        assert_eq!(order[1], "gcc-8.5.0");
+        assert_eq!(order[1], "gcc-4.6.4");
         assert_eq!(order.len(), cols.len());
         assert_eq!(era_first(cols.clone(), None).len(), cols.len());
     }
@@ -215,6 +216,6 @@ mod tests {
             era_column(&repo, "gcc-14.2.0", t).as_deref(),
             Some("gcc-14.2.0")
         );
-        assert_eq!(era_column(&repo, "gcc-4.9.4", t), None);
+        assert_eq!(era_column(&repo, "gcc-3.4.6", t), None);
     }
 }

@@ -1,0 +1,25 @@
+# The test fragment for era M7, kernels 3.0 to 3.17 (spec 07.2). It is merged after the configuration target and only turns things on, except for the four switches at the top. KUnit arrives in 5.5, so this era has none.
+
+# Off everywhere, so that every column of a row gets the same configuration. WERROR is already off in defconfig and is stated so that allmodconfig agrees. Plugins need headers the bundles do not have. BTF needs a pahole of the kernel's era, a host tool that varies on its own. None of the four exist in this era, so merge_config.sh notes them and moves on. They stay so the fragment of every era starts the same way.
+CONFIG_WERROR=n
+CONFIG_GCC_PLUGINS=n
+CONFIG_RUST=n
+CONFIG_DEBUG_INFO_BTF=n
+
+# The serial consoles the boot rig reads, on x86 and on arm64.
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_CONSOLE=y
+CONFIG_SERIAL_AMBA_PL011=y
+CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
+
+# What gk-init needs: an initramfs, device nodes, and the pseudo file systems it mounts.
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_TMPFS=y
+CONFIG_PROC_FS=y
+CONFIG_SYSFS=y
+
+# Timestamps on the console, and an oops that stops the machine instead of limping on. PANIC_ON_OOPS arrives in 3.5, and before that the oops=panic the boot rig passes does the same.
+CONFIG_PRINTK_TIME=y
+CONFIG_PANIC_ON_OOPS=y

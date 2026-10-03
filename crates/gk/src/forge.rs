@@ -87,6 +87,7 @@ pub fn unpacked(m: &Manifest) -> Result<PathBuf, String> {
 }
 
 /// Run `gk forge`.
+#[allow(clippy::too_many_lines)]
 pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> Result<(), String> {
     let gcc = repo
         .gccs
@@ -117,7 +118,12 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
         },
     )?;
     let src = fetch::cache_dir().join("toolchains");
-    let gcc_tar = src.join(format!("gcc-{}.tar.xz", gcc.version));
+    let gcc_file = file_of(&gcc.url, &format!("gcc-{}.tar.xz", gcc.version));
+    let binutils_file = file_of(
+        &binutils.url,
+        &format!("binutils-{}.tar.xz", binutils.version),
+    );
+    let gcc_tar = src.join(&gcc_file);
     let prereqs = prerequisites(&gcc_tar, &format!("gcc-{}", gcc.version), &src)?;
     let image = image_for(repo, &gcc.forge)?;
     let out = bundles_dir();
@@ -140,6 +146,8 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
             .args(["-e", &format!("GK_ID={}", gcc.id)])
             .args(["-e", &format!("GK_GCC={}", gcc.version)])
             .args(["-e", &format!("GK_BINUTILS={}", binutils.version)])
+            .args(["-e", &format!("GK_GCC_TAR={gcc_file}")])
+            .args(["-e", &format!("GK_BINUTILS_TAR={binutils_file}")])
             .args(["-e", &format!("GK_TARGET={target}")])
             .args(["-e", &format!("GK_PREREQS={}", prereqs.join(" "))]);
         if let Some(j) = jobs {
@@ -154,6 +162,18 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
             return Err(format!("{} for {target}: the forge build failed", gcc.id));
         }
         let file = format!("{}-{target}.tar.zst", gcc.id);
+        let plain = out.join(format!("{}-{target}.tar", gcc.id));
+        if plain.is_file() {
+            // A forge without zstd leaves the tarball uncompressed.
+            let status = Command::new("zstd")
+                .args(["-q", "-f", "-19", "-T0", "--rm"])
+                .arg(&plain)
+                .status()
+                .map_err(|e| format!("running zstd: {e}"))?;
+            if !status.success() {
+                return Err(format!("compressing {} failed", plain.display()));
+            }
+        }
         let digest = format!("sha256:{}", net::sha256_file(&out.join(&file))?);
         let manifest = Manifest {
             id: gcc.id.clone(),
@@ -206,21 +226,59 @@ pub(crate) fn image_for(repo: &Repo, name: &str) -> Result<String, String> {
     Ok(tag)
 }
 
+/// The file name at the end of a URL, or a fallback when the URL is empty.
+fn file_of(url: &str, fallback: &str) -> String {
+    match url.rsplit('/').next() {
+        Some(name) if !name.is_empty() => name.to_owned(),
+        _ => fallback.to_owned(),
+    }
+}
+
+/// The prerequisites of releases older than `contrib/prerequisites.sha512`, with their SHA-512 as taken from gcc.gnu.org's infrastructure directory when they were first used.
+const OLD_PREREQUISITES: &[(&str, &str)] = &[
+    ("gmp-4.3.2.tar.bz2", GMP_4_3_2),
+    ("mpfr-2.4.2.tar.bz2", MPFR_2_4_2),
+    ("mpc-0.8.1.tar.gz", MPC_0_8_1),
+];
+
+const GMP_4_3_2: &str = "2e0b0fd23e6f10742a5517981e5171c6e88b0a93c83da701b296f5c0861d72c19782daab589a7eac3f9032152a0fc7eff7f5362db8fccc4859564a9aa82329cf";
+const MPFR_2_4_2: &str = "c004b3dbf86c04960e4a1f8db37a409a7cc4cb76135e76e98dcc5ad93aaa8deb62334ee13ff84447a7c12a5e8cb57f25c62ac908c24920f1fb1a38d79d4a4c5e";
+const MPC_0_8_1: &str = "14cb9ae3d33caed24d5ae648eed28b2e00ad047a8baeff25981129af88245b4def2948573d7a00d65c5bd34e53524aa6a7351b76703c9f888b41830c1a1daae2";
+
 /// Fetch the prerequisites a GCC release names and check them against its `prerequisites.sha512`. Returns their file names.
+///
+/// Releases before 7 have no `prerequisites.sha512`, and their script names each library in upper case without its suffix, as in `MPFR=mpfr-2.4.2`. Their GMP, MPFR and MPC are checked against `OLD_PREREQUISITES`. Their ISL and `CLooG` are left out: they only enable the Graphite loop passes, which no kernel asks for.
 fn prerequisites(gcc_tar: &Path, top: &str, src: &Path) -> Result<Vec<String>, String> {
     let script = tar_member(gcc_tar, &format!("{top}/contrib/download_prerequisites"))?;
-    let sums = tar_member(gcc_tar, &format!("{top}/contrib/prerequisites.sha512"))?;
+    let sums = tar_member(gcc_tar, &format!("{top}/contrib/prerequisites.sha512")).ok();
     let mut out = Vec::new();
-    for name in ["gmp", "mpfr", "mpc", "isl"] {
-        let file = assigned(&script, name)
-            .ok_or_else(|| format!("{top}: download_prerequisites names no {name}"))?;
-        let want = sums
-            .lines()
-            .find_map(|l| {
-                let (h, f) = l.split_once("  ")?;
-                (f.trim() == file).then(|| h.to_owned())
-            })
-            .ok_or_else(|| format!("{top}: prerequisites.sha512 does not list {file}"))?;
+    let names: &[&str] = if sums.is_some() {
+        &["gmp", "mpfr", "mpc", "isl"]
+    } else {
+        &["GMP", "MPFR", "MPC"]
+    };
+    for name in names {
+        let (file, want) = if let Some(sums) = &sums {
+            let file = assigned(&script, name)
+                .ok_or_else(|| format!("{top}: download_prerequisites names no {name}"))?;
+            let want = sums
+                .lines()
+                .find_map(|l| {
+                    let (h, f) = l.split_once("  ")?;
+                    (f.trim() == file).then(|| h.to_owned())
+                })
+                .ok_or_else(|| format!("{top}: prerequisites.sha512 does not list {file}"))?;
+            (file, want)
+        } else {
+            let file = old_file(&script, name)
+                .ok_or_else(|| format!("{top}: download_prerequisites names no {name}"))?;
+            let want = OLD_PREREQUISITES
+                .iter()
+                .find(|(f, _)| *f == file)
+                .map(|(_, h)| (*h).to_owned())
+                .ok_or_else(|| format!("{top}: {file} has no pinned hash in forge.rs"))?;
+            (file, want)
+        };
         let path = src.join("infrastructure").join(&file);
         if !path.is_file() || net::sha512_file(&path)? != want {
             net::download(&format!("{INFRASTRUCTURE}/{file}"), &path)?;
@@ -236,6 +294,21 @@ fn prerequisites(gcc_tar: &Path, top: &str, src: &Path) -> Result<Vec<String>, S
     Ok(out)
 }
 
+/// The tarball an old `download_prerequisites` fetches for a library: the value of `NAME=` and the suffix of the line that downloads `$NAME`.
+fn old_file(script: &str, name: &str) -> Option<String> {
+    let base = assigned(script, name)?;
+    let var = format!("${name}.tar.");
+    let suffix = script.lines().find_map(|l| {
+        let at = l.find(&var)? + var.len();
+        let rest = &l[at..];
+        let end = rest
+            .find(|c: char| !c.is_ascii_alphanumeric())
+            .unwrap_or(rest.len());
+        Some(rest[..end].to_owned())
+    })?;
+    Some(format!("{base}.tar.{suffix}"))
+}
+
 /// The value of a `name='value'` line of a shell script.
 fn assigned(script: &str, name: &str) -> Option<String> {
     script.lines().find_map(|l| {
@@ -246,7 +319,7 @@ fn assigned(script: &str, name: &str) -> Option<String> {
 
 fn tar_member(tar: &Path, member: &str) -> Result<String, String> {
     let out = Command::new("tar")
-        .arg("-xOJf")
+        .arg("-xOf")
         .arg(tar)
         .arg(member)
         .output()
@@ -344,5 +417,26 @@ mod tests {
         assert_eq!(assigned(script, "mpc").unwrap(), "mpc-1.3.1.tar.gz");
         assert_eq!(assigned(script, "mpfr").unwrap(), "mpfr-4.2.2.tar.bz2");
         assert!(assigned(script, "cloog").is_none());
+    }
+
+    #[test]
+    fn old_scripts_name_the_tarball_on_the_download_line() {
+        let script = "MPFR=mpfr-2.4.2\nGMP=gmp-4.3.2\nMPC=mpc-0.8.1\n\nwget ftp://gcc.gnu.org/pub/gcc/infrastructure/$MPFR.tar.bz2 || exit 1\nwget ftp://gcc.gnu.org/pub/gcc/infrastructure/$MPC.tar.gz || exit 1\n";
+        assert_eq!(old_file(script, "MPFR").unwrap(), "mpfr-2.4.2.tar.bz2");
+        assert_eq!(old_file(script, "MPC").unwrap(), "mpc-0.8.1.tar.gz");
+        assert!(old_file(script, "GMP").is_none());
+        assert!(OLD_PREREQUISITES.iter().all(|(_, h)| h.len() == 128));
+    }
+
+    #[test]
+    fn bundle_sources_are_named_by_their_urls() {
+        assert_eq!(
+            file_of(
+                "https://ftp.gnu.org/gnu/gcc/gcc-4.9.4/gcc-4.9.4.tar.bz2",
+                "x"
+            ),
+            "gcc-4.9.4.tar.bz2"
+        );
+        assert_eq!(file_of("", "gcc-9.5.0.tar.xz"), "gcc-9.5.0.tar.xz");
     }
 }
