@@ -360,6 +360,42 @@ pub fn judge(repo: &Repo, catalog: &[Compiled<'_>], r: &CellRecord, f: &Failure)
     v
 }
 
+/// The classes of a failed cell: the first error's, and after a `make -k` run those of every failing unit, each once, with `unclassified` for a unit no signature names (spec 09.5).
+#[must_use]
+pub fn classes(
+    repo: &Repo,
+    catalog: &[Compiled<'_>],
+    dir: &Path,
+    r: &CellRecord,
+    f: &Failure,
+    v: &Verdict,
+) -> Vec<String> {
+    let mut out: Vec<String> = v.class.iter().cloned().collect();
+    if f.rung != "L3" || r.units_failed.is_none() {
+        return out;
+    }
+    let errors = std::fs::read_to_string(dir.join("errors.jsonl")).unwrap_or_default();
+    for unit in errors
+        .lines()
+        .filter_map(|l| serde_json::from_str::<build::FailedUnit>(l).ok())
+    {
+        let each = Failure {
+            rung: f.rung.clone(),
+            first_error: unit.error,
+            unit: unit.unit,
+            config: f.config.clone(),
+            ..Failure::default()
+        };
+        let class = judge(repo, catalog, r, &each)
+            .class
+            .unwrap_or_else(|| "unclassified".into());
+        if !out.contains(&class) {
+            out.push(class);
+        }
+    }
+    out
+}
+
 /// `gk classify`: judge every failed cell in the store and write `classes` and `findings` into its `cell.json`. Returns the report.
 pub fn classify(repo: &Repo, write: bool) -> Result<String, String> {
     let catalog = compile(repo);
@@ -383,7 +419,7 @@ pub fn classify(repo: &Repo, write: bool) -> Result<String, String> {
         for finding in &v.findings {
             let _ = writeln!(out, "  finding: {finding}");
         }
-        let classes: Vec<String> = v.class.into_iter().collect();
+        let classes = classes(repo, &catalog, &dir, &r, &f, &v);
         if write && (r.classes != classes || r.findings != v.findings) {
             r.classes = classes;
             r.findings = v.findings;
