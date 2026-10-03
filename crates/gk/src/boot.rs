@@ -154,7 +154,13 @@ impl Outcome {
     pub fn read_line(&mut self, raw: &str) {
         let line = strip_timestamp(raw.trim_end_matches(['\r', '\n']));
         if let Some(at) = line.find("GK-") {
-            let mut words = line[at..].split_whitespace();
+            // The kernel can print into the middle of a marker line, as in `GK-CHECK exec pass[    6.65] init (81) used greatest stack depth`. Markers never hold a `[`, so the marker ends there and the rest is a console line of its own.
+            let mut marker = &line[at..];
+            if let Some(cut) = marker.find('[') {
+                self.read_line(&marker[cut..]);
+                marker = &marker[..cut];
+            }
+            let mut words = marker.split_whitespace();
             match words.next() {
                 Some("GK-BOOTED") if self.booted.is_none() => {
                     self.booted = Some(words.next().unwrap_or_default().to_owned());
@@ -205,7 +211,22 @@ pub fn splat_key(line: &str) -> String {
         }
         words.push(w.split("+0x").next().unwrap_or(w));
     }
+    // A warning is known by its file and line. The function it names is whatever the line was inlined into, so gcc-8.5.0 says drm_calc_scale where gcc-14.2.0 says drm_rect_calc_hscale for the same WARN_ON.
+    if words.first() == Some(&"WARNING:")
+        && let Some(at) = words.iter().find(|w| is_source_line(w))
+    {
+        return format!("WARNING: {at}");
+    }
     words.join(" ")
+}
+
+/// Whether a word is a `file.c:123` source location.
+fn is_source_line(word: &str) -> bool {
+    word.rsplit_once(':').is_some_and(|(file, line)| {
+        !line.is_empty()
+            && line.bytes().all(|b| b.is_ascii_digit())
+            && [".c", ".h", ".rs", ".S"].iter().any(|e| file.ends_with(e))
+    })
 }
 
 /// A console line without the kernel's `[    1.234567] ` time stamp.
@@ -571,16 +592,35 @@ mod tests {
     }
 
     #[test]
+    fn a_kernel_line_inside_a_marker_is_cut_off() {
+        let o = read(&[
+            "GK-CHECK exec pass[    6.653663] init (81) used greatest stack depth: 13792 bytes left",
+            "GK-CHECK pipe pass[    7.1] WARNING: CPU: 0 PID: 1 at lib/x.c:3 f+0x1/0x2",
+        ]);
+        assert!(o.checks.iter().all(|c| c.pass));
+        assert_eq!(o.checks.len(), 2);
+        assert_eq!(o.splats.len(), 1);
+    }
+
+    #[test]
     fn splats_from_two_boots_match_by_key() {
         assert_eq!(
             splat_key(
                 "WARNING: lib/math/int_log.c:63 at intlog2+0x55/0x60, CPU#0: kunit_try_catch/607"
             ),
-            "WARNING: lib/math/int_log.c:63 at intlog2"
+            "WARNING: lib/math/int_log.c:63"
         );
         assert_eq!(
             splat_key("WARNING: CPU: 1 PID: 42 at kernel/fork.c:12 copy_process+0x1/0x2 [foo]"),
-            "WARNING: at kernel/fork.c:12 copy_process [foo]"
+            "WARNING: kernel/fork.c:12"
+        );
+        assert_eq!(
+            splat_key("WARNING: at drivers/gpu/drm/drm_rect.c:137 drm_calc_scale+0x2a/0x40"),
+            splat_key("WARNING: at drivers/gpu/drm/drm_rect.c:137 drm_rect_calc_hscale+0x1c/0x50"),
+        );
+        assert_eq!(
+            splat_key("WARNING: lib/math/int_log.c:63 at intlog2"),
+            "WARNING: lib/math/int_log.c:63"
         );
         assert_eq!(
             splat_key("UBSAN: shift-out-of-bounds in lib/x.c:3:9"),

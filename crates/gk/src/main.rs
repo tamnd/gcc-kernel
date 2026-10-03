@@ -13,6 +13,7 @@ mod fetch;
 mod forge;
 mod gnu;
 mod gpg;
+mod history;
 mod hosts;
 mod initramfs;
 mod kconfig;

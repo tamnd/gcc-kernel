@@ -4,7 +4,7 @@
 //!
 //! The status section of `README.md` is rewritten too, between its markers (see [`crate::status`]).
 //!
-//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one colored square per cell. The per-GCC and per-kernel pages wait for `gk explain`.
+//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one colored square per cell. The era check and the holes go to `reports/eras.md` and `reports/holes.md` (see [`crate::history`]).
 
 use crate::cell::CellRecord;
 use crate::classify::{self, Compiled};
@@ -278,7 +278,7 @@ pub(crate) fn table(
     }
 }
 
-/// Write `matrix/matrix.json`, the heat maps, the warning census and the configuration differential under the repository. Returns how many cells the matrix holds and which reports were written.
+/// Write `matrix/matrix.json`, the heat maps, the warning census, the configuration differential, the era check and the holes under the repository. Returns how many cells the matrix holds and which reports were written.
 pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String> {
     let m = matrix(repo, ungraded)?;
     let dir = repo.root.join("matrix");
@@ -308,6 +308,8 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
             "reports/config-differential.md",
             crate::census::config_differential(repo, &cells),
         ),
+        ("reports/eras.md", crate::history::eras(repo, &m)),
+        ("reports/holes.md", crate::history::holes(repo, &m)),
     ] {
         std::fs::create_dir_all(&reports)
             .map_err(|e| format!("creating {}: {e}", reports.display()))?;
