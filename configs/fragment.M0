@@ -1,0 +1,11 @@
+# The test fragment for era M0, kernels 1.0 to 1.2.13 (spec 07.2). It is merged after the configuration target and only turns things on, except for the four switches at the top. There is no oldconfig in 1.0, whose Configure only asks questions, and from 1.2 the merged .config is settled with oldconfig, which in this era is `Configure -d`. There is no KUnit, no serial console and no initial RAM disk yet, so a boot of this era reads the VGA console and mounts a root image from the RAM disk, which 1.2 always builds in.
+
+# Off everywhere, so that every column of a row gets the same configuration. None of the four exist in this era, so the merge notes them and moves on. They stay so the fragment of every era starts the same way.
+CONFIG_WERROR=n
+CONFIG_GCC_PLUGINS=n
+CONFIG_RUST=n
+CONFIG_DEBUG_INFO_BTF=n
+
+# The root file system of the boot image. Ext2 is there from 0.99 but the RAM disk image is minix, as on the boot floppies of the time.
+CONFIG_MINIX_FS=y
+CONFIG_PROC_FS=y

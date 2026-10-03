@@ -436,7 +436,7 @@ mod tests {
         assert_eq!(ids.len(), 33);
         assert_eq!(columns(&repo, "aarch64-linux-gnu").len(), 20);
         let i686 = columns(&repo, "i686-linux-gnu");
-        assert_eq!(i686.first().map(|g| g.id.as_str()), Some("gcc-2.95.3"));
+        assert_eq!(i686.first().map(|g| g.id.as_str()), Some("gcc-2.5.8"));
     }
 
     #[test]

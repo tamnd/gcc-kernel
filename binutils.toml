@@ -1,6 +1,14 @@
 # Every binutils release a GCC column can be paired with (spec 04.5).
 #
-# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download. The tarballs from 2.10.1 to 2.21.1 are the signed respins of 2011, and the mirror's dates are those of the respin, so those rows carry the date of the release announcement instead, or before 2.14 the date of the original unsigned tarball, and `gk pins` keeps them because it never rewrites a row that is already pinned.
+# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download. The tarballs from 2.10.1 to 2.21.1 are the signed respins of 2011, and the mirror's dates are those of the respin, so those rows carry the date of the release announcement instead, or before 2.14 the date of the original unsigned tarball, and `gk pins` keeps them because it never rewrites a row that is already pinned. The rows before 2.10.1 are added by hand for the GCCs before 2.95. Those tarballs were never signed, so they carry an `unsigned` reason and are held to the hash they had when they were first fetched.
+
+[[binutils]]
+id = "binutils-2.8.1"
+version = "2.8.1"
+released = "1997-05-29"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.8.1.tar.gz"
+sha256 = "c7ad94c18f098f0580d0a7cd68638e98aa98571078536934fdc85f5e9047bf5a"
+unsigned = "The mirror has neither a signature nor a checksum for releases before the 2011 respins."
 
 [[binutils]]
 id = "binutils-2.10.1"

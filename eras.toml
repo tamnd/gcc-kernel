@@ -20,7 +20,8 @@ name = "M0"
 from = "1.0"
 plan-eras = ["E0"]
 gcc = "gcc-2.5.8"
-hosts = [{ from = "1.0", value = "gk-host-bo" }]
+hosts = [{ from = "1.0", value = "gk-host-hamm" }]
+notes = "Built in hamm rather than bo. Every libc5 program calls personality(PER_LINUX) as it starts, which drops ADDR_NO_RANDOMIZE before its children run, and then sets the break to the end of its own data with brk. A kernel that places the heap at a random distance from there, as any recent one does, answers with the break where it put it, and libc5 takes that for out of memory, so bo's gcc, make and dpkg all fail before they do any work. Hamm is the first release on glibc, whose brk asks the kernel where the heap is. 1.0 builds all the way to its last step and stops there: binutils 2.8.1, which the bundle of 2.5.8 is built with, links a.out for Linux only as QMAGIC, and the tools/build of 1.0 takes only the ZMAGIC of the linkers of its day. 1.2 asks for QMAGIC itself and builds."
 
 [[era]]
 name = "M1"

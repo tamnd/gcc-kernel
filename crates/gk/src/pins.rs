@@ -37,8 +37,8 @@ pub fn run(repo: &Repo, write: bool) -> Result<bool, String> {
 }
 
 const KERNELS_HEADER: &str = "# Every kernel tree that is a row of the matrix, with its tarball and SHA-256.\n#\n# Written by `gk pins --write` from the rules in sets.toml, kernel.org's releases.json and the signed sha256sums.asc of each directory. Pins in a set that sets.toml has no rule for are kept as they are.\n";
-const BINUTILS_HEADER: &str = "# Every binutils release a GCC column can be paired with (spec 04.5).\n#\n# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download. The tarballs from 2.14 to 2.21.1 are the signed respins of 2011, and the mirror's dates are those of the respin, so those rows carry the date of the release announcement instead, and `gk pins` keeps them because it never rewrites a row that is already pinned.\n";
-const GCCS_HEADER: &str = "# The GCC columns of the matrix (spec 04).\n#\n# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 3.3 to 4.5 and the era GCCs of M4 to M6 (the mirror has no signatures for releases before 3.3, so those rows say so and are held to their SHA-256 alone), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.\n";
+const BINUTILS_HEADER: &str = "# Every binutils release a GCC column can be paired with (spec 04.5).\n#\n# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download. The tarballs from 2.10.1 to 2.21.1 are the signed respins of 2011, and the mirror's dates are those of the respin, so those rows carry the date of the release announcement instead, or before 2.14 the date of the original unsigned tarball, and `gk pins` keeps them because it never rewrites a row that is already pinned. The rows before 2.10.1 are added by hand for the GCCs before 2.95. Those tarballs were never signed, so they carry an `unsigned` reason and are held to the hash they had when they were first fetched.\n";
+const GCCS_HEADER: &str = "# The GCC columns of the matrix (spec 04).\n#\n# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 2.5 to 4.5 and the era GCCs of M0 to M6 (the mirror has no signatures for releases before 3.3, so those rows say so and are held to their SHA-256 alone, and 2.5.8 builds a.out tools, which its row names), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.\n";
 
 /// The kernel pins the rules give, together with the pins no rule covers.
 #[allow(clippy::too_many_lines)]
@@ -134,7 +134,6 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
     if let Some(first) = sets.first_line() {
         let mut newest: BTreeMap<Version, (Version, String, String)> = BTreeMap::new();
         for major in first.parts()[0]..=newest_major {
-            let depth = kernelorg::release_depth(major);
             for (name, (sha256, dir)) in sums_of(major)? {
                 let Some(version) = name
                     .strip_prefix("linux-")
@@ -143,7 +142,15 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
                 else {
                     continue;
                 };
-                if version.parts().len() != depth + 1 || version.is_pre() {
+                // A line from 2.6 on stands for its points. A museum line also stands for its release, which is all 1.0 has, and its points can run to four parts.
+                let depth = kernelorg::line_depth(&version);
+                let parts = version.parts().len();
+                let point = if kernelorg::is_museum(&version) {
+                    parts >= depth
+                } else {
+                    parts == depth + 1
+                };
+                if !point || version.is_pre() {
                     continue;
                 }
                 let Ok(line) = version.parts()[..depth]
