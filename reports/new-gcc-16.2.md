@@ -10,13 +10,13 @@ Kernels with a cell: 1 of 7. Of those, 1 run.
 
 | Kernel | Line | Verdict | Rung | Warnings | First error |
 |---|---|---|---|--:|---|
-| 5.10.270 | longterm | not run | | | |
-| 5.15.221 | longterm | not run | | | |
-| 6.1.188 | longterm | not run | | | |
-| 6.6.157 | longterm | not run | | | |
-| 6.12.111 | longterm | not run | | | |
-| 6.18.54 | longterm | not run | | | |
-| 7.2.8 | stable | works | L8 | 0 |  |
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | works | L8 | 0 |  |
 
 ### i386
 
@@ -24,13 +24,13 @@ Kernels with a cell: 1 of 7. Of those, 1 run.
 
 | Kernel | Line | Verdict | Rung | Warnings | First error |
 |---|---|---|---|--:|---|
-| 5.10.270 | longterm | not run | | | |
-| 5.15.221 | longterm | not run | | | |
-| 6.1.188 | longterm | not run | | | |
-| 6.6.157 | longterm | not run | | | |
-| 6.12.111 | longterm | not run | | | |
-| 6.18.54 | longterm | not run | | | |
-| 7.2.8 | stable | runs | L7 | 0 |  |
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | runs | L7 | 0 |  |
 
 ### arm64
 
@@ -38,13 +38,237 @@ Kernels with a cell: 0 of 7. Of those, 0 run.
 
 | Kernel | Line | Verdict | Rung | Warnings | First error |
 |---|---|---|---|--:|---|
-| 5.10.270 | longterm | not run | | | |
-| 5.15.221 | longterm | not run | | | |
-| 6.1.188 | longterm | not run | | | |
-| 6.6.157 | longterm | not run | | | |
-| 6.12.111 | longterm | not run | | | |
-| 6.18.54 | longterm | not run | | | |
-| 7.2.8 | stable | not run | | | |
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### arm
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### riscv64
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### ppc64le
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### s390x
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### loongarch64
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### mips
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### ppc
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### ppc64
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### sparc64
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### m68k
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### alpha
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### parisc
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### sh4
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### openrisc
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### xtensa
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
+
+### microblaze
+
+Kernels with a cell: 0 of 7. Of those, 0 run.
+
+| Kernel | Line | Verdict | Rung | Warnings | First error |
+|---|---|---|---|--:|---|
+| 5.10.271 | longterm | not run | | | |
+| 5.15.222 | longterm | not run | | | |
+| 6.1.188 | - | not run | | | |
+| 6.6.157 | - | not run | | | |
+| 6.12.111 | - | not run | | | |
+| 6.18.54 | - | not run | | | |
+| 7.2.8 | - | not run | | | |
 
 ## Regressions against the same series
 
@@ -71,9 +295,14 @@ Over the 2 cells that have a gcc-16.1.0 cell to compare with, no warning option 
 
 ### 7.2.8 on i386
 
-2 symbols differ.
+7 symbols differ.
 
 | symbol | gcc-16.1.0 | gcc-16.2.0 |
 |---|---|---|
 | CC_VERSION_TEXT | "i686-linux-gnu-gcc (GCC) 16.1.0" | "i686-linux-gnu-gcc (GCC) 16.2.0" |
+| DRM_SCHED | (absent) | y |
+| DRM_SCHED_KUNIT_TEST | n | y |
 | GCC_VERSION | 160100 | 160200 |
+| KUNIT_ALL_TESTS | n | y |
+| PHY_COMMON_PROPS | (absent) | n |
+| RATELIMIT_KUNIT_TEST | n | y |

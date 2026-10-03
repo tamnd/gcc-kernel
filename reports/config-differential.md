@@ -60,12 +60,13 @@ No kernel has two columns to compare yet.
 | 9.5.0 to 10.5.0 | 1 | 2 |
 | 10.5.0 to 11.5.0 | 1 | 9 |
 | 11.5.0 to 12.2.0 | 1 | 11 |
-| 12.2.0 to 12.5.0 | 1 | 10 |
+| 12.2.0 to 12.5.0 | 1 | 5 |
 | 12.5.0 to 13.5.0 | 1 | 3 |
-| 13.5.0 to 14.2.0 | 1 | 9 |
-| 14.2.0 to 15.3.0 | 1 | 9 |
+| 13.5.0 to 14.2.0 | 1 | 4 |
+| 14.2.0 to 14.4.0 | 1 | 2 |
+| 14.4.0 to 15.3.0 | 1 | 2 |
 | 15.3.0 to 16.1.0 | 1 | 1 |
-| 16.1.0 to 16.2.0 | 1 | 0 |
+| 16.1.0 to 16.2.0 | 1 | 5 |
 
 ### 8.5.0 to 9.5.0
 
@@ -130,13 +131,8 @@ Over 7.2.8.
 | AS_VERSION | all | 23900 | 24500 |
 | CC_HAS_ASM_GOTO_OUTPUT | all | (absent) | y |
 | CC_HAS_ASM_GOTO_TIED_OUTPUT | all | (absent) | y |
-| DRM_SCHED | all | (absent) | y |
-| DRM_SCHED_KUNIT_TEST | all | n | y |
 | GCC_ASM_GOTO_OUTPUT_BROKEN | all | y | (absent) |
-| KUNIT_ALL_TESTS | all | n | y |
 | LD_VERSION | all | 23900 | 24500 |
-| PHY_COMMON_PROPS | all | (absent) | n |
-| RATELIMIT_KUNIT_TEST | all | n | y |
 
 ### 12.5.0 to 13.5.0
 
@@ -157,28 +153,25 @@ Over 7.2.8.
 | AS_VERSION | all | 20285426 | 24301 |
 | CC_HAS_MIN_FUNCTION_ALIGNMENT | all | (absent) | y |
 | CC_HAS_SANE_FUNCTION_ALIGNMENT | all | (absent) | y |
-| DRM_SCHED | all | y | (absent) |
-| DRM_SCHED_KUNIT_TEST | all | y | n |
-| KUNIT_ALL_TESTS | all | y | n |
 | LD_VERSION | all | 20285426 | 24301 |
-| PHY_COMMON_PROPS | all | n | (absent) |
-| RATELIMIT_KUNIT_TEST | all | y | n |
 
-### 14.2.0 to 15.3.0
+### 14.2.0 to 14.4.0
 
 Over 7.2.8.
 
-| Symbol | Kernels | 14.2.0 | 15.3.0 |
+| Symbol | Kernels | 14.2.0 | 14.4.0 |
 |---|---|---|---|
 | AS_VERSION | all | 24301 | 20285426 |
+| LD_VERSION | all | 24301 | 20285426 |
+
+### 14.4.0 to 15.3.0
+
+Over 7.2.8.
+
+| Symbol | Kernels | 14.4.0 | 15.3.0 |
+|---|---|---|---|
 | CC_HAS_COUNTED_BY | all | (absent) | y |
 | CC_HAS_MULTIDIMENSIONAL_NONSTRING | all | (absent) | y |
-| DRM_SCHED | all | (absent) | y |
-| DRM_SCHED_KUNIT_TEST | all | n | y |
-| KUNIT_ALL_TESTS | all | n | y |
-| LD_VERSION | all | 24301 | 20285426 |
-| PHY_COMMON_PROPS | all | (absent) | n |
-| RATELIMIT_KUNIT_TEST | all | n | y |
 
 ### 15.3.0 to 16.1.0
 
@@ -188,6 +181,18 @@ Over 7.2.8.
 |---|---|---|---|
 | CC_HAS_COUNTED_BY_PTR | all | (absent) | y |
 
+### 16.1.0 to 16.2.0
+
+Over 7.2.8.
+
+| Symbol | Kernels | 16.1.0 | 16.2.0 |
+|---|---|---|---|
+| DRM_SCHED | all | (absent) | y |
+| DRM_SCHED_KUNIT_TEST | all | n | y |
+| KUNIT_ALL_TESTS | all | n | y |
+| PHY_COMMON_PROPS | all | (absent) | n |
+| RATELIMIT_KUNIT_TEST | all | n | y |
+
 ## x86_64 defconfig+gk
 
 | Step | Kernels | Symbols that change |
@@ -196,11 +201,11 @@ Over 7.2.8.
 | 9.5.0 to 10.5.0 | 2 | 2 |
 | 10.5.0 to 11.5.0 | 2 | 12 |
 | 11.5.0 to 12.2.0 | 2 | 11 |
-| 12.2.0 to 12.5.0 | 2 | 10 |
+| 12.2.0 to 12.5.0 | 2 | 5 |
 | 12.5.0 to 13.5.0 | 2 | 3 |
-| 13.5.0 to 14.2.0 | 2 | 11 |
-| 14.2.0 to 14.4.0 | 2 | 8 |
-| 14.4.0 to 15.3.0 | 2 | 2 |
+| 13.5.0 to 14.2.0 | 2 | 6 |
+| 14.2.0 to 14.4.0 | 2 | 3 |
+| 14.4.0 to 15.3.0 | 2 | 7 |
 | 15.3.0 to 16.1.0 | 2 | 1 |
 | 16.1.0 to 16.2.0 | 1 | 0 |
 
@@ -270,13 +275,8 @@ Over 6.18.54 and 7.2.8.
 | AS_VERSION | all | 23900 | 24500 |
 | CC_HAS_ASM_GOTO_OUTPUT | all | (absent) | y |
 | CC_HAS_ASM_GOTO_TIED_OUTPUT | all | (absent) | y |
-| DRM_SCHED | 7.2.8 | (absent) | y |
-| DRM_SCHED_KUNIT_TEST | 7.2.8 | n | y |
 | GCC_ASM_GOTO_OUTPUT_BROKEN | all | y | (absent) |
-| KUNIT_ALL_TESTS | 7.2.8 | n | y |
 | LD_VERSION | all | 23900 | 24500 |
-| PHY_COMMON_PROPS | 7.2.8 | (absent) | n |
-| RATELIMIT_KUNIT_TEST | 7.2.8 | n | y |
 
 ### 12.5.0 to 13.5.0
 
@@ -298,13 +298,8 @@ Over 6.18.54 and 7.2.8.
 | CC_HAS_KASAN_SW_TAGS | all | (absent) | y |
 | CC_HAS_MIN_FUNCTION_ALIGNMENT | all | (absent) | y |
 | CC_HAS_SANE_FUNCTION_ALIGNMENT | all | (absent) | y |
-| DRM_SCHED | 7.2.8 | y | (absent) |
-| DRM_SCHED_KUNIT_TEST | 7.2.8 | y | n |
-| KUNIT_ALL_TESTS | 7.2.8 | y | n |
 | KUNIT_FAULT_TEST | 6.18.54 | y | n |
 | LD_VERSION | all | 20285426 | 24301 |
-| PHY_COMMON_PROPS | 7.2.8 | n | (absent) |
-| RATELIMIT_KUNIT_TEST | 7.2.8 | y | n |
 
 ### 14.2.0 to 14.4.0
 
@@ -313,13 +308,8 @@ Over 6.18.54 and 7.2.8.
 | Symbol | Kernels | 14.2.0 | 14.4.0 |
 |---|---|---|---|
 | AS_VERSION | all | 24301 | 20285426 |
-| DRM_SCHED | 7.2.8 | (absent) | y |
-| DRM_SCHED_KUNIT_TEST | 7.2.8 | n | y |
-| KUNIT_ALL_TESTS | 7.2.8 | n | y |
 | KUNIT_FAULT_TEST | 6.18.54 | n | y |
 | LD_VERSION | all | 24301 | 20285426 |
-| PHY_COMMON_PROPS | 7.2.8 | (absent) | n |
-| RATELIMIT_KUNIT_TEST | 7.2.8 | n | y |
 
 ### 14.4.0 to 15.3.0
 
@@ -329,6 +319,11 @@ Over 6.18.54 and 7.2.8.
 |---|---|---|---|
 | CC_HAS_COUNTED_BY | all | (absent) | y |
 | CC_HAS_MULTIDIMENSIONAL_NONSTRING | all | (absent) | y |
+| DRM_SCHED | 7.2.8 | (absent) | y |
+| DRM_SCHED_KUNIT_TEST | 7.2.8 | n | y |
+| KUNIT_ALL_TESTS | 7.2.8 | n | y |
+| PHY_COMMON_PROPS | 7.2.8 | (absent) | n |
+| RATELIMIT_KUNIT_TEST | 7.2.8 | n | y |
 
 ### 15.3.0 to 16.1.0
 
