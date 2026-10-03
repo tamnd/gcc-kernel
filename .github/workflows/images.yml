@@ -34,6 +34,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: gk-host-sarge
+            dir: provision/hosts/gk-host-sarge
+          - name: gk-host-etch
+            dir: provision/hosts/gk-host-etch
+          - name: gk-host-lenny
+            dir: provision/hosts/gk-host-lenny
           - name: gk-host-squeeze
             dir: provision/hosts/gk-host-squeeze
           - name: gk-host-wheezy
@@ -54,6 +60,10 @@ jobs:
             dir: provision/forge/gk-forge-stretch
           - name: gk-forge-jessie
             dir: provision/forge/gk-forge-jessie
+          - name: gk-forge-squeeze
+            dir: provision/forge/gk-forge-squeeze
+          - name: gk-forge-etch
+            dir: provision/forge/gk-forge-etch
           - name: gk-boot
             dir: provision/boot/gk-boot
     steps:

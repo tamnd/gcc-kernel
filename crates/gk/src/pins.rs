@@ -37,8 +37,8 @@ pub fn run(repo: &Repo, write: bool) -> Result<bool, String> {
 }
 
 const KERNELS_HEADER: &str = "# Every kernel tree that is a row of the matrix, with its tarball and SHA-256.\n#\n# Written by `gk pins --write` from the rules in sets.toml, kernel.org's releases.json and the signed sha256sums.asc of each directory. Pins in a set that sets.toml has no rule for are kept as they are.\n";
-const BINUTILS_HEADER: &str = "# Every binutils release a GCC column can be paired with (spec 04.5).\n#\n# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download.\n";
-const GCCS_HEADER: &str = "# The GCC columns of the matrix (spec 04).\n#\n# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, and the other targets join with their platforms.\n";
+const BINUTILS_HEADER: &str = "# Every binutils release a GCC column can be paired with (spec 04.5).\n#\n# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download. The tarballs from 2.14 to 2.21.1 are the signed respins of 2011, and the mirror's dates are those of the respin, so those rows carry the date of the release announcement instead, and `gk pins` keeps them because it never rewrites a row that is already pinned.\n";
+const GCCS_HEADER: &str = "# The GCC columns of the matrix (spec 04).\n#\n# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 3.3 to 4.5 and the era GCCs of M4 to M6 (the mirror has no signatures for releases before 3.3, so those wait for a pin of their own), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.\n";
 
 /// The kernel pins the rules give, together with the pins no rule covers.
 #[allow(clippy::too_many_lines)]
@@ -53,8 +53,7 @@ fn kernels(repo: &Repo) -> Result<Kernels, String> {
         }
         let mut s = BTreeMap::new();
         for dir in kernelorg::dirs(major) {
-            for (name, hash) in
-                kernelorg::parse_sums(&net::fetch_text(&kernelorg::sums_url(&dir))?)
+            for (name, hash) in kernelorg::parse_sums(&net::fetch_text(&kernelorg::sums_url(&dir))?)
             {
                 s.entry(name).or_insert((hash, dir.clone()));
             }

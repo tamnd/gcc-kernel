@@ -1,6 +1,69 @@
 # Every binutils release a GCC column can be paired with (spec 04.5).
 #
-# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download.
+# Written by `gk pins --write` from the GNU mirror. The date is the one the mirror's listing shows for the tarball, and the SHA-256 is taken from a download. The tarballs from 2.14 to 2.21.1 are the signed respins of 2011, and the mirror's dates are those of the respin, so those rows carry the date of the release announcement instead, and `gk pins` keeps them because it never rewrites a row that is already pinned.
+
+[[binutils]]
+id = "binutils-2.14"
+version = "2.14"
+released = "2003-06-12"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.14a.tar.bz2"
+sha256 = "71ccd6c12acdf491e7e3b58becac786c1e766eb5f90983276be67812b52ad2ca"
+
+[[binutils]]
+id = "binutils-2.15"
+version = "2.15"
+released = "2004-05-17"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.15a.tar.bz2"
+sha256 = "7b99deeba79e362b724db923d5b7afd46a4d38e922ada4054eae99b80dc9aa93"
+
+[[binutils]]
+id = "binutils-2.16.1"
+version = "2.16.1"
+released = "2005-06-12"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.16.1a.tar.bz2"
+sha256 = "d78a6ff982ab2f73721706e7bfd3285ac647804664e7ea4786e66d01f91c56c5"
+
+[[binutils]]
+id = "binutils-2.17"
+version = "2.17"
+released = "2006-06-23"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.17a.tar.bz2"
+sha256 = "b8b6363121a99aaf0309d0a6f63a18c203ddbb34f53683c9a56d568be2b6a549"
+
+[[binutils]]
+id = "binutils-2.18"
+version = "2.18"
+released = "2007-08-28"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.18a.tar.bz2"
+sha256 = "4515254f55ec3d8c4d91e7633f3850ff28f60652b2d90dc88eef47c74c194bc9"
+
+[[binutils]]
+id = "binutils-2.19.1"
+version = "2.19.1"
+released = "2009-02-02"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.19.1a.tar.bz2"
+sha256 = "2dbd2c554b70d915c5b32fcfd401d03afcbf202529059c7a80af3993885ad1c2"
+
+[[binutils]]
+id = "binutils-2.20.1"
+version = "2.20.1"
+released = "2010-03-03"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.20.1a.tar.bz2"
+sha256 = "71d37c96451333c5c0b84b170169fdcb138bbb27397dc06281905d9717c8ed64"
+
+[[binutils]]
+id = "binutils-2.21.1"
+version = "2.21.1"
+released = "2011-06-27"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.21.1a.tar.bz2"
+sha256 = "cdecfa69f02aa7b05fbcdf678e33137151f361313b2f3e48aba925f64eabf654"
+
+[[binutils]]
+id = "binutils-2.22"
+version = "2.22"
+released = "2011-11-21"
+url = "https://ftp.gnu.org/gnu/binutils/binutils-2.22.tar.bz2"
+sha256 = "6c7af8ed1c8cf9b4b9d6e6fe09a3e1d3d479fe63984ba8b9b26bf356b6313ca9"
 
 [[binutils]]
 id = "binutils-2.23.1"

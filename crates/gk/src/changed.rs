@@ -158,13 +158,17 @@ mod tests {
     fn a_new_kernel_is_probed_with_its_era_gcc_and_a_new_gcc_against_current() {
         let r = repo();
         let mut old = r.clone();
+        // The newest 7.2 point, whichever one the pins are at, so a stable release does not break the test.
         let k = old
             .kernels
             .kernels
             .iter()
-            .position(|k| k.version.to_string() == "7.2.8")
-            .unwrap();
-        old.kernels.kernels.remove(k);
+            .enumerate()
+            .filter(|(_, k)| k.version.to_string().starts_with("7.2."))
+            .max_by(|a, b| a.1.version.cmp(&b.1.version))
+            .unwrap()
+            .0;
+        let v = old.kernels.kernels.remove(k).version.to_string();
         let g = old
             .gccs
             .gccs
@@ -173,17 +177,17 @@ mod tests {
             .unwrap();
         old.gccs.gccs.remove(g);
         let probes = plan(&r, &old).unwrap();
-        assert!(probes.contains(&("7.2.8".parse().unwrap(), "gcc-14.2.0".to_string())));
+        assert!(probes.contains(&(v.parse().unwrap(), "gcc-14.2.0".to_string())));
         assert!(probes.iter().any(|(_, g)| g == "gcc-15.3.0"));
         assert!(bundles(&probes).len() <= probes.len());
         let runs = sweep_plan(&r, &old);
         for p in ["x86_64", "i386", "arm64"] {
             assert!(
-                runs.contains(&format!("search 7.2.8 --platform {p}")),
+                runs.contains(&format!("search {v} --platform {p}")),
                 "{runs:?}"
             );
             assert!(runs.contains(&format!(
-                "cell 7.2.8 gcc-15.3.0 --platform {p} --config tinyconfig+gk"
+                "cell {v} gcc-15.3.0 --platform {p} --config tinyconfig+gk"
             )));
         }
         assert!(sweep_plan(&r, &r).is_empty());

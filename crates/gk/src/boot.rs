@@ -307,7 +307,7 @@ enum Read {
 
 /// Boot a kernel once and write `<stem>.log` and `<stem>.json` under `b.dir`.
 pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
-    let (init, archive) = initramfs::for_platform(repo, b.platform)?;
+    let (init, archive) = initramfs::for_kernel(repo, b.platform, b.version)?;
     let image = forge::image_for(repo, "gk-boot")?;
     let qemu = crate::cell::image_digest(&image)?;
     let command = qemu_command(b.platform, b.version, b.suite)?;

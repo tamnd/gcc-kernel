@@ -42,6 +42,15 @@ fn config_target(target: &str, defconfig: &str, version: &Version) -> Result<Str
     Ok(if target.is_empty() { defconfig } else { target }.to_owned())
 }
 
+/// The make target that settles a `.config` after a fragment is laid over it. `olddefconfig` came in 3.7. Before that, `oldconfig` asks about each new symbol, and with no input it takes the default, which is the same thing.
+fn settle_target(version: &Version) -> &'static str {
+    if version.series(2) < [3, 7].to_vec() {
+        "oldconfig"
+    } else {
+        "olddefconfig"
+    }
+}
+
 /// A kernel's tree, fetched and unpacked into the cache if it is not there yet.
 fn fetched_tree(repo: &Repo, version: &Version, file_name: &str) -> Result<PathBuf, String> {
     fetch::run(
@@ -289,7 +298,7 @@ impl Setup {
         if !self.can_boot() {
             return Ok(self);
         }
-        let (init, _) = initramfs::for_platform(repo, &self.platform)?;
+        let (init, _) = initramfs::for_kernel(repo, &self.platform, &self.version)?;
         self.coordinates.qemu = image_digest(&forge::image_for(repo, "gk-boot")?)?;
         self.coordinates.initramfs = init.digest;
         self.boots = true;
@@ -350,6 +359,7 @@ impl Setup {
         }
         cmd.arg(format!("-j{}", step.jobs)).args(step.args);
         let status = cmd
+            .stdin(std::process::Stdio::null())
             .stdout(file)
             .stderr(err)
             .status()
@@ -995,7 +1005,7 @@ pub fn run(
                 .map_err(|e| format!("reading {}: {e}", dot.display()))?;
             std::fs::write(&dot, kconfig::merge(&before, &fragment))
                 .map_err(|e| format!("writing {}: {e}", dot.display()))?;
-            configured = make(&["olddefconfig"], "fragment.log", 1)? == 0;
+            configured = make(&[settle_target(&s.version)], "fragment.log", 1)? == 0;
             fragment_missed = kconfig::missed(&kconfig::load(&dot)?, &fragment);
             if configured && !s.kunit_skip.is_empty() && !BUILD_ONLY.contains(&s.config) {
                 // With KUNIT_ALL_TESTS off the tests keep the values it gave them, and their options can be turned off one by one.
@@ -1007,7 +1017,7 @@ pub fn run(
                     .map_err(|e| format!("reading {}: {e}", dot.display()))?;
                 std::fs::write(&dot, kconfig::merge(&resolved, &off))
                     .map_err(|e| format!("writing {}: {e}", dot.display()))?;
-                configured = make(&["olddefconfig"], "kunit-skip.log", 1)? == 0;
+                configured = make(&[settle_target(&s.version)], "kunit-skip.log", 1)? == 0;
                 fragment_missed.extend(kconfig::missed(&kconfig::load(&dot)?, &off[1..]));
             }
             let _ = std::fs::copy(&dot, cell_dir.join(".config"));
@@ -1334,5 +1344,14 @@ mod tests {
         assert!(BUILD_ONLY.iter().all(|c| config_named(c).is_ok()));
         let old: Version = "3.16".parse().unwrap();
         assert!(config_target("tinyconfig", "defconfig", &old).is_err());
+    }
+
+    #[test]
+    fn kernels_before_3_7_settle_with_oldconfig() {
+        let at = |v: &str| settle_target(&v.parse().unwrap());
+        assert_eq!(at("2.6.0"), "oldconfig");
+        assert_eq!(at("3.6.11"), "oldconfig");
+        assert_eq!(at("3.7"), "olddefconfig");
+        assert_eq!(at("7.2.8"), "olddefconfig");
     }
 }

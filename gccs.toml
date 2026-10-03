@@ -1,6 +1,123 @@
 # The GCC columns of the matrix (spec 04).
 #
-# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.
+# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 3.3 to 4.5 and the era GCCs of M4 to M6 (the mirror has no signatures for releases before 3.3, so those wait for a pin of their own), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.
+
+[[gcc]]
+id = "gcc-3.3.6"
+version = "3.3.6"
+flavor = "upstream"
+released = "2005-05-03"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-3.3.6/gcc-3.3.6.tar.bz2"
+sha256 = "1c1aa533c67e9da5e55ed4f5736258dc753466bd716bdae3fb88fb66e6ff1d7f"
+forge = "gk-forge-etch"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 3.3."
+
+[[gcc]]
+id = "gcc-3.4.6"
+version = "3.4.6"
+flavor = "upstream"
+released = "2006-03-10"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-3.4.6/gcc-3.4.6.tar.bz2"
+sha256 = "7791a601878b765669022b8b3409fba33cc72f9e39340fec8af6d0e6f72dec39"
+forge = "gk-forge-etch"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 3.4, and the era GCC of M4, kernels 2.5 and 2.6.0 to 2.6.15."
+
+[[gcc]]
+id = "gcc-4.0.4"
+version = "4.0.4"
+flavor = "upstream"
+released = "2007-01-31"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.0.4/gcc-4.0.4.tar.bz2"
+sha256 = "f3fde051c96d2fc084f6f4d6114ce4c1a079fcd1247d947d50a3d1641acafc47"
+forge = "gk-forge-etch"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.0."
+
+[[gcc]]
+id = "gcc-4.1.2"
+version = "4.1.2"
+flavor = "upstream"
+released = "2007-02-14"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.1.2/gcc-4.1.2.tar.bz2"
+sha256 = "cfc0efbcc6fcde0d416a32dfb246c9df022515a312683fac412578c4fd09a9bc"
+forge = "gk-forge-etch"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.1, and the era GCC of M5, kernels 2.6.16 to 2.6.25."
+
+[[gcc]]
+id = "gcc-4.2.4"
+version = "4.2.4"
+flavor = "upstream"
+released = "2008-05-19"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.2.4/gcc-4.2.4.tar.bz2"
+sha256 = "afba845e2d38547a63bd3976e90245c81ea176786f9e6966339c6d3761f1133a"
+forge = "gk-forge-squeeze"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.2."
+
+[[gcc]]
+id = "gcc-4.3.5"
+version = "4.3.5"
+flavor = "upstream"
+released = "2010-05-28"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.3.5/gcc-4.3.5.tar.bz2"
+sha256 = "10c6e745c39dbdc950cfa16ba8e3603cb52c5bd9d4d7e665c9a13a6f62407e6b"
+forge = "gk-forge-squeeze"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["point"]
+why = "The era GCC of M6, kernels 2.6.26 to 2.6.39."
+
+[[gcc]]
+id = "gcc-4.3.6"
+version = "4.3.6"
+flavor = "upstream"
+released = "2011-06-27"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.3.6/gcc-4.3.6.tar.bz2"
+sha256 = "f3765cd4dcceb4d42d46f0d53471d7cedbad50f2112f0312c1dcc9c41eea9810"
+forge = "gk-forge-squeeze"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.3."
+
+[[gcc]]
+id = "gcc-4.4.7"
+version = "4.4.7"
+flavor = "upstream"
+released = "2012-03-13"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.4.7/gcc-4.4.7.tar.bz2"
+sha256 = "5ff75116b8f763fa0fb5621af80fc6fb3ea0f1b1a57520874982f03f26cd607f"
+forge = "gk-forge-squeeze"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.4."
+
+[[gcc]]
+id = "gcc-4.5.4"
+version = "4.5.4"
+flavor = "upstream"
+released = "2012-07-02"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-4.5.4/gcc-4.5.4.tar.bz2"
+sha256 = "eef3f0456db8c3d992cbb51d5d32558190bc14f3bc19383dd93acc27acc6befc"
+forge = "gk-forge-squeeze"
+targets = ["x86_64-linux-gnu", "i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 4.5."
 
 [[gcc]]
 id = "gcc-4.6.4"
