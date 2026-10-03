@@ -1,0 +1,4 @@
+# The labels of the self hosted runners, so actionlint knows them. sweep.yml runs on the machines labelled gk.
+self-hosted-runner:
+  labels:
+    - gk
