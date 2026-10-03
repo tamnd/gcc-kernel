@@ -431,9 +431,9 @@ mod tests {
             .iter()
             .map(|g| g.id.as_str())
             .collect();
-        assert_eq!(ids.first(), Some(&"gcc-4.6.4"));
+        assert_eq!(ids.first(), Some(&"gcc-3.3.6"));
         assert_eq!(ids.last(), Some(&"gcc-16.2.0"));
-        assert_eq!(ids.len(), 23);
+        assert_eq!(ids.len(), 32);
         assert_eq!(columns(&repo, "aarch64-linux-gnu").len(), 20);
     }
 
@@ -446,7 +446,7 @@ mod tests {
             .map(|g| g.id.as_str())
             .collect();
         assert_eq!(order[0], "gcc-14.2.0");
-        assert_eq!(order[1], "gcc-4.6.4");
+        assert_eq!(order[1], "gcc-3.3.6");
         assert_eq!(order.len(), cols.len());
         assert_eq!(era_first(cols.clone(), None).len(), cols.len());
     }
@@ -463,7 +463,11 @@ mod tests {
             era_column(&repo, "gcc-14.2.0", t).as_deref(),
             Some("gcc-14.2.0")
         );
-        assert_eq!(era_column(&repo, "gcc-3.4.6", t), None);
+        assert_eq!(
+            era_column(&repo, "gcc-3.4.6", t).as_deref(),
+            Some("gcc-3.4.6")
+        );
+        assert_eq!(era_column(&repo, "gcc-2.95.3", t), None);
     }
 
     /// Run the frontier search over a row whose working set is `ok`, and return the edges and the columns it ran.

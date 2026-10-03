@@ -6,6 +6,7 @@
 
 use crate::fetch::{self, Request};
 use crate::net;
+use gk_model::Version;
 use gk_model::repo::Repo;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -124,7 +125,12 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
         &format!("binutils-{}.tar.xz", binutils.version),
     );
     let gcc_tar = src.join(&gcc_file);
-    let prereqs = prerequisites(&gcc_tar, &format!("gcc-{}", gcc.version), &src)?;
+    let prereqs = prerequisites(
+        &gcc_tar,
+        &format!("gcc-{}", gcc.version),
+        &gcc.version,
+        &src,
+    )?;
     let image = image_for(repo, &gcc.forge)?;
     let out = bundles_dir();
     std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
@@ -248,8 +254,15 @@ const MPC_0_8_1: &str = "14cb9ae3d33caed24d5ae648eed28b2e00ad047a8baeff25981129a
 /// Fetch the prerequisites a GCC release names and check them against its `prerequisites.sha512`. Returns their file names.
 ///
 /// Releases before 7 have no `prerequisites.sha512`, and their script names each library in upper case without its suffix, as in `MPFR=mpfr-2.4.2`. Their GMP, MPFR and MPC are checked against `OLD_PREREQUISITES`. Their ISL and `CLooG` are left out: they only enable the Graphite loop passes, which no kernel asks for.
-fn prerequisites(gcc_tar: &Path, top: &str, src: &Path) -> Result<Vec<String>, String> {
-    let script = tar_member(gcc_tar, &format!("{top}/contrib/download_prerequisites"))?;
+fn prerequisites(
+    gcc_tar: &Path,
+    top: &str,
+    version: &Version,
+    src: &Path,
+) -> Result<Vec<String>, String> {
+    let Ok(script) = tar_member(gcc_tar, &format!("{top}/contrib/download_prerequisites")) else {
+        return before_the_script(version, src);
+    };
     let sums = tar_member(gcc_tar, &format!("{top}/contrib/prerequisites.sha512")).ok();
     let mut out = Vec::new();
     let names: &[&str] = if sums.is_some() {
@@ -279,19 +292,38 @@ fn prerequisites(gcc_tar: &Path, top: &str, src: &Path) -> Result<Vec<String>, S
                 .ok_or_else(|| format!("{top}: {file} has no pinned hash in forge.rs"))?;
             (file, want)
         };
-        let path = src.join("infrastructure").join(&file);
-        if !path.is_file() || net::sha512_file(&path)? != want {
-            net::download(&format!("{INFRASTRUCTURE}/{file}"), &path)?;
-            if net::sha512_file(&path)? != want {
-                let _ = std::fs::remove_file(&path);
-                return Err(format!(
-                    "{file} does not match {top}'s prerequisites.sha512"
-                ));
-            }
-        }
+        infrastructure(src, &file, &want)?;
         out.push(file);
     }
     Ok(out)
+}
+
+/// The prerequisites of a release older than `contrib/download_prerequisites`, which came with 4.6. Before 4.3 GCC needs none. 4.3 and 4.4 need GMP and MPFR, and 4.5 needs MPC as well, and they get the versions 4.6's script named first, which their installation notes accept.
+fn before_the_script(version: &Version, src: &Path) -> Result<Vec<String>, String> {
+    let wanted = match version.series(2)[..] {
+        [4, 3 | 4] => 2,
+        [4, 5] => 3,
+        _ => 0,
+    };
+    let mut out = Vec::new();
+    for (file, want) in &OLD_PREREQUISITES[..wanted] {
+        infrastructure(src, file, want)?;
+        out.push((*file).to_owned());
+    }
+    Ok(out)
+}
+
+/// Make sure one prerequisite tarball is in the cache with the SHA-512 it must have.
+fn infrastructure(src: &Path, file: &str, want: &str) -> Result<(), String> {
+    let path = src.join("infrastructure").join(file);
+    if !path.is_file() || net::sha512_file(&path)? != want {
+        net::download(&format!("{INFRASTRUCTURE}/{file}"), &path)?;
+        if net::sha512_file(&path)? != want {
+            let _ = std::fs::remove_file(&path);
+            return Err(format!("{file} does not have the SHA-512 it must have"));
+        }
+    }
+    Ok(())
 }
 
 /// The tarball an old `download_prerequisites` fetches for a library: the value of `NAME=` and the suffix of the line that downloads `$NAME`.

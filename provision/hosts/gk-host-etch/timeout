@@ -1,0 +1,14 @@
+#!/bin/sh
+# A stand-in for coreutils timeout, which came in coreutils 7.0, after this release. gk runs every make as `timeout SECONDS make ...` and reads exit status 124 as out of time, so this does the same: it runs the command, stops it with TERM when the seconds are up, and then exits 124.
+seconds=$1
+shift
+marker=/tmp/gk-timed-out.$$
+"$@" &
+pid=$!
+( sleep "$seconds" && touch "$marker" && kill -TERM "$pid" ) 2>/dev/null &
+watcher=$!
+wait "$pid"
+status=$?
+kill "$watcher" 2>/dev/null
+[ -e "$marker" ] && rm -f "$marker" && exit 124
+exit "$status"

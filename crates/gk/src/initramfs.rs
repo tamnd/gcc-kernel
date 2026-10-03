@@ -5,6 +5,7 @@
 //! The result lives in `<cache>/init/<platform>`, with an `init.json` that says what it was built from. It is built again only when the source, the bundle or the image change.
 
 use crate::{fetch, forge, net};
+use gk_model::Version;
 use gk_model::platforms::Platform;
 use gk_model::repo::Repo;
 use serde::{Deserialize, Serialize};
@@ -149,6 +150,46 @@ pub fn for_platform(repo: &Repo, p: &Platform) -> Result<(Manifest, PathBuf), St
     Ok((m, archive))
 }
 
+/// Whether a kernel has no devtmpfs, which came in 2.6.32. Its archive then carries `/dev/null` as a node of its own, because the smoke suite writes to it.
+#[must_use]
+pub fn static_dev(version: &Version) -> bool {
+    version.series(3) < [2, 6, 32].to_vec()
+}
+
+/// The initramfs a kernel boots from: the platform's, or for a kernel with no devtmpfs the same program in an archive that also has `/dev/null`. The manifest's digest is the digest of the archive returned, so a 3.x or later cell keeps the identity it had.
+pub fn for_kernel(
+    repo: &Repo,
+    p: &Platform,
+    version: &Version,
+) -> Result<(Manifest, PathBuf), String> {
+    let (m, archive) = for_platform(repo, p)?;
+    if !static_dev(version) {
+        return Ok((m, archive));
+    }
+    let program = dir(&p.name).join("init");
+    let init =
+        std::fs::read(&program).map_err(|e| format!("reading {}: {e}", program.display()))?;
+    if format!("sha256:{}", net::sha256_bytes(&init)) != m.init {
+        return Err(format!(
+            "{} is not the program init.json names; run gk init {}",
+            program.display(),
+            p.name
+        ));
+    }
+    let bytes = archive_of(&init, true);
+    let path = dir(&p.name).join("initramfs-static-dev.cpio");
+    let partial = path.with_extension("part");
+    std::fs::write(&partial, &bytes).map_err(|e| format!("writing {}: {e}", partial.display()))?;
+    std::fs::rename(&partial, &path).map_err(|e| format!("renaming {}: {e}", partial.display()))?;
+    Ok((
+        Manifest {
+            digest: format!("sha256:{}", net::sha256_bytes(&bytes)),
+            ..m
+        },
+        path,
+    ))
+}
+
 /// Whether the bytes are an ELF executable with no program interpreter, which is what the kernel can run as `/init` with nothing else in the archive.
 #[must_use]
 pub fn is_static_elf(bytes: &[u8]) -> bool {
@@ -254,20 +295,31 @@ fn push_entry(out: &mut Vec<u8>, ino: u32, entry: &Entry<'_>) {
 /// The initramfs for an init program, as bytes: the mount points init uses, a console device so the kernel has somewhere to send init's output before devtmpfs is mounted, and `/init` itself.
 #[must_use]
 pub fn initramfs(init: &[u8]) -> Vec<u8> {
+    archive_of(init, false)
+}
+
+/// The archive, with `/dev/null` as well when `dev_null` is set.
+fn archive_of(init: &[u8], dev_null: bool) -> Vec<u8> {
     let dir = |name| Entry {
         name,
         mode: 0o040_755,
         rdev: (0, 0),
         data: &[],
     };
-    let entries = [
-        dir("dev"),
-        Entry {
-            name: "dev/console",
-            mode: 0o020_600,
-            rdev: (5, 1),
-            data: &[],
-        },
+    let node = |name, rdev| Entry {
+        name,
+        mode: 0o020_600,
+        rdev,
+        data: &[],
+    };
+    let mut entries = vec![dir("dev"), node("dev/console", (5, 1))];
+    if dev_null {
+        entries.push(Entry {
+            mode: 0o020_666,
+            ..node("dev/null", (1, 3))
+        });
+    }
+    entries.extend([
         dir("proc"),
         dir("sys"),
         dir("tmp"),
@@ -283,7 +335,7 @@ pub fn initramfs(init: &[u8]) -> Vec<u8> {
             rdev: (0, 0),
             data: &[],
         },
-    ];
+    ]);
     let mut out = Vec::with_capacity(init.len() + 1024);
     for (ino, entry) in (1..).zip(&entries) {
         let ino = if entry.name == "TRAILER!!!" { 0 } else { ino };
@@ -374,6 +426,23 @@ mod tests {
                 "TRAILER!!!"
             ]
         );
+    }
+
+    #[test]
+    fn kernels_before_devtmpfs_get_a_dev_null() {
+        let init = b"abcde";
+        let plain = initramfs(init);
+        let old = archive_of(init, true);
+        assert_eq!(archive_of(init, false), plain);
+        let at = old.windows(9).position(|w| w == b"dev/null\0").unwrap();
+        let entry = &old[at - 110..];
+        assert_eq!(field(entry, 1), 0o020_666);
+        assert_eq!((field(entry, 9), field(entry, 10)), (1, 3));
+        assert!(!plain.windows(8).any(|w| w == b"dev/null"));
+        assert!(static_dev(&"2.6.0".parse().unwrap()));
+        assert!(static_dev(&"2.6.31.14".parse().unwrap()));
+        assert!(!static_dev(&"2.6.32".parse().unwrap()));
+        assert!(!static_dev(&"3.0".parse().unwrap()));
     }
 
     fn elf64(kind: u16, interp: bool) -> Vec<u8> {
