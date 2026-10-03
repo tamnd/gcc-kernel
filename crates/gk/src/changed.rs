@@ -46,28 +46,6 @@ pub fn probes(repo: &Repo, base: &str) -> Result<Vec<(Version, String)>, String>
     plan(repo, &at(repo, base)?)
 }
 
-/// A GCC's release series: the major version from GCC 5 on, major and minor before.
-fn series(v: &Version) -> Vec<u32> {
-    v.series(if v.series(1)[0] >= 5 { 1 } else { 2 })
-}
-
-/// The column that stands for the era GCC `id`: the column itself when it is pinned for `x86_64`,
-/// or else the newest pinned `x86_64` column of the same release series.
-fn column_for(repo: &Repo, id: &str) -> Option<String> {
-    let usable = |g: &&gk_model::toolchains::Gcc| g.targets.iter().any(|t| t == TARGET);
-    if let Some(g) = repo.gccs.get(id).filter(usable) {
-        return Some(g.id.clone());
-    }
-    let want: Version = id.rsplit_once("gcc-")?.1.parse().ok()?;
-    repo.gccs
-        .gccs
-        .iter()
-        .filter(usable)
-        .filter(|g| g.flavor == "upstream" && series(&g.version) == series(&want))
-        .max_by(|a, b| a.version.cmp(&b.version))
-        .map(|g| g.id.clone())
-}
-
 fn plan(repo: &Repo, old: &Repo) -> Result<Vec<(Version, String)>, String> {
     let usable = |id: &str| {
         repo.gccs
@@ -82,7 +60,7 @@ fn plan(repo: &Repo, old: &Repo) -> Result<Vec<(Version, String)>, String> {
         let Some(era) = repo.eras.of(&k.version) else {
             return Err(format!("{} has no era in eras.toml", k.version));
         };
-        if let Some(column) = column_for(repo, &era.gcc) {
+        if let Some(column) = crate::search::era_column(repo, &era.gcc, TARGET) {
             out.push((k.version.clone(), column));
         } else {
             eprintln!(

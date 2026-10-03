@@ -55,6 +55,27 @@ pub fn columns<'a>(repo: &'a Repo, triple: &str) -> Vec<&'a Gcc> {
     gccs
 }
 
+/// A GCC's release series: the major version from GCC 5 on, major and minor before.
+fn series(v: &Version) -> Vec<u32> {
+    v.series(if v.series(1)[0] >= 5 { 1 } else { 2 })
+}
+
+/// The column that stands for the era GCC `id` on `triple`: the column itself when it is pinned for the target, or else the newest pinned column of the same release series, as `gcc-10.5.0` stands for `debian-bullseye-gcc-10`.
+pub(crate) fn era_column(repo: &Repo, id: &str, triple: &str) -> Option<String> {
+    let usable = |g: &&Gcc| g.targets.iter().any(|t| t == triple);
+    if let Some(g) = repo.gccs.get(id).filter(usable) {
+        return Some(g.id.clone());
+    }
+    let want: Version = id.rsplit_once("gcc-")?.1.parse().ok()?;
+    repo.gccs
+        .gccs
+        .iter()
+        .filter(usable)
+        .filter(|g| g.flavor == "upstream" && series(&g.version) == series(&want))
+        .max_by(|a, b| a.version.cmp(&b.version))
+        .map(|g| g.id.clone())
+}
+
 /// Search the row of `kernel` on `platform`, printing each column as it finishes.
 pub fn run(
     repo: &Repo,
@@ -78,7 +99,11 @@ pub fn run(
         return Err(format!("no GCC column targets {}", p.triple));
     }
     let mut row = Vec::new();
-    for g in era_first(cols, repo.eras.of(&version).map(|e| e.gcc.as_str())) {
+    let era = repo
+        .eras
+        .of(&version)
+        .and_then(|e| era_column(repo, &e.gcc, &p.triple));
+    for g in era_first(cols, era.as_deref()) {
         let column = if p.applies(&version, &g.version) {
             one(repo, &version, &g.id, platform, opts)
         } else {
@@ -95,7 +120,7 @@ pub fn run(
     Ok(row)
 }
 
-/// The columns with the era GCC's moved to the front. Every other cell of the row grades its KUnit run against the era cell (spec 02.4), so that cell has to be in the store before they reach L7.
+/// The columns with the era GCC's, or the one standing for it, moved to the front. Every other cell of the row grades its KUnit run against the era cell (spec 02.4), so that cell has to be in the store before they reach L7.
 fn era_first<'a>(mut cols: Vec<&'a Gcc>, era: Option<&str>) -> Vec<&'a Gcc> {
     if let Some(at) = cols.iter().position(|g| Some(g.id.as_str()) == era) {
         let g = cols.remove(at);
@@ -176,5 +201,20 @@ mod tests {
         assert_eq!(order[1], "gcc-8.5.0");
         assert_eq!(order.len(), cols.len());
         assert_eq!(era_first(cols.clone(), None).len(), cols.len());
+    }
+
+    #[test]
+    fn a_distribution_era_gcc_is_stood_for_by_its_series() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let t = "x86_64-linux-gnu";
+        assert_eq!(
+            era_column(&repo, "debian-bullseye-gcc-10", t).as_deref(),
+            Some("gcc-10.5.0")
+        );
+        assert_eq!(
+            era_column(&repo, "gcc-14.2.0", t).as_deref(),
+            Some("gcc-14.2.0")
+        );
+        assert_eq!(era_column(&repo, "gcc-4.9.4", t), None);
     }
 }

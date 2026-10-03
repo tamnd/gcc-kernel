@@ -807,18 +807,21 @@ enum Reference {
     None,
 }
 
-/// Find the era GCC's cell for the same kernel, platform and boot rig in the store.
+/// Find the era GCC's cell for the same kernel, platform and boot rig in the store. When the era GCC is not a column, as the Debian build of M11 and M12 is not, the newest column of its release series stands in for it.
 fn kunit_reference(repo: &Repo, s: &Setup) -> Result<Reference, String> {
     let Some(era) = repo.eras.of(&s.version) else {
         return Ok(Reference::None);
     };
-    if era.gcc == s.coordinates.gcc.name {
+    let Some(column) = crate::search::era_column(repo, &era.gcc, &s.platform.triple) else {
+        return Ok(Reference::None);
+    };
+    if column == s.coordinates.gcc.name {
         return Ok(Reference::Itself);
     }
     let Ok(other) = Setup::new(
         repo,
         s.version.as_str(),
-        &era.gcc,
+        &column,
         &s.platform.name,
         s.config,
     ) else {
