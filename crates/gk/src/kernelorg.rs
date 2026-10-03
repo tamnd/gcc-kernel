@@ -35,22 +35,40 @@ pub fn parse_releases(text: &str) -> Result<Vec<Release>, String> {
     Ok(file.releases)
 }
 
-/// The directory of a major version, as in `v7.x`. Versions before 3.0 live in `v2.6`, `v1.0` and so on, and are not asked for yet.
+/// The directories that hold the tarballs of a major version, as `v7.x`. The 2.6 tree is in `v2.6`, and the points of its longterm lines that came after the move to kernel.org's longterm area are in `v2.6/longterm` and one directory per line under it. Versions before 2.6 are the museum's and are not asked for here.
 #[must_use]
-pub fn major_dir(major: u32) -> String {
-    format!("v{major}.x")
+pub fn dirs(major: u32) -> Vec<String> {
+    if major >= 3 {
+        return vec![format!("v{major}.x")];
+    }
+    if major < 2 {
+        return Vec::new();
+    }
+    let mut dirs = vec!["v2.6".to_owned(), "v2.6/longterm".to_owned()];
+    dirs.extend(
+        ["27", "32", "33", "34", "35"]
+            .iter()
+            .map(|l| format!("v2.6/longterm/v2.6.{l}")),
+    );
+    dirs
 }
 
-/// The tarball URL of a release.
+/// How many parts a mainline release of a major version has: `7.2` but `2.6.32`. A point release has one more.
 #[must_use]
-pub fn tarball_url(major: u32, version: &str) -> String {
-    format!("{CDN}/{}/linux-{version}.tar.xz", major_dir(major))
+pub fn release_depth(major: u32) -> usize {
+    if major >= 3 { 2 } else { 3 }
 }
 
-/// The SHA-256 list of a major directory.
+/// The tarball URL of a release in a directory.
 #[must_use]
-pub fn sums_url(major: u32) -> String {
-    format!("{CDN}/{}/sha256sums.asc", major_dir(major))
+pub fn tarball_url(dir: &str, version: &str) -> String {
+    format!("{CDN}/{dir}/linux-{version}.tar.xz")
+}
+
+/// The SHA-256 list of a directory.
+#[must_use]
+pub fn sums_url(dir: &str) -> String {
+    format!("{CDN}/{dir}/sha256sums.asc")
 }
 
 /// Parse a `sha256sums.asc`, file name to hash. The signature lines around the list do not look like a hash and a name and are skipped.
@@ -72,13 +90,18 @@ mod tests {
     #[test]
     fn urls_follow_the_major_directory() {
         assert_eq!(
-            tarball_url(6, "6.1.188"),
+            tarball_url("v6.x", "6.1.188"),
             "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.188.tar.xz"
         );
         assert_eq!(
-            sums_url(7),
+            sums_url("v7.x"),
             "https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc"
         );
+        assert_eq!(dirs(7), ["v7.x"]);
+        assert_eq!(dirs(2).len(), 7);
+        assert!(dirs(1).is_empty());
+        assert_eq!(release_depth(6), 2);
+        assert_eq!(release_depth(2), 3);
     }
 
     #[test]

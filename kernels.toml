@@ -3,6 +3,342 @@
 # Written by `gk pins --write` from the rules in sets.toml, kernel.org's releases.json and the signed sha256sums.asc of each directory. Pins in a set that sets.toml has no rule for are kept as they are.
 
 [[kernel]]
+version = "2.6.0"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.0.tar.xz"
+sha256 = "ab555b0645db211332dc1efd01ece56d9a2b5493c3afd9dacaf07a191c968e3f"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.1"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.1.tar.xz"
+sha256 = "8e72e64768d041148f3075958dfe4a8aa44a05a5674259a7d0e1ccae8a0fa28c"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.2"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.2.tar.xz"
+sha256 = "d4470ffa555c8c94fb08235122b0d71ffb7d5b5ea15bd2d671747f8df3806f72"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.3"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.3.tar.xz"
+sha256 = "d247abca72aa96f68bd36fd2398db0c9db35a9f2dd37f6d029b203f7ec52adca"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.4"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.4.tar.xz"
+sha256 = "2bb6b739f82560f421365d3680ffde0b4c3f733551ebabdcf846877960e550b7"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.5"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.5.tar.xz"
+sha256 = "178d6c0c902bd0b87a5c07934c2ba782481d13281e3247f8b144986465f09a89"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.6"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.6.tar.xz"
+sha256 = "0ffbd91a28a277dbaa7a3cab689ad80425a94cf407ad90bc63b0ed30c20197c5"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.7"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.7.tar.xz"
+sha256 = "c4c0c691681317adc298694e824b8b54c928665f1f1dccaac09005b4899e0c30"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.8"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.8.tar.xz"
+sha256 = "d9c3489c0a03aa654eafee70bc40dc12fd6a69cd933a52f065614ded61042239"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.9"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.9.tar.xz"
+sha256 = "aeeb79f814a151d916c6306cf8e440635ef078bc0f1d87f79fe06ac42f9ab9e0"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.10"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.10.tar.xz"
+sha256 = "725c7224f1310bab5a96bce8d27dbc6bc537ccd6eacf0417760dd62f84358902"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.11"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.11.tar.xz"
+sha256 = "31b5cb6fcbdc079e635d9b93195375d0b836d503a15285fa406152e3f8366851"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.11.12"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.11.12.tar.xz"
+sha256 = "8a4deff3098119120b65d46b92b1966a2a3c17bf8b63bfa5b51d81753a1e4c37"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.12"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.12.tar.xz"
+sha256 = "da2128c5077d4c067f1ba736f0dc37eb65dc879b8972e0c5945d2634278884cd"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.12.6"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.12.6.tar.xz"
+sha256 = "bed95f4bb452936bf731ff604f06509fc98cdb1e88894fc898d33a7a0fef3754"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.13"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.13.tar.xz"
+sha256 = "d65185904e542ce9c244a01b0e026a03f1786bcaee38134e2074a5158608f44c"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.13.1"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.13.1.tar.xz"
+sha256 = "09122be7496b8474ac7fdd3d88ef6193a96eac6788d28b9b7fb009a59e33098f"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.14"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.14.tar.xz"
+sha256 = "3808738dcb8974ca5618507ddffee0dc3ca40257f985b9a96dca080d10df0b35"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.15"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.15.tar.xz"
+sha256 = "ad7caa1197754ef5a85eb02cea3ba28c327f82285552e68af9b44aa444b9cf6f"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.16"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.16.tar.xz"
+sha256 = "6851eabcdd9da0d79f6d7c62da941547da963fa916c3d30ac5e8d70367cdc75a"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.17"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.17.tar.xz"
+sha256 = "fa6bf3198886c1ee2a79eb5de06dc7e257d813240855f03443b80b783e4fd41f"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.18"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.18.tar.xz"
+sha256 = "ebbebe73aebdf235413763e78eddd48a16738630305ad298635ab25e83d6ebc6"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.19"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.19.tar.xz"
+sha256 = "7b2641ec63bdfc05a30f41cc3b3376743aca8e148483d9845abdab920e1deb2b"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.20"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.20.tar.xz"
+sha256 = "6d8d12fe12918933d2e9309af5f6f32f184479f45e6ed53f9e945386e6892808"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.21"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.21.tar.xz"
+sha256 = "bbbd43f096c0e83710865f8561d8a0b277d38ce1861ae470a8b52a6237265503"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.22"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.22.tar.xz"
+sha256 = "178906c955bd47df61b35d6c20361630147794f1bdf19d1672f7a9eb09c652a5"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.23"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.23.tar.xz"
+sha256 = "3abdc50d03cb05b2d454139359dd2a026366b789f3d1de5a68131ed1dc944963"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.24"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.24.tar.xz"
+sha256 = "a9c6123ea750be3173ff383d17c3afec27b5884823fb947a73b85f6469e01229"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.25"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.25.tar.xz"
+sha256 = "63b912b1d703052b735cfc938ed3b4889a94ef0ac4c56f6d4059250273e4e1cc"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.26"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.26.tar.xz"
+sha256 = "c6f94b0c35c5e6e6a4fe031f9279661816e84e77f072c356867926e3dd354a81"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.27"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.27.tar.xz"
+sha256 = "4146575cc90000937142bfebd0d6c843b441cd5fa3c982e9f6411eacd4c3e444"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.27.62"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/longterm/v2.6.27/linux-2.6.27.62.tar.xz"
+sha256 = "6969ad6f3c6d26bca403a4d16706633ed2c88ab25746bfc9272116f929698037"
+sets = ["last-points", "longterm-stripe"]
+
+[[kernel]]
+version = "2.6.28"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.28.tar.xz"
+sha256 = "df1b513560a9ad0c2a03bbd43a566de293b5996e9bc0ede14ac8a6e869df75c5"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.28.10"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.28.10.tar.xz"
+sha256 = "92ef2a3aaa574450cdf3704ba6e143fde7cb626aa29a567ca135aefdfc5e9488"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.29"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.29.tar.xz"
+sha256 = "ed990f585ce3f050e42d4cec053862419b8280efbd588f847c610108d318e06c"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.29.6"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.29.6.tar.xz"
+sha256 = "d3e313ef186495e534ab7b652e66cf00efae90ce8b2fdd44705f895359a337ff"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.30"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.30.tar.xz"
+sha256 = "22634735b7ce710e39307279c27b046c11898129ba804ce738a59bd2165c1da0"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.30.10"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.30.10.tar.xz"
+sha256 = "d1f4185990758486f276a90c1dbb3fe5d5b6fb243cb33ad67bb91ef11c4eb333"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.31"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.31.tar.xz"
+sha256 = "4ad0df33ca20f170fa0a05ad2bcf8fb18bf457aba7f909434ed13461c59be80a"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.31.14"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.31.14.tar.xz"
+sha256 = "6546b025e80aeef3eb90d42fad2d94500d23fb435c57664c444ccd358575c588"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.32"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.32.tar.xz"
+sha256 = "723106c298c5ba8733bb51ecc106b05e332a18490edc5f61cc6e57dbb36dcc46"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.32.71"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/longterm/v2.6.32/linux-2.6.32.71.tar.xz"
+sha256 = "60a5ffe0206a0ea8997c29ccc595aa7dae55f6cb20c7d92aab88029ca4fef598"
+sets = ["last-points", "longterm-stripe"]
+
+[[kernel]]
+version = "2.6.33"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.33.tar.xz"
+sha256 = "aeba7b4538df8dcb495757a36b10aa6a795ce90a4d822caa04880e801f2914b5"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.33.20"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/longterm/linux-2.6.33.20.tar.xz"
+sha256 = "1d3c5c35b1d073401f273d55b5d89854d9005a6ffadac77a806805bb57205637"
+sets = ["last-points", "longterm-stripe"]
+
+[[kernel]]
+version = "2.6.34"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.34.tar.xz"
+sha256 = "cc013b9ed7ba57dbeff90c79067bc2be59d952a1ccbf9918de8d368b50222cc8"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.34.15"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/longterm/v2.6.34/linux-2.6.34.15.tar.xz"
+sha256 = "b3d2bda7aefae84235707f7adc2b870470b190cb4fea57f90edb492dc2bcfb29"
+sets = ["last-points", "longterm-stripe"]
+
+[[kernel]]
+version = "2.6.35"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.35.tar.xz"
+sha256 = "195c14b6b2785900b1e3c051916a29bc08f4862b65a599a500aae50711fe96c1"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.35.14"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/longterm/v2.6.35/linux-2.6.35.14.tar.xz"
+sha256 = "8f6967920a5670e3786b05d8e1fa347bf2e4727177039e8bb200b874d7547f90"
+sets = ["last-points", "longterm-stripe"]
+
+[[kernel]]
+version = "2.6.36"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.36.tar.xz"
+sha256 = "8feffb29ad70eadcac9ae70f19f455a12c58b166f82e5cac4b62fff57fc0a9f0"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.36.4"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.36.4.tar.xz"
+sha256 = "70d124743041974e1220fb39465627ded1df0fdd46da6cd74f6e3da414194d03"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.37"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.37.tar.xz"
+sha256 = "e6a7b1063ba71199038d55521885f284e10cf1ed75f51f6ad5bb22e54a441436"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.37.6"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.37.6.tar.xz"
+sha256 = "f7a684955fae0078a23528c6e85cd3a441cdcde59a6c8e990c40202e5331d60d"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.38"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.38.tar.xz"
+sha256 = "f49b4e9f62026db2717c975728b3e90544a9f2cab31cb6f6be0292cf32420094"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.38.8"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.38.8.tar.xz"
+sha256 = "c300486b30d28ae34c587a4f1aa8e98916a0616dad91a394b0e1352a9c7a8256"
+sets = ["last-points"]
+
+[[kernel]]
+version = "2.6.39"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.39.tar.xz"
+sha256 = "d3a579104e0d3154727793f4fa79b6b882ddafeded73cc8c0eb8c2536ad77373"
+sets = ["releases"]
+
+[[kernel]]
+version = "2.6.39.4"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.39.4.tar.xz"
+sha256 = "63c89dd833a67d21f4a0002b92826e3a5380153097d9ec29d62a884ca5310105"
+sets = ["last-points"]
+
+[[kernel]]
 version = "3.0"
 url = "https://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.0.tar.xz"
 sha256 = "ef5e8c2dedb20a6eab01bb379e9982cd7d47cf95bd87c9ee3e872272e85c24b6"
