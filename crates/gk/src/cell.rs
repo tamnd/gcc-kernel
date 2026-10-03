@@ -2,12 +2,14 @@
 //!
 //! Every step runs in the kernel's host container with no network. The tree is unpacked once into the cache and mounted read only at `/src`, kbuild writes under `O=/out`, and the bundle is mounted at `/opt/gk/t/<id>`, where `gk forge` installed it. `CROSS_COMPILE` names the bundle's tools on every platform, `x86_64` included, so nothing of the host's own GCC reaches the kernel. `CC` is `gk-cc`, copied into the scratch directory with a `gk-cc.toml` that names the bundle's GCC, so every compiler call kbuild makes lands in `compile.jsonl`.
 //!
+//! A kernel from before 2.6 has no `O=`, so its tree is copied into `/out` and built there, and `make dep` runs before the build. The museum's Makefiles put flags into `CC`, so instead of `CC` the shim is reached through a `CROSS_COMPILE` prefix of links in its directory, and before 2.0, which has no `CROSS_COMPILE`, each tool is named on the command line.
+//!
 //! A cell on a platform with an init pin, from 2.6 on, then boots the image with `gk boot` for L5 and runs the smoke suite for L6. Its coordinates then carry the boot container and the initramfs. A cell run with `--no-boot` stops at L4 and keeps the identity it had before booting existed.
 
 use crate::build::{self, Calls};
 use crate::fetch::{self, Request};
 use crate::forge::{self, Manifest};
-use crate::{boot, initramfs, kconfig, net, store, tap};
+use crate::{boot, initramfs, kconfig, kernelorg, net, store, tap};
 use gk_cc::config::ShimConfig;
 use gk_model::cell::{Coordinates, Named};
 use gk_model::platforms::Platform;
@@ -34,6 +36,11 @@ pub const BUILD_ONLY: &[&str] = &["allmodconfig"];
 
 /// The make target a configuration starts from on one kernel: its own, or the platform's defconfig.
 fn config_target(target: &str, defconfig: &str, version: &Version) -> Result<String, String> {
+    if !target.is_empty() && kernelorg::is_museum(version) {
+        return Err(format!(
+            "{version} has no {target}, which came in 2.6; use {CONFIG}"
+        ));
+    }
     if target == "tinyconfig" && version.series(2) < [3, 17].to_vec() {
         return Err(format!(
             "{version} has no tinyconfig, which came in 3.17; use allnoconfig+gk"
@@ -42,12 +49,14 @@ fn config_target(target: &str, defconfig: &str, version: &Version) -> Result<Str
     Ok(if target.is_empty() { defconfig } else { target }.to_owned())
 }
 
-/// The make target that settles a `.config` after a fragment is laid over it. `olddefconfig` came in 3.7. Before that, `oldconfig` asks about each new symbol, and with no input it takes the default, which is the same thing.
-fn settle_target(version: &Version) -> &'static str {
-    if version.series(2) < [3, 7].to_vec() {
-        "oldconfig"
+/// The make target that settles a `.config` after a fragment is laid over it. `olddefconfig` came in 3.7. Before that, `oldconfig` asks about each new symbol, and with no input it takes the default, which is the same thing. Before 1.2 there is neither, as Configure only asks questions and never reads a `.config`, so there the fragment is not laid over at all and what it asks for and did not get is only noted.
+fn settle_target(version: &Version) -> Option<&'static str> {
+    if version.series(2) < [1, 2].to_vec() {
+        None
+    } else if version.series(2) < [3, 7].to_vec() {
+        Some("oldconfig")
     } else {
-        "olddefconfig"
+        Some("olddefconfig")
     }
 }
 
@@ -338,26 +347,26 @@ impl Setup {
         for (k, v) in REPRODUCIBLE {
             cmd.args(["-e", &format!("{k}={v}")]);
         }
-        cmd.args(["-w", "/out"])
-            .arg(&self.image)
-            .args([
-                "timeout",
-                &step.seconds.to_string(),
-                "make",
+        let museum = kernelorg::is_museum(&self.version);
+        cmd.args(["-w", "/out"]).arg(&self.image);
+        cmd.args(["timeout", &step.seconds.to_string()]);
+        if museum {
+            // The tree is copied in the first time. Configure asks about every symbol the defconfig does not name, even with -d, and gives up at the end of its input, so it is answered with the default each time, as olddefconfig would. The Configure of 1.0 and 2.0 reads some answers from /dev/tty instead, which a container without a terminal cannot open, so /dev/tty becomes a pipe that a loop of yes keeps feeding. Some 1.x drivers include their headers by the absolute path /usr/src/linux, so the tree is there as well.
+            cmd.args([
+                "sh",
+                "-c",
+                "[ -f /out/Makefile ] || cp -a /src/. /out/ || exit 1; [ -e /usr/src/linux ] || { mkdir -p /usr/src && ln -s /out /usr/src/linux; } || exit 1; rm -f /dev/tty && mkfifo /dev/tty || exit 1; while :; do yes '' > /dev/tty; done & yes '' | make \"$@\"",
+                "sh",
                 "-C",
-                "/src",
-                "O=/out",
-            ])
-            .arg(format!("ARCH={}", self.arch))
-            .arg(format!(
-                "CROSS_COMPILE={}/bin/{}-",
-                self.bundle_mount(),
-                self.bundle.target
-            ));
-        if step.shim.is_some() {
-            cmd.arg("CC=/gk/bin/gk-cc");
+                "/out",
+            ]);
+        } else {
+            cmd.args(["make", "-C", "/src", "O=/out"]);
         }
-        cmd.arg(format!("-j{}", step.jobs)).args(step.args);
+        cmd.arg(format!("ARCH={}", self.arch))
+            .args(self.tools(step.shim.is_some()))
+            .arg(format!("-j{}", step.jobs))
+            .args(step.args);
         let status = cmd
             .stdin(std::process::Stdio::null())
             .stdout(file)
@@ -365,6 +374,70 @@ impl Setup {
             .status()
             .map_err(|e| format!("running docker: {e}"))?;
         Ok(status.code().unwrap_or(-1))
+    }
+}
+
+impl Setup {
+    /// The make variables that name the compiler and the binutils. With the shim, the museum reaches it through the `gk-` links of [`Setup::shim_links`], because its Makefiles put flags into `CC`.
+    fn tools(&self, shim: bool) -> Vec<String> {
+        let bundle = format!("{}/bin/{}-", self.bundle_mount(), self.bundle.target);
+        if !kernelorg::is_museum(&self.version) {
+            let mut args = vec![format!("CROSS_COMPILE={bundle}")];
+            if shim {
+                args.push("CC=/gk/bin/gk-cc".into());
+            }
+            return args;
+        }
+        let prefix = if shim { "/gk/bin/gk-" } else { bundle.as_str() };
+        if self.version.series(1) >= [2].to_vec() {
+            let mut args = vec![format!("CROSS_COMPILE={prefix}")];
+            if self.version.series(2) < [2, 1].to_vec() {
+                // 2.0 makes piggy.o with encaps when `hash $(ENCAPS)` finds it, and bash's hash takes any name with a slash in it as found, so the cell names it plainly, as a native build would, and gets the objcopy path.
+                args.push("ENCAPS=encaps".into());
+            }
+            return args;
+        }
+        // 1.x has no CROSS_COMPILE, and its CC carries the flags its Makefile gives it. 1.2 names the include directory by $(TOPDIR), which an old make loses the `$` of when it passes CC down, and 1.0 names none, as it expects /usr/include/linux to be a link into /usr/src/linux, so the cell names it by the path the tree is built in. The decompressor of 1.2 includes <stdlib.h>, which a native GCC of the time found among the libc5 headers and the bundle has no copy of, so the host's libc5 headers are searched last.
+        let mut args = vec![format!(
+            "CC={prefix}gcc -D__KERNEL__ -I/out/include -idirafter /usr/i486-linuxlibc1/include"
+        )];
+        for tool in ["as", "ld", "ar", "nm", "strip"] {
+            args.push(format!("{}={prefix}{tool}", tool.to_ascii_uppercase()));
+        }
+        if self.version.series(2) < [1, 1].to_vec() {
+            // The Makefiles of 1.0 run `for i in $(SUBDIRS)` where the list can be empty, which the bash of the time took and the bash of hamm calls a syntax error. Ash takes it. They also build the decompressor's xtract and piggyback, which run on the host, by make's own rule for a program, which links with CC, so the rule is pointed at the host's GCC with the flags of zBoot's Makefile.
+            args.push("SHELL=/bin/ash".into());
+            args.push("LINK.c=gcc -O2 -DSTDC_HEADERS".into());
+        }
+        args
+    }
+
+    /// The links of the `gk-` prefix in the shim's directory: `gk-gcc` to the shim, the binutils to the bundle's, and as86 and ld86, which build the real mode code of 2.0 and before, to the host's.
+    fn shim_links(&self) -> Vec<(String, String)> {
+        let mut links = vec![("gk-gcc".to_owned(), "gk-cc".to_owned())];
+        for tool in [
+            "as", "ld", "ar", "nm", "strip", "objcopy", "objdump", "ranlib",
+        ] {
+            links.push((
+                format!("gk-{tool}"),
+                format!("{}/bin/{}-{tool}", self.bundle_mount(), self.bundle.target),
+            ));
+        }
+        for tool in ["as86", "ld86"] {
+            links.push((format!("gk-{tool}"), format!("/usr/bin/{tool}")));
+        }
+        links
+    }
+
+    /// The script that stands for `gk-as` where the bundle's assembler cannot take the Makefile's flags as they are. The Makefiles of 1.0 call it with `-c`, which gas 1.x took and gas 2 refuses, so before 1.2 the script drops it.
+    fn as_script(&self) -> Option<String> {
+        (self.version.series(2) < [1, 2].to_vec()).then(|| {
+            format!(
+                "#!/bin/sh\nif [ \"$1\" = -c ]; then shift; fi\nexec {}/bin/{}-as \"$@\"\n",
+                self.bundle_mount(),
+                self.bundle.target
+            )
+        })
     }
 }
 
@@ -396,7 +469,11 @@ fn unpack_tree(tarball: &Path, version: &Version) -> Result<PathBuf, String> {
         .arg(&partial)
         .status()
         .map_err(|e| format!("running tar: {e}"))?;
-    let top = partial.join(format!("linux-{version}"));
+    // The tarballs before 2.0 unpack to `linux`.
+    let mut top = partial.join(format!("linux-{version}"));
+    if !top.is_dir() {
+        top = partial.join("linux");
+    }
     if !status.success() || !top.is_dir() {
         let _ = std::fs::remove_dir_all(&partial);
         return Err(format!(
@@ -471,6 +548,15 @@ pub fn probe(s: &Setup, dir: &Path, jobs: usize) -> Result<Probe, String> {
             result: "refused".into(),
             step: s.defconfig.clone(),
             why: tail_of(&config_log),
+            seconds: clock.elapsed().as_secs_f64(),
+        });
+    }
+    // Before 2.6 there is no init/main.i to make, and the compiler headers have no #error to fire, so a kernel that configures accepts.
+    if kernelorg::is_museum(&s.version) {
+        return Ok(Probe {
+            result: "accepted".into(),
+            step: s.defconfig.clone(),
+            why: Vec::new(),
             seconds: clock.elapsed().as_secs_f64(),
         });
     }
@@ -965,6 +1051,20 @@ pub fn run(
     };
     std::fs::write(bin.join(gk_cc::config::FILE_NAME), shim.to_toml())
         .map_err(|e| format!("writing the shim's settings: {e}"))?;
+    if kernelorg::is_museum(&s.version) {
+        for (link, target) in s.shim_links() {
+            std::os::unix::fs::symlink(&target, bin.join(&link))
+                .map_err(|e| format!("linking {link}: {e}"))?;
+        }
+        if let Some(script) = s.as_script() {
+            use std::os::unix::fs::PermissionsExt;
+            let path = bin.join("gk-as");
+            let _ = std::fs::remove_file(&path);
+            std::fs::write(&path, script).map_err(|e| format!("writing gk-as: {e}"))?;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                .map_err(|e| format!("writing gk-as: {e}"))?;
+        }
+    }
     let out = scratch.join("out");
     std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
     let make = |args: &[&str], log: &str, jobs: usize| {
@@ -1003,9 +1103,11 @@ pub fn run(
             let dot = out.join(".config");
             let before = std::fs::read_to_string(&dot)
                 .map_err(|e| format!("reading {}: {e}", dot.display()))?;
-            std::fs::write(&dot, kconfig::merge(&before, &fragment))
-                .map_err(|e| format!("writing {}: {e}", dot.display()))?;
-            configured = make(&[settle_target(&s.version)], "fragment.log", 1)? == 0;
+            if let Some(settle) = settle_target(&s.version) {
+                std::fs::write(&dot, kconfig::merge(&before, &fragment))
+                    .map_err(|e| format!("writing {}: {e}", dot.display()))?;
+                configured = make(&[settle], "fragment.log", 1)? == 0;
+            }
             fragment_missed = kconfig::missed(&kconfig::load(&dot)?, &fragment);
             if configured && !s.kunit_skip.is_empty() && !BUILD_ONLY.contains(&s.config) {
                 // With KUNIT_ALL_TESTS off the tests keep the values it gave them, and their options can be turned off one by one.
@@ -1017,7 +1119,11 @@ pub fn run(
                     .map_err(|e| format!("reading {}: {e}", dot.display()))?;
                 std::fs::write(&dot, kconfig::merge(&resolved, &off))
                     .map_err(|e| format!("writing {}: {e}", dot.display()))?;
-                configured = make(&[settle_target(&s.version)], "kunit-skip.log", 1)? == 0;
+                configured = make(
+                    &[settle_target(&s.version).unwrap_or("oldconfig")],
+                    "kunit-skip.log",
+                    1,
+                )? == 0;
                 fragment_missed.extend(kconfig::missed(&kconfig::load(&dot)?, &off[1..]));
             }
             let _ = std::fs::copy(&dot, cell_dir.join(".config"));
@@ -1045,7 +1151,14 @@ pub fn run(
         let mut args = vec!["V=1"];
         args.extend(&targets);
         let c = Instant::now();
-        let code = make(&args, "make.log", jobs)?;
+        let mut code = 0;
+        if kernelorg::is_museum(&s.version) {
+            // Before 2.6 the dependencies are made by hand, and one job at a time, before anything is built.
+            code = make(&["dep"], "dep.log", 1)?;
+        }
+        if code == 0 {
+            code = make(&args, "make.log", jobs)?;
+        }
         built = code == 0;
         timed_out = code == 124;
         if !built && !timed_out && s.keep_going && !killed(&cell_dir.join("make.log")) {
@@ -1074,17 +1187,16 @@ pub fn run(
         if built {
             reached = Rung::Compiled;
             let c = Instant::now();
-            let srcarch = match s.arch.as_str() {
-                "x86_64" | "i386" => "x86",
-                other => other,
-            };
+            // ARCH=i386 and x86_64 build under arch/x86 from 2.6.24, and 1.0 leaves its image at the top of the tree.
             let image = if s.image_name == "vmlinux" {
                 out.join("vmlinux")
             } else {
-                out.join("arch")
-                    .join(srcarch)
-                    .join("boot")
-                    .join(&s.image_name)
+                [s.arch.as_str(), "x86"]
+                    .iter()
+                    .map(|a| out.join("arch").join(a).join("boot").join(&s.image_name))
+                    .chain([out.join(&s.image_name)])
+                    .find(|p| p.is_file())
+                    .unwrap_or_default()
             };
             let mut linked = image.is_file();
             if linked && modules {
@@ -1344,14 +1456,22 @@ mod tests {
         assert!(BUILD_ONLY.iter().all(|c| config_named(c).is_ok()));
         let old: Version = "3.16".parse().unwrap();
         assert!(config_target("tinyconfig", "defconfig", &old).is_err());
+        let museum: Version = "2.4.37.11".parse().unwrap();
+        assert_eq!(
+            config_target("", "oldconfig", &museum).unwrap(),
+            "oldconfig"
+        );
+        assert!(config_target("allnoconfig", "oldconfig", &museum).is_err());
     }
 
     #[test]
     fn kernels_before_3_7_settle_with_oldconfig() {
         let at = |v: &str| settle_target(&v.parse().unwrap());
-        assert_eq!(at("2.6.0"), "oldconfig");
-        assert_eq!(at("3.6.11"), "oldconfig");
-        assert_eq!(at("3.7"), "olddefconfig");
-        assert_eq!(at("7.2.8"), "olddefconfig");
+        assert_eq!(at("1.0"), None);
+        assert_eq!(at("1.2.13"), Some("oldconfig"));
+        assert_eq!(at("2.6.0"), Some("oldconfig"));
+        assert_eq!(at("3.6.11"), Some("oldconfig"));
+        assert_eq!(at("3.7"), Some("olddefconfig"));
+        assert_eq!(at("7.2.8"), Some("olddefconfig"));
     }
 }

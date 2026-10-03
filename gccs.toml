@@ -1,6 +1,35 @@
 # The GCC columns of the matrix (spec 04).
 #
-# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 2.95 to 4.5 and the era GCCs of M3 to M6 (the mirror has no signatures for releases before 3.3, so those rows say so and are held to their SHA-256 alone), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.
+# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 2.5 to 4.5 and the era GCCs of M0 to M6 (the mirror has no signatures for releases before 3.3, so those rows say so and are held to their SHA-256 alone, and 2.5.8 builds a.out tools, which its row names), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.
+
+[[gcc]]
+id = "gcc-2.5.8"
+version = "2.5.8"
+flavor = "upstream"
+released = "1994-01-23"
+url = "https://ftp.gnu.org/old-gnu/gcc/gcc-2.5.8.tar.gz"
+sha256 = "22ec4fe2be2ae85931d69f0c7782156e0f0aa87d9e5dcce2a05da3555c220291"
+unsigned = "The mirror has neither a signature nor a checksum for this release."
+forge = "gk-forge-slink"
+targets = ["i686-linux-gnu"]
+tools = "i486-linuxaout"
+binutils = "binutils-2.8.1"
+columns = ["last-point"]
+why = "The last 2.5, and the era GCC of M0, kernels 1.0 to 1.2. Those kernels link only as a.out, so its tools are built for i486-linuxaout, with binutils 2.8.1, the oldest release on the mirror, which still knows that target."
+
+[[gcc]]
+id = "gcc-2.7.2.3"
+version = "2.7.2.3"
+flavor = "upstream"
+released = "1997-08-22"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-2.7.2.3.tar.gz"
+sha256 = "16166e0f0f2064bb3114716650569065ef3855ae2331d7a29b85d4b9aa73773c"
+unsigned = "The mirror has neither a signature nor a checksum for this release."
+forge = "gk-forge-slink"
+targets = ["i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 2.7, and the era GCC of M1 and M2, kernels 1.3 to 2.2."
 
 [[gcc]]
 id = "gcc-2.95.3"

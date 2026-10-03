@@ -2,6 +2,7 @@
 //!
 //! `releases.json` names the mainline rc, the stable line and every longterm line with its latest point release. `sha256sums.asc` in each major directory lists the hash of every tarball there. The list is signed. `gk fetch` checks the signature, and the hash in `kernels.toml` is what every fetch is held to.
 
+use gk_model::Version;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -35,13 +36,16 @@ pub fn parse_releases(text: &str) -> Result<Vec<Release>, String> {
     Ok(file.releases)
 }
 
-/// The directories that hold the tarballs of a major version, as `v7.x`. The 2.6 tree is in `v2.6`, and the points of its longterm lines that came after the move to kernel.org's longterm area are in `v2.6/longterm` and one directory per line under it. Versions before 2.6 are the museum's and are not asked for here.
+/// The directories that hold the tarballs of a major version, as `v7.x`. The 2.6 tree is in `v2.6`, and the points of its longterm lines that came after the move to kernel.org's longterm area are in `v2.6/longterm` and one directory per line under it. The museum's lines before 2.6 each have a directory of their own, and only the stable ones are asked for.
 #[must_use]
 pub fn dirs(major: u32) -> Vec<String> {
     if major >= 3 {
         return vec![format!("v{major}.x")];
     }
-    if major < 2 {
+    if major == 1 {
+        return vec!["v1.0".to_owned(), "v1.2".to_owned()];
+    }
+    if major < 1 {
         return Vec::new();
     }
     let mut dirs = vec!["v2.6".to_owned(), "v2.6/longterm".to_owned()];
@@ -50,7 +54,23 @@ pub fn dirs(major: u32) -> Vec<String> {
             .iter()
             .map(|l| format!("v2.6/longterm/v2.6.{l}")),
     );
+    dirs.extend(["v2.0", "v2.2", "v2.4"].map(str::to_owned));
     dirs
+}
+
+/// How many parts name the line a version belongs to: `7.2` and `2.4`, but `2.6.32`.
+#[must_use]
+pub fn line_depth(version: &Version) -> usize {
+    match version.parts() {
+        [2, 6, ..] => 3,
+        _ => 2,
+    }
+}
+
+/// Whether a version is from before 2.6, where the last point of a line can be its release, as for 1.0, and a point can have four parts, as 2.4.37.11.
+#[must_use]
+pub fn is_museum(version: &Version) -> bool {
+    matches!(version.parts(), [0 | 1, ..] | [2, 0..=5, ..])
 }
 
 /// How many parts a mainline release of a major version has: `7.2` but `2.6.32`. A point release has one more.
@@ -98,10 +118,23 @@ mod tests {
             "https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc"
         );
         assert_eq!(dirs(7), ["v7.x"]);
-        assert_eq!(dirs(2).len(), 7);
-        assert!(dirs(1).is_empty());
+        assert_eq!(dirs(2).len(), 10);
+        assert_eq!(dirs(1), ["v1.0", "v1.2"]);
+        assert!(dirs(0).is_empty());
         assert_eq!(release_depth(6), 2);
         assert_eq!(release_depth(2), 3);
+    }
+
+    #[test]
+    fn museum_lines_are_two_parts_deep() {
+        let v = |s: &str| s.parse::<Version>().unwrap();
+        assert_eq!(line_depth(&v("2.6.32.71")), 3);
+        assert_eq!(line_depth(&v("2.4.37.11")), 2);
+        assert_eq!(line_depth(&v("6.1.188")), 2);
+        assert!(is_museum(&v("1.0")));
+        assert!(is_museum(&v("2.4.37.11")));
+        assert!(!is_museum(&v("2.6.0")));
+        assert!(!is_museum(&v("3.0")));
     }
 
     #[test]

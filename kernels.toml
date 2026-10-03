@@ -3,6 +3,36 @@
 # Written by `gk pins --write` from the rules in sets.toml, kernel.org's releases.json and the signed sha256sums.asc of each directory. Pins in a set that sets.toml has no rule for are kept as they are.
 
 [[kernel]]
+version = "1.0"
+url = "https://cdn.kernel.org/pub/linux/kernel/v1.0/linux-1.0.tar.xz"
+sha256 = "a1bc598111df3002271c367adddab978c42549db9f17e698dc7f65d4304ff5ed"
+sets = ["museum"]
+
+[[kernel]]
+version = "1.2.13"
+url = "https://cdn.kernel.org/pub/linux/kernel/v1.2/linux-1.2.13.tar.xz"
+sha256 = "fce9e434e59440fc9b158fcfce02cda29154b78b6cce1de73b706b30b3eed71e"
+sets = ["museum"]
+
+[[kernel]]
+version = "2.0.40"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.0/linux-2.0.40.tar.xz"
+sha256 = "4de73a68aa2f9c6813f5eae5bf64e9716c7809cff6e95f06781c6c6e4bc8accc"
+sets = ["museum"]
+
+[[kernel]]
+version = "2.2.26"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.2/linux-2.2.26.tar.xz"
+sha256 = "0a0d883a0c814deec53be0ad4e9cdda3c041e94a09e7ccfbceb60d1ca8f1f025"
+sets = ["museum"]
+
+[[kernel]]
+version = "2.4.37.11"
+url = "https://cdn.kernel.org/pub/linux/kernel/v2.4/linux-2.4.37.11.tar.xz"
+sha256 = "2787647de35c6a06346b6feec1f49487407be8efda73a0a033470df03fa2e368"
+sets = ["museum"]
+
+[[kernel]]
 version = "2.6.0"
 url = "https://cdn.kernel.org/pub/linux/kernel/v2.6/linux-2.6.0.tar.xz"
 sha256 = "ab555b0645db211332dc1efd01ece56d9a2b5493c3afd9dacaf07a191c968e3f"

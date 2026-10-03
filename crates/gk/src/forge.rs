@@ -25,7 +25,7 @@ pub struct Manifest {
     pub gcc: String,
     /// The binutils version it is paired with.
     pub binutils: String,
-    /// The GNU triple.
+    /// The GNU triple its tools are named for, which is the platform's unless the column says otherwise.
     pub target: String,
     /// The forge container.
     pub forge: String,
@@ -58,10 +58,17 @@ pub fn manifest(gcc_id: &str, target: &str) -> Result<Manifest, String> {
     serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// A bundle unpacked into the cache, unpacking it the first time.
+/// A bundle unpacked into the cache, unpacking it the first time. The directory is named for the tarball's digest as well, so a bundle forged again is not served from the tree of the one before.
 pub fn unpacked(m: &Manifest) -> Result<PathBuf, String> {
     let dir = bundles_dir();
-    let unpacked = dir.join("unpacked").join(format!("{}-{}", m.id, m.target));
+    let short = m
+        .digest
+        .trim_start_matches("sha256:")
+        .get(..12)
+        .unwrap_or_default();
+    let unpacked = dir
+        .join("unpacked")
+        .join(format!("{}-{}-{short}", m.id, m.target));
     if unpacked.is_dir() {
         return Ok(unpacked);
     }
@@ -136,8 +143,13 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
     std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
     let script = repo.root.join("provision/forge/build.sh");
     for target in &targets {
+        let tools = if gcc.tools.is_empty() {
+            target
+        } else {
+            &gcc.tools
+        };
         println!(
-            "{}: building for {target} with binutils {} in {}",
+            "{}: building for {target} with binutils {} in {}, as {tools}",
             gcc.id, binutils.version, gcc.forge
         );
         let started = Instant::now();
@@ -154,7 +166,7 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
             .args(["-e", &format!("GK_BINUTILS={}", binutils.version)])
             .args(["-e", &format!("GK_GCC_TAR={gcc_file}")])
             .args(["-e", &format!("GK_BINUTILS_TAR={binutils_file}")])
-            .args(["-e", &format!("GK_TARGET={target}")])
+            .args(["-e", &format!("GK_TARGET={tools}")])
             .args(["-e", &format!("GK_PREREQS={}", prereqs.join(" "))]);
         if let Some(j) = jobs {
             cmd.args(["-e", &format!("GK_JOBS={j}")]);
@@ -167,9 +179,9 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
         if !status.success() {
             return Err(format!("{} for {target}: the forge build failed", gcc.id));
         }
-        let file = format!("{}-{target}.tar.zst", gcc.id);
-        let plain = out.join(format!("{}-{target}.tar", gcc.id));
-        let tree = out.join(format!("{}-{target}.tree", gcc.id));
+        let file = format!("{}-{tools}.tar.zst", gcc.id);
+        let plain = out.join(format!("{}-{tools}.tar", gcc.id));
+        let tree = out.join(format!("{}-{tools}.tree", gcc.id));
         if tree.is_dir() {
             // A forge whose tar cannot set member times leaves the installed tree.
             pack(&tree, &plain)?;
@@ -190,7 +202,7 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
             id: gcc.id.clone(),
             gcc: gcc.version.as_str().to_owned(),
             binutils: binutils.version.as_str().to_owned(),
-            target: target.clone(),
+            target: tools.clone(),
             forge: gcc.forge.clone(),
             image: image.clone(),
             prerequisites: prereqs.clone(),

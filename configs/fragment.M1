@@ -1,0 +1,16 @@
+# The test fragment for era M1, kernels 1.3 to 2.0.40 (spec 07.2). It is merged after the configuration target and only turns things on, except for the four switches at the top. The merged .config is settled with oldconfig, which in this era is `Configure -d` and reads arch/i386/defconfig when there is no .config. There is no serial console before 2.1.25, so a boot of this era reads the VGA console.
+
+# Off everywhere, so that every column of a row gets the same configuration. None of the four exist in this era, so the merge notes them and moves on. They stay so the fragment of every era starts the same way.
+CONFIG_WERROR=n
+CONFIG_GCC_PLUGINS=n
+CONFIG_RUST=n
+CONFIG_DEBUG_INFO_BTF=n
+
+# The serial driver, for the port the console moves to in the next era.
+CONFIG_SERIAL=y
+
+# The initial RAM disk arrives in 1.3.73. ROMFS does not exist yet, so the boot image is minix.
+CONFIG_BLK_DEV_RAM=y
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_MINIX_FS=y
+CONFIG_PROC_FS=y

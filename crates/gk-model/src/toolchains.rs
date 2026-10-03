@@ -39,6 +39,9 @@ pub struct Gcc {
     /// The GNU triples its bundle is built for.
     #[serde(default)]
     pub targets: Vec<String>,
+    /// The triple the bundle's tools are built for when it is not the platform's, as `i486-linuxaout` for the a.out GCC of the 1.x kernels. The bundle still stands in the column of the platform's triple.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub tools: String,
     /// `auto` for the pairing rule of spec 04.5, or a binutils id.
     #[serde(default = "auto")]
     pub binutils: String,
@@ -172,6 +175,7 @@ mod tests {
             unsigned: String::new(),
             forge: String::new(),
             targets: vec![],
+            tools: String::new(),
             binutils: "auto".into(),
             columns: vec!["point".into()],
             why: String::new(),

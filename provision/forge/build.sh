@@ -13,8 +13,8 @@ set -o pipefail 2> /dev/null || true
 : "${GK_GCC_TAR:=gcc-$GK_GCC.tar.xz}" "${GK_BINUTILS_TAR:=binutils-$GK_BINUTILS.tar.xz}"
 jobs="${GK_JOBS:-$(nproc)}"
 prefix="/opt/gk/t/$GK_ID"
-# An i386 forge such as woody runs on an x86_64 kernel, where uname says x86_64, so the word size of the userland decides.
-if [ "$(getconf LONG_BIT)" = 32 ]; then
+# An i386 forge such as woody runs on an x86_64 kernel, where uname says x86_64, so the word size of the userland decides. Slink has no getconf, so it is read from the ELF class of /bin/sh, which is 1 for 32 bits.
+if [ "$(od -An -tx1 -j4 -N1 /bin/sh | tr -d ' ')" = 01 ]; then
   build=i686-gkforge-linux-gnu
 else
   build="$(uname -m)-gkforge-linux-gnu"
@@ -22,7 +22,8 @@ fi
 work=/tmp/forge
 # The container is thrown away after each build, so the bundle is installed at its own prefix rather than under a DESTDIR, which the install of releases as old as 2.95 does not know.
 rm -rf "$work" "$prefix"
-mkdir -p "$work"
+# The install of binutils as old as 2.8 makes the prefix with a plain mkdir, which cannot make its parents.
+mkdir -p "$work" "$prefix"
 cd "$work"
 
 log() { echo "gk-forge: $*" >&2; }
@@ -64,24 +65,25 @@ done
 
 log "binutils for $GK_TARGET"
 mkdir b-binutils
+# set -e does not reach into a subshell on the left of ||, so each step is chained, here and in the build of the oldest GCCs below. The newer GCC build is held to the check for its driver after it.
 (
-  cd b-binutils
-  "../binutils-$GK_BINUTILS/configure" \
-    --build="$build" --host="$build" --target="$GK_TARGET" --prefix="$prefix" \
-    --disable-nls --disable-werror --disable-multilib --disable-shared --enable-static \
-    --disable-gdb --disable-gdbserver --disable-sim --disable-gprofng --disable-readline \
-    --disable-libdecnumber --enable-deterministic-archives
-  # Releases older than about 2.17 have neither the configure-host target nor install-strip at the top level.
-  if make -n configure-host > /dev/null 2>&1; then
-    make MAKEINFO=true -j"$jobs" configure-host
-  fi
-  make MAKEINFO=true -j"$jobs" LDFLAGS=-all-static
-  if make -n install-strip > /dev/null 2>&1; then
-    make MAKEINFO=true install-strip
-  else
-    make MAKEINFO=true install
-    strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true
-  fi
+  cd b-binutils &&
+    "../binutils-$GK_BINUTILS/configure" \
+      --build="$build" --host="$build" --target="$GK_TARGET" --prefix="$prefix" \
+      --disable-nls --disable-werror --disable-multilib --disable-shared --enable-static \
+      --disable-gdb --disable-gdbserver --disable-sim --disable-gprofng --disable-readline \
+      --disable-libdecnumber --enable-deterministic-archives &&
+    # Releases older than about 2.17 have neither the configure-host target nor install-strip at the top level.
+    if make -n configure-host > /dev/null 2>&1; then
+      make MAKEINFO=true -j"$jobs" configure-host
+    fi &&
+    make MAKEINFO=true -j"$jobs" LDFLAGS=-all-static &&
+    if make -n install-strip > /dev/null 2>&1; then
+      make MAKEINFO=true install-strip
+    else
+      make MAKEINFO=true install && { strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true; }
+    fi &&
+    test -x "$prefix/bin/$GK_TARGET-as"
 ) > binutils.log 2>&1 || { tail -n 60 binutils.log >&2; exit 1; }
 
 export PATH="$prefix/bin:$PATH"
@@ -93,6 +95,31 @@ if [ "$gcc_series" -lt 403 ]; then
   old_gcc=--with-newlib
 fi
 
+# Before egcs GCC is a single directory, with no top level to build it from and no way to build libgcc without the target's headers. A kernel of that age needs only the driver, cc1, cpp and the headers GCC brings with it, so those are built in the tree and put in place by hand.
+if [ ! -d "gcc-$GK_GCC/gcc" ]; then
+  log "gcc for $GK_TARGET, without libgcc"
+  # The Makefile of these releases calls the compiler cc unless told otherwise. The config.sub of 2.5 does not know a vendor of our own, nor i686, so there the forge calls itself plain i386-linux. Before 2.7 gcc.c and cccp.c declare sys_errlist without the const glibc gives it, and the compile stops on the conflict, so the declaration is brought in line.
+  lib="$prefix/lib/gcc-lib/$GK_TARGET/$GK_GCC"
+  host="$build"
+  if ! sh "gcc-$GK_GCC/config.sub" "$host" > /dev/null 2>&1; then
+    host=i386-linux
+  fi
+  (
+    cd "gcc-$GK_GCC" &&
+      for f in *.c; do
+        if grep -q '^extern char \*sys_errlist\[\];' "$f"; then
+          sed 's/^extern char \*sys_errlist\[\];/extern const char *const sys_errlist[];/' "$f" > "$f.gk" && mv "$f.gk" "$f" || exit 1
+        fi
+      done &&
+      ./configure --host="$host" --target="$GK_TARGET" --prefix="$prefix" --with-gnu-as --with-gnu-ld &&
+      make CC="${CC:-gcc}" MAKEINFO=true LANGUAGES=c -j"$jobs" xgcc cc1 cpp specs stmp-int-hdrs &&
+      mkdir -p "$lib/include" "$prefix/bin" &&
+      cp xgcc "$prefix/bin/$GK_TARGET-gcc" &&
+      cp cc1 cpp specs "$lib/" &&
+      cp -R include/. "$lib/include/" &&
+      strip "$prefix/bin/$GK_TARGET-gcc" "$lib/cc1" "$lib/cpp"
+  ) > gcc.log 2>&1 || { tail -n 80 gcc.log >&2; exit 1; }
+else
 log "gcc for $GK_TARGET"
 mkdir b-gcc
 (
@@ -132,6 +159,7 @@ mkdir b-gcc
     make MAKEINFO=true install-target-libgcc
   fi
 ) > gcc.log 2>&1 || { tail -n 80 gcc.log >&2; exit 1; }
+fi
 
 # A bundle runs in hosts as old as sarge, which have neither the forge's libc nor a 64 bit loader, so every program in it has to be static. Plugins such as liblto_plugin.so are shared objects and are left alone. Before 3.4 cc1 and collect2 live under lib/gcc-lib rather than libexec/gcc.
 for f in "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do

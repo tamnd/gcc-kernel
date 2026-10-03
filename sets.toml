@@ -1,6 +1,6 @@
 # The rules that decide which kernel trees and binutils releases are pinned (spec 03.1).
 #
-# `gk pins` applies them to kernel.org's releases.json, the sha256sums.asc of each kernel directory and the GNU mirror, and `gk pins --write` writes kernels.toml and binutils.toml. G0 started the releases set at 5.0. G2 moved it back to 3.0 and added the last points, and G3 takes both back to 2.6.
+# `gk pins` applies them to kernel.org's releases.json, the sha256sums.asc of each kernel directory and the GNU mirror, and `gk pins --write` writes kernels.toml and binutils.toml. G0 started the releases set at 5.0. G2 moved it back to 3.0 and added the last points, and G3 takes both back to 2.6 and adds the museum.
 
 # Every line kernel.org still maintains, at its latest point release.
 [[set]]
@@ -22,6 +22,11 @@ last-points-from = "2.6.11"
 name = "longterm-stripe"
 last-points-of = ["2.6.27", "2.6.32", "2.6.33", "2.6.34", "2.6.35", "3.0", "3.2", "3.4", "3.10", "3.12", "3.14", "3.16", "3.18", "4.1", "4.4", "4.9", "4.14", "4.19", "5.4", "5.10", "5.15", "6.1", "6.6", "6.12"]
 
+# The museum: the last point of every stable line before 2.6, which G3 builds with its era GCC. 1.0 has no points on kernel.org, so its release stands for it.
+[[set]]
+name = "museum"
+last-points-of = ["1.0", "1.2", "2.0", "2.2", "2.4"]
+
 [gnu]
-# Every binutils release from this one on. GCC 3.2.3 pairs with 2.14. Releases before 2.28.1 are on the mirror as .tar.bz2 or .tar.gz, and those are pinned instead, as the signed 2011 respin where there is one. The museum columns move this back again.
-binutils-from = "2.14"
+# Every signed binutils release from this one on. GCC 2.95.3 pairs with 2.10.1. Releases before 2.28.1 are on the mirror as .tar.bz2 or .tar.gz, and those are pinned instead, as the signed 2011 respin where there is one. Releases before 2.22 that were not rolled again have no signature and are left out, and the few columns that need one older than 2.10.1 pin it by hand with the reason.
+binutils-from = "2.10.1"
