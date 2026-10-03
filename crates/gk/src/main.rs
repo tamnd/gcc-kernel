@@ -55,7 +55,7 @@ commands:
              cell K G --platform P [--config C] [--jobs N] [--keep] [--ungraded] [--no-boot],
              where C is defconfig+gk (the default), tinyconfig+gk, allnoconfig+gk or allmodconfig,
              which is built and never booted
-  search     run every cell of one row: search K --platform P --dense [--config C] [--jobs N] [--rerun]
+  search     search one row for the edges of its working set, or run every cell with --dense: search K --platform P [--dense] [--seed N] [--config C] [--jobs N] [--rerun]
              [--keep] [--ungraded] [--no-boot]. Cells already in the store are not run again.
   publish    write matrix/matrix.json, the heat maps, warning census and config differential in reports/
              and the status section of README.md
@@ -192,6 +192,7 @@ fn changed(args: &[String]) -> ExitCode {
 fn search_command(args: &[String]) -> ExitCode {
     let mut opts = search::Options {
         dense: false,
+        seed: None,
         jobs: std::thread::available_parallelism().map_or(8, std::num::NonZero::get),
         rerun: false,
         keep: false,
@@ -222,6 +223,13 @@ fn search_command(args: &[String]) -> ExitCode {
                 opts.jobs = n;
             }
             "--dense" => opts.dense = true,
+            "--seed" => {
+                let Some(n) = it.next().and_then(|v| v.parse().ok()) else {
+                    eprintln!("gk search: --seed takes a number");
+                    return ExitCode::from(2);
+                };
+                opts.seed = Some(n);
+            }
             "--rerun" => opts.rerun = true,
             "--keep" => opts.keep = true,
             "--no-boot" => opts.boot = false,
@@ -234,7 +242,7 @@ fn search_command(args: &[String]) -> ExitCode {
         }
     }
     let (Some(kernel), Some(platform)) = (kernel, platform) else {
-        eprintln!("gk search: as in gk search 7.2.8 --platform x86_64 --dense");
+        eprintln!("gk search: as in gk search 7.2.8 --platform x86_64 [--dense]");
         return ExitCode::from(2);
     };
     let result = Repo::find().and_then(|repo| {

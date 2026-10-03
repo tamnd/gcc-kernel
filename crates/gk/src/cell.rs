@@ -108,6 +108,8 @@ pub struct Setup {
     pub boots: bool,
     /// The KUnit test options the fragment turns off, from its `# gk:kunit-skip` lines.
     pub kunit_skip: Vec<String>,
+    /// Whether a failed build is run again with `make -k` to find every failing unit (spec 09.5).
+    pub keep_going: bool,
 }
 
 impl Setup {
@@ -219,6 +221,7 @@ impl Setup {
             coordinates,
             boots: false,
             kunit_skip: kunit_skip(&String::from_utf8_lossy(&fragment_text)),
+            keep_going: false,
         })
     }
 
@@ -518,6 +521,9 @@ pub struct CellRecord {
     /// The signatures that match it but whose ranges leave it out, from `gk classify`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub findings: Vec<String>,
+    /// How many units failed when the build was run again with `make -k`, for a cell that had that run (spec 09.5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub units_failed: Option<usize>,
 }
 
 /// How many times a cell that reaches L5 boots (spec 02.4).
@@ -966,6 +972,7 @@ pub fn run(
 
     let mut built = false;
     let mut timed_out = false;
+    let mut kept_going = false;
     let mut image_sha256 = String::new();
     let mut targets = vec![s.image_name.as_str()];
     if configured {
@@ -981,6 +988,13 @@ pub fn run(
         let code = make(&args, "make.log", jobs)?;
         built = code == 0;
         timed_out = code == 124;
+        if !built && !timed_out && s.keep_going && !killed(&cell_dir.join("make.log")) {
+            // The units that failed are tried again and the rest of the tree is built past them. Their records are added to compile.jsonl, and failing_units keeps one per unit.
+            let mut again = vec!["-k", "V=1"];
+            again.extend(&targets);
+            make(&again, "make-k.log", jobs)?;
+            kept_going = true;
+        }
         if !built && killed(&cell_dir.join("make.log")) {
             let _ = std::fs::remove_dir_all(&cell_dir);
             if !keep {
@@ -1104,14 +1118,16 @@ pub fn run(
     if log.is_file() {
         let _ = std::fs::copy(&log, cell_dir.join("compile.jsonl"));
     }
-    let make_log = cell_dir.join("make.log");
-    if make_log.is_file() {
-        let status = Command::new("zstd")
-            .args(["-q", "-f", "-19", "--rm"])
-            .arg(&make_log)
-            .status();
-        if !status.is_ok_and(|s| s.success()) {
-            return Err("compressing make.log failed".into());
+    for name in ["make.log", "make-k.log"] {
+        let make_log = cell_dir.join(name);
+        if make_log.is_file() {
+            let status = Command::new("zstd")
+                .args(["-q", "-f", "-19", "--rm"])
+                .arg(&make_log)
+                .status();
+            if !status.is_ok_and(|s| s.success()) {
+                return Err(format!("compressing {name} failed"));
+            }
         }
     }
 
@@ -1134,10 +1150,12 @@ pub fn run(
         graded,
         classes: Vec::new(),
         findings: Vec::new(),
+        units_failed: kept_going.then_some(errors.len()),
     };
     if let Some(f) = crate::classify::failure(&cell_dir, &record) {
-        let v = crate::classify::judge(repo, &crate::classify::compile(repo), &record, &f);
-        record.classes = v.class.into_iter().collect();
+        let catalog = crate::classify::compile(repo);
+        let v = crate::classify::judge(repo, &catalog, &record, &f);
+        record.classes = crate::classify::classes(repo, &catalog, &cell_dir, &record, &f, &v);
         record.findings = v.findings;
     }
     let json = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?;
