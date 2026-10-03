@@ -9,27 +9,27 @@ Recent kernels come first, because that is where rucc is going. Old kernels are 
 <!-- gk:status:begin -->
 ## Status
 
-This section is written by `gk publish` from [matrix/matrix.json](matrix/matrix.json) and is replaced every time the results are published. Last published 2026-10-02, with 50 cells in the matrix.
+This section is written by `gk publish` from [matrix/matrix.json](matrix/matrix.json) and is replaced every time the results are published. Last published 2026-10-03, with 75 cells in the matrix.
 
 ### Progress
 
 The current stripe of G1 is every Current kernel with every upstream GCC column on the tier 1 platforms, with `defconfig+gk` and `tinyconfig+gk`. The GCC 16 column is every release from 5.0 on with the newest GCC 16.
 
 ```text
-x86_64 defconfig+gk      [#########.....................]   24/84    28%
-x86_64 tinyconfig+gk     [..............................]    0/84     0%
-i386 defconfig+gk        [####..........................]   10/84    11%
-i386 tinyconfig+gk       [..............................]    0/84     0%
-arm64 defconfig+gk       [..............................]    0/84     0%
-arm64 tinyconfig+gk      [#.............................]    1/84     1%
-total                    [###...........................]   35/504    6%
+x86_64 defconfig+gk      ████████▋░░░░░░░░░░░░░░░░░░░░░   24/84    28%
+x86_64 tinyconfig+gk     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0/84     0%
+i386 defconfig+gk        ████░░░░░░░░░░░░░░░░░░░░░░░░░░   11/84    13%
+i386 tinyconfig+gk       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0/84     0%
+arm64 defconfig+gk       ▊░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    2/84     2%
+arm64 tinyconfig+gk      ▍░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    1/84     1%
+total                    ██▍░░░░░░░░░░░░░░░░░░░░░░░░░░░   38/504    7%
 ```
 
 ```text
-x86_64 gcc-16.2.0        [#.............................]    1/50     2%
-i386 gcc-16.2.0          [#.............................]    1/50     2%
-arm64 gcc-16.2.0         [..............................]    0/50     0%
-total                    [#.............................]    2/150    1%
+x86_64 gcc-16.2.0        ▋░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    1/50     2%
+i386 gcc-16.2.0          ▋░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    1/50     2%
+arm64 gcc-16.2.0         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0/50     0%
+total                    ▌░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    2/150    1%
 ```
 
 ### Verdicts
@@ -37,47 +37,80 @@ total                    [#.............................]    2/150    1%
 The newest cell at each crossing, over every platform and configuration.
 
 ```text
-works        ######################################## 20
-runs         ############################             14
-builds       ##                                       1
-fails                                                 0
+🟩 works      ████████████████████████████████████████ 21
+🟨 runs       ██████████████████████████████▌          16
+🟧 builds     █▉                                       1
+🟥 fails                                               0
+```
+
+The same cells by the rung they reached (spec 02.2), L8 being clean all the way through KUnit and the splat check.
+
+```text
+L0                                                    0
+L1                                                    0
+L2                                                    0
+L3                                                    0
+L4                                                    0
+L5           █▉                                       1
+L6           ██████████████████████▉                  12
+L7           ███████▋                                 4
+L8           ████████████████████████████████████████ 21
 ```
 
 The median build time of `defconfig+gk` cells per GCC column, in minutes. The machines are shared, so these move with their load.
 
 ```text
-8.5.0        ##################                       21 min, 3 cells
-9.5.0        ################                         19 min, 3 cells
-10.5.0       #############                            15 min, 3 cells
-11.5.0       ###########                              13 min, 3 cells
-12.2.0       ###################                      22 min, 4 cells
-12.5.0       ###########                              13 min, 3 cells
-13.5.0       ############                             14 min, 3 cells
-14.2.0       ###########################              31 min, 3 cells
-14.4.0       ##############                           16 min, 2 cells
-15.3.0       ############                             14 min, 3 cells
-16.1.0       #######################                  27 min, 2 cells
-16.2.0       ######################################## 46 min, 2 cells
+8.5.0        █████████████████████████▏               21 min, 4 cells
+9.5.0        ███████████████████▍                     16 min, 3 cells
+10.5.0       ██████████████▏                          12 min, 3 cells
+11.5.0       ███████████████▎                         13 min, 3 cells
+12.2.0       ████████████████▉                        14 min, 4 cells
+12.5.0       ███████████████▎                         13 min, 3 cells
+13.5.0       ████████████████▋                        14 min, 3 cells
+14.2.0       ████████████████████████████████████████ 34 min, 4 cells
+14.4.0       ██████████████████                       15 min, 2 cells
+15.3.0       █████████████████                        14 min, 3 cells
+16.1.0       █████████████████▊                       15 min, 3 cells
+16.2.0       ██████████████████▊                      16 min, 2 cells
 ```
+
+### By GCC column
+
+The newest cell at each crossing again, over every kernel, platform and configuration.
+
+| GCC | Cells | 🟩 | 🟨 | 🟧 | 🟥 | ⚠️ | Works |
+|---|--:|--:|--:|--:|--:|--:|---|
+| 8.5.0 | 4 | 2 | 2 | 0 | 0 | 1 | `█████░░░░░` 50% |
+| 9.5.0 | 3 | 1 | 2 | 0 | 0 | 1 | `███▍░░░░░░` 33% |
+| 10.5.0 | 3 | 2 | 1 | 0 | 0 | 1 | `██████▊░░░` 66% |
+| 11.5.0 | 3 | 2 | 1 | 0 | 0 | 0 | `██████▊░░░` 66% |
+| 12.2.0 | 4 | 3 | 1 | 0 | 0 | 0 | `███████▌░░` 75% |
+| 12.5.0 | 3 | 2 | 1 | 0 | 0 | 0 | `██████▊░░░` 66% |
+| 13.5.0 | 3 | 1 | 2 | 0 | 0 | 1 | `███▍░░░░░░` 33% |
+| 14.2.0 | 4 | 2 | 2 | 0 | 0 | 2 | `█████░░░░░` 50% |
+| 14.4.0 | 2 | 1 | 1 | 0 | 0 | 0 | `█████░░░░░` 50% |
+| 15.3.0 | 3 | 2 | 0 | 1 | 0 | 1 | `██████▊░░░` 66% |
+| 16.1.0 | 3 | 2 | 1 | 0 | 0 | 0 | `██████▊░░░` 66% |
+| 16.2.0 | 3 | 1 | 2 | 0 | 0 | 1 | `███▍░░░░░░` 33% |
 
 ### Latest cells
 
 | Date | Kernel | GCC | Platform | Config | Verdict | Rung | Minutes |
 |---|---|---|---|---|---|---|--:|
-| 2026-10-02 | 7.2.8 | 8.5.0 | x86_64 | defconfig+gk | works | L8 | 41 |
-| 2026-10-02 | 7.2.8 | 8.5.0 | i386 | defconfig+gk | works | L8 | 36 |
-| 2026-10-02 | 7.2.8 | 14.2.0 | x86_64 | defconfig+gk | runs | L6 | 53 |
-| 2026-10-02 | 7.2.8 | 14.2.0 | i386 | defconfig+gk | works | L8 | 38 |
-| 2026-10-02 | 6.18.54 | 16.1.0 | x86_64 | defconfig+gk | runs | L6 | 19 |
-| 2026-10-02 | 7.2.8 | 15.3.0 | i386 | defconfig+gk | works | L8 | 34 |
-| 2026-10-02 | 6.18.54 | 15.3.0 | x86_64 | defconfig+gk | builds | L5 | 17 |
-| 2026-10-02 | 6.18.54 | 14.4.0 | x86_64 | defconfig+gk | runs | L6 | 17 |
-| 2026-10-02 | 7.2.8 | 13.5.0 | i386 | defconfig+gk | works | L8 | 31 |
-| 2026-10-02 | 6.18.54 | 13.5.0 | x86_64 | defconfig+gk | runs | L6 | 17 |
+| 2026-10-03 | 6.18.54 | 10.5.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 22 |
+| 2026-10-03 | 6.18.54 | 9.5.0 | x86_64 | defconfig+gk | 🟨 runs | L7 | 22 |
+| 2026-10-03 | 6.18.54 | 8.5.0 | x86_64 | defconfig+gk | 🟨 runs | L7 | 21 |
+| 2026-10-03 | 7.2.8 | 8.5.0 | arm64 | defconfig+gk | 🟨⚠️ runs | L7 | 55 |
+| 2026-10-03 | 6.18.54 | 14.2.0 | x86_64 | defconfig+gk | 🟨⚠️ runs | L6 | 41 |
+| 2026-10-02 | 7.2.8 | 16.2.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 32 |
+| 2026-10-02 | 7.2.8 | 14.2.0 | arm64 | defconfig+gk | 🟩 works | L8 | 62 |
+| 2026-10-02 | 7.2.8 | 16.1.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 32 |
+| 2026-10-02 | 7.2.8 | 16.2.0 | i386 | defconfig+gk | 🟨⚠️ runs | L7 | 38 |
+| 2026-10-02 | 7.2.8 | 15.3.0 | x86_64 | defconfig+gk | 🟩 works | L8 | 30 |
 
 ### Matrices
 
-One letter per cell: W works, R runs, B builds, F fails, · n/a, and blank where the cell has not run yet. A `*` marks a flaky cell, whose boots disagreed and which keeps the lowest. A table appears once its first cell has run, and then every Current kernel has a row in it. The full heat maps, with warning counts, are in [reports](reports).
+One square per cell: 🟩 works, 🟨 runs, 🟧 builds, 🟥 fails, · n/a, and blank where the cell has not run yet. ⚠️ marks a flaky cell, whose boots disagreed and which keeps the lowest rung. A table appears once its first cell has run, and then every Current kernel has a row in it. The full heat maps, with warning counts, are in [reports](reports).
 
 #### x86_64 defconfig+gk, 24 cells
 
@@ -87,11 +120,11 @@ One letter per cell: W works, R runs, B builds, F fails, · n/a, and blank where
 | 5.15.221 |  |  |  |  |  |  |  |  |  |  |  |  |
 | 6.1.188 |  |  |  |  |  |  |  |  |  |  |  |  |
 | 6.6.157 |  |  |  |  |  |  |  |  |  |  |  |  |
-| 6.12.111 |  |  |  |  | W |  |  |  |  |  |  |  |
-| 6.18.54 | R | R | R | R | R | R | R | R | R | B* | R |  |
-| 7.2.8 | W | W | R* | W | R* | W | W | R* | W | W | W | W |
+| 6.12.111 |  |  |  |  | 🟩 |  |  |  |  |  |  |  |
+| 6.18.54 | 🟨 | 🟨 | 🟩 | 🟨 | 🟨 | 🟨 | 🟨 | 🟨⚠️ | 🟨 | 🟧⚠️ | 🟨 |  |
+| 7.2.8 | 🟩 | 🟨⚠️ | 🟨⚠️ | 🟩 | 🟩 | 🟩 | 🟨⚠️ | 🟨⚠️ | 🟩 | 🟩 | 🟩 | 🟩 |
 
-#### i386 defconfig+gk, 10 cells
+#### i386 defconfig+gk, 11 cells
 
 | Kernel | 8.5.0 | 9.5.0 | 10.5.0 | 11.5.0 | 12.2.0 | 12.5.0 | 13.5.0 | 14.2.0 | 14.4.0 | 15.3.0 | 16.1.0 | 16.2.0 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -101,7 +134,19 @@ One letter per cell: W works, R runs, B builds, F fails, · n/a, and blank where
 | 6.6.157 |  |  |  |  |  |  |  |  |  |  |  |  |
 | 6.12.111 |  |  |  |  |  |  |  |  |  |  |  |  |
 | 6.18.54 |  |  |  |  |  |  |  |  |  |  |  |  |
-| 7.2.8 | W | W | W | W | W | W | W | W |  | W |  | W |
+| 7.2.8 | 🟩 | 🟩 | 🟩 | 🟩 | 🟩 | 🟩 | 🟩 | 🟩 |  | 🟩 | 🟩 | 🟨⚠️ |
+
+#### arm64 defconfig+gk, 2 cells
+
+| Kernel | 8.5.0 | 9.5.0 | 10.5.0 | 11.5.0 | 12.2.0 | 12.5.0 | 13.5.0 | 14.2.0 | 14.4.0 | 15.3.0 | 16.1.0 | 16.2.0 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| 5.10.270 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 5.15.221 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.1.188 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.6.157 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.12.111 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 6.18.54 |  |  |  |  |  |  |  |  |  |  |  |  |
+| 7.2.8 | 🟨⚠️ |  |  |  |  |  |  | 🟩 |  |  |  |  |
 
 #### arm64 tinyconfig+gk, 1 cell
 
@@ -113,7 +158,7 @@ One letter per cell: W works, R runs, B builds, F fails, · n/a, and blank where
 | 6.6.157 |  |  |  |  |  |  |  |  |  |  |  |  |
 | 6.12.111 |  |  |  |  |  |  |  |  |  |  |  |  |
 | 6.18.54 |  |  |  |  |  |  |  |  |  |  |  |  |
-| 7.2.8 |  |  |  |  |  |  |  |  |  |  |  | R |
+| 7.2.8 |  |  |  |  |  |  |  |  |  |  |  | 🟨 |
 <!-- gk:status:end -->
 
 ## How it works
