@@ -709,7 +709,11 @@ fn clean(
         .map(|run| {
             let mut keys: Vec<String> = run
                 .iter()
-                .filter(|k| allowed.is_some_and(|a| !a.contains(k)))
+                .filter(|k| {
+                    // Keys stored by an older gk still name the function, and splat_key of a key is the key, so both sides go through it again.
+                    let key = boot::splat_key(k);
+                    allowed.is_some_and(|a| !a.iter().any(|x| boot::splat_key(x) == key))
+                })
                 .cloned()
                 .collect();
             keys.dedup();
