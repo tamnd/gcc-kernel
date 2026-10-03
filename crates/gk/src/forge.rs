@@ -169,6 +169,11 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
         }
         let file = format!("{}-{target}.tar.zst", gcc.id);
         let plain = out.join(format!("{}-{target}.tar", gcc.id));
+        let tree = out.join(format!("{}-{target}.tree", gcc.id));
+        if tree.is_dir() {
+            // A forge whose tar cannot set member times leaves the installed tree.
+            pack(&tree, &plain)?;
+        }
         if plain.is_file() {
             // A forge without zstd leaves the tarball uncompressed.
             let status = Command::new("zstd")
@@ -201,6 +206,29 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
         println!("{}: {target} {digest} in {}s", gcc.id, manifest.seconds);
     }
     Ok(())
+}
+
+/// Pack an installed tree the way build.sh does, with sorted members, no times and no owners, and remove the tree.
+fn pack(tree: &Path, tar: &Path) -> Result<(), String> {
+    let status = Command::new("tar")
+        .args([
+            "--sort=name",
+            "--mtime=@0",
+            "--owner=0",
+            "--group=0",
+            "--numeric-owner",
+            "-C",
+        ])
+        .arg(tree)
+        .arg("-cf")
+        .arg(tar)
+        .arg(".")
+        .status()
+        .map_err(|e| format!("running tar: {e}"))?;
+    if !status.success() {
+        return Err(format!("packing {} failed", tree.display()));
+    }
+    std::fs::remove_dir_all(tree).map_err(|e| format!("removing {}: {e}", tree.display()))
 }
 
 /// The image of a forge or host: the published one when `hosts.toml` pins it, and otherwise one built here from its Dockerfile under a local tag.
