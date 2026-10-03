@@ -30,6 +30,9 @@ pub struct Gcc {
     /// Its SHA-256.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub sha256: String,
+    /// Why the mirror has no detached signature for the tarball, when it has none. A tarball with a reason here is held to its SHA-256 pin alone, and every other one has to carry a good signature from `keys/gnu.asc` as well.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub unsigned: String,
     /// The forge container that builds it.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub forge: String,
@@ -72,6 +75,9 @@ pub struct Binutils {
     pub url: String,
     /// Its SHA-256.
     pub sha256: String,
+    /// Why the mirror has no detached signature for the tarball, when it has none. A tarball with a reason here is held to its SHA-256 pin alone, and every other one has to carry a good signature from `keys/gnu.asc` as well.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub unsigned: String,
 }
 
 impl Gccs {
@@ -163,6 +169,7 @@ mod tests {
             released: released.into(),
             url: String::new(),
             sha256: String::new(),
+            unsigned: String::new(),
             forge: String::new(),
             targets: vec![],
             binutils: "auto".into(),
@@ -178,6 +185,7 @@ mod tests {
             released: d.into(),
             url: String::new(),
             sha256: String::new(),
+            unsigned: String::new(),
         };
         AllBinutils {
             releases: vec![
