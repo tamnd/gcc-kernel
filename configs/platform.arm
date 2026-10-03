@@ -1,0 +1,6 @@
+# What an arm cell adds after the era's fragment (spec 06.2). multi_v7_defconfig has all of it already, and these lines are for tinyconfig+gk, which starts with no machine at all. vexpress-a9 boots kernels below 3.14 and virt the rest.
+CONFIG_MMU=y
+CONFIG_ARCH_MULTI_V7=y
+CONFIG_ARCH_VEXPRESS=y
+CONFIG_ARCH_VIRT=y
+CONFIG_AEABI=y

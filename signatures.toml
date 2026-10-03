@@ -515,3 +515,12 @@ summary = "binutils 2.46 links with -z text by default on powerpc"
 fixed-by = [ { commit = "97f902dd4c99", first-tag = "v7.2" } ]
 binutils = ">=2.46"
 platform = ["ppc64le"]
+
+# The rest of -Werror (open question 9): a warning that an architecture's or a directory's own -Werror makes fatal, which CONFIG_WERROR=n does not reach, and which no signature above names. It is last so that every named warning wins over it, and it has no ranges, so it never turns into a finding. Triage splits it into named classes as cells come in.
+
+[[signature]]
+class = "arch-werror"
+rung = "L3"
+match = { first-error = '\[-Werror(?:=[\w-]+(?:=\d+)?)?\]|all warnings being treated as errors' }
+kind = "new-warning-werror"
+summary = "A new warning that an architecture's or a directory's own -Werror makes fatal"

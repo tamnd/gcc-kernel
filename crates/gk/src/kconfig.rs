@@ -205,7 +205,12 @@ CONFIG_GCC_VERSION=80500
         for entry in std::fs::read_dir("../../configs").unwrap() {
             let path = entry.unwrap().path();
             let fragment = parse_fragment(&std::fs::read_to_string(&path).unwrap());
-            let least = if path.ends_with("tiny.gk") { 1 } else { 10 };
+            let name = path.file_name().unwrap().to_string_lossy();
+            let least = if name == "tiny.gk" || name.starts_with("platform.") {
+                1
+            } else {
+                10
+            };
             assert!(
                 fragment.len() >= least,
                 "{} is nearly empty",

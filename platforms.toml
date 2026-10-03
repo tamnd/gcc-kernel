@@ -1,6 +1,6 @@
 # The platforms, with what each one needs at each kernel age (spec 06).
 #
-# Values that change with the kernel are lists of `{ from, value }` steps, and the value for a kernel is the last step at or below it. `image` is relative to `arch/<ARCH>/boot`. A cell whose kernel is older than `first-kernel`, or whose GCC is older than `first-gcc`, is n/a rather than a failure. Budgets assume TCG, since the build machines have no KVM. `kunit-seconds` is the budget for the boot that runs every KUnit suite before init, which took 328 seconds for 7.2.8 on x86_64. `init` names the bundle and host that build the platform's init program, which every cell from 2.6 on boots (spec 07.4).
+# Values that change with the kernel are lists of `{ from, value }` steps, and the value for a kernel is the last step at or below it. `image` is relative to `arch/<ARCH>/boot`, except `vmlinux`, which is the one at the top of the tree. A cell whose kernel is older than `first-kernel`, or whose GCC is older than `first-gcc`, is n/a rather than a failure. Budgets assume TCG, since the build machines have no KVM. `kunit-seconds` is the budget for the boot that runs every KUnit suite before init, which took 328 seconds for 7.2.8 on x86_64. `init` names the bundle and host that build the platform's init program, which every cell from 2.6 on boots (spec 07.4).
 
 [[platform]]
 name = "x86_64"
@@ -87,10 +87,10 @@ triple = "powerpc64le-linux-gnu"
 arch = [{ from = "3.13", value = "powerpc" }]
 first-kernel = "3.13"
 first-gcc = "4.8"
-defconfig = [{ from = "3.13", value = "pseries_le_defconfig" }]
-image = [{ from = "3.13", value = "zImage.epapr" }]
+defconfig = [{ from = "3.13", value = "pseries_le_defconfig" }, { from = "4.6", value = "powernv_defconfig" }]
+image = [{ from = "3.13", value = "zImage.epapr" }, { from = "4.6", value = "vmlinux" }]
 qemu = "qemu-system-ppc64"
-machine = [{ from = "3.13", value = "pseries" }]
+machine = [{ from = "3.13", value = "pseries" }, { from = "4.6", value = "powernv8" }]
 cpu = [{ from = "3.13", value = "power8" }]
 console = [{ from = "3.13", value = "hvc0" }]
 budget = { build-minutes = 90, boot-seconds = 300 }
@@ -117,10 +117,177 @@ triple = "loongarch64-linux-gnu"
 arch = [{ from = "5.19", value = "loongarch" }]
 first-kernel = "5.19"
 first-gcc = "12.1"
-defconfig = [{ from = "5.19", value = "loongson3_defconfig" }]
-image = [{ from = "5.19", value = "vmlinuz.efi" }]
+defconfig = [{ from = "5.19", value = "loongson3_defconfig" }, { from = "6.19", value = "loongson64_defconfig" }]
+image = [{ from = "5.19", value = "vmlinux" }, { from = "6.1", value = "vmlinuz.efi" }]
 qemu = "qemu-system-loongarch64"
 machine = [{ from = "5.19", value = "virt" }]
 cpu = [{ from = "5.19", value = "la464" }]
 console = [{ from = "5.19", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+# Tier 3 (spec 06.1): build only for now, on the Current set and the longterm stripe with GCC 16.2. None has an init pin, so no cell boots. The machines, CPUs and consoles are the ones Guenter Roeck's tests boot, written down so that booting needs only the pin. The steps start at the kernel where the named defconfig was checked, and older kernels get their own steps when a stripe reaches them.
+
+[[platform]]
+name = "mips"
+tier = 3
+triple = "mips-linux-gnu"
+arch = [{ from = "3.0", value = "mips" }]
+first-kernel = "3.0"
+first-gcc = "3.1"
+defconfig = [{ from = "3.0", value = "malta_defconfig" }]
+image = [{ from = "3.0", value = "vmlinux" }]
+qemu = "qemu-system-mips"
+machine = [{ from = "3.0", value = "malta" }]
+cpu = [{ from = "3.0", value = "24Kf" }]
+console = [{ from = "3.0", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "ppc"
+tier = 3
+triple = "powerpc-linux-gnu"
+arch = [{ from = "3.0", value = "powerpc" }]
+first-kernel = "3.0"
+first-gcc = "3.1"
+defconfig = [{ from = "3.0", value = "mpc85xx_smp_defconfig" }]
+image = [{ from = "3.0", value = "vmlinux" }]
+qemu = "qemu-system-ppc"
+machine = [{ from = "3.0", value = "ppce500" }]
+cpu = [{ from = "3.0", value = "e500v2" }]
+console = [{ from = "3.0", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "ppc64"
+tier = 3
+triple = "powerpc64-linux-gnu"
+arch = [{ from = "3.0", value = "powerpc" }]
+first-kernel = "3.0"
+first-gcc = "3.1"
+defconfig = [{ from = "3.0", value = "ppc64_defconfig" }]
+image = [{ from = "3.0", value = "vmlinux" }]
+qemu = "qemu-system-ppc64"
+machine = [{ from = "3.0", value = "pseries" }]
+cpu = [{ from = "3.0", value = "power8" }]
+console = [{ from = "3.0", value = "hvc0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "sparc64"
+tier = 3
+triple = "sparc64-linux-gnu"
+arch = [{ from = "3.0", value = "sparc" }]
+first-kernel = "3.0"
+first-gcc = "3.1"
+defconfig = [{ from = "3.0", value = "sparc64_defconfig" }]
+image = [{ from = "3.0", value = "image" }]
+qemu = "qemu-system-sparc64"
+machine = [{ from = "3.0", value = "sun4u" }]
+cpu = [{ from = "3.0", value = "TI UltraSparc IIi" }]
+console = [{ from = "3.0", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "m68k"
+tier = 3
+triple = "m68k-linux-gnu"
+arch = [{ from = "3.0", value = "m68k" }]
+first-kernel = "3.0"
+first-gcc = "3.1"
+defconfig = [{ from = "3.0", value = "mac_defconfig" }]
+image = [{ from = "3.0", value = "vmlinux" }]
+qemu = "qemu-system-m68k"
+machine = [{ from = "3.0", value = "q800" }]
+cpu = [{ from = "3.0", value = "m68040" }]
+console = [{ from = "3.0", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "alpha"
+tier = 3
+triple = "alpha-linux-gnu"
+arch = [{ from = "3.0", value = "alpha" }]
+first-kernel = "3.0"
+first-gcc = "3.1"
+defconfig = [{ from = "3.0", value = "defconfig" }]
+image = [{ from = "3.0", value = "vmlinux" }]
+qemu = "qemu-system-alpha"
+machine = [{ from = "3.0", value = "clipper" }]
+cpu = [{ from = "3.0", value = "ev67" }]
+console = [{ from = "3.0", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "parisc"
+tier = 3
+triple = "hppa-linux-gnu"
+arch = [{ from = "4.4", value = "parisc" }]
+first-kernel = "4.4"
+first-gcc = "3.1"
+defconfig = [{ from = "4.4", value = "generic-32bit_defconfig" }]
+image = [{ from = "4.4", value = "vmlinux" }]
+qemu = "qemu-system-hppa"
+machine = [{ from = "4.4", value = "B160L" }]
+cpu = [{ from = "4.4", value = "" }]
+console = [{ from = "4.4", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "sh4"
+tier = 3
+triple = "sh4-linux-gnu"
+arch = [{ from = "3.0", value = "sh" }]
+first-kernel = "3.0"
+first-gcc = "3.1"
+defconfig = [{ from = "3.0", value = "rts7751r2dplus_defconfig" }]
+image = [{ from = "3.0", value = "zImage" }]
+qemu = "qemu-system-sh4"
+machine = [{ from = "3.0", value = "r2d" }]
+cpu = [{ from = "3.0", value = "SH7751R" }]
+console = [{ from = "3.0", value = "ttySC1" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "openrisc"
+tier = 3
+triple = "or1k-linux-gnu"
+arch = [{ from = "3.1", value = "openrisc" }]
+first-kernel = "3.1"
+first-gcc = "9.1"
+defconfig = [{ from = "3.1", value = "or1ksim_defconfig" }]
+image = [{ from = "3.1", value = "vmlinux" }]
+qemu = "qemu-system-or1k"
+machine = [{ from = "3.1", value = "or1k-sim" }]
+cpu = [{ from = "3.1", value = "or1200" }]
+console = [{ from = "3.1", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "xtensa"
+tier = 3
+triple = "xtensa-linux-gnu"
+arch = [{ from = "3.0", value = "xtensa" }]
+first-kernel = "3.0"
+first-gcc = "3.3"
+defconfig = [{ from = "3.0", value = "iss_defconfig" }]
+image = [{ from = "3.0", value = "vmlinux" }]
+qemu = "qemu-system-xtensa"
+machine = [{ from = "3.0", value = "sim" }]
+cpu = [{ from = "3.0", value = "fsf" }]
+console = [{ from = "3.0", value = "ttyS0" }]
+budget = { build-minutes = 90, boot-seconds = 300 }
+
+[[platform]]
+name = "microblaze"
+tier = 3
+triple = "microblaze-linux-gnu"
+arch = [{ from = "3.0", value = "microblaze" }]
+first-kernel = "3.0"
+first-gcc = "4.6"
+defconfig = [{ from = "3.0", value = "mmu_defconfig" }]
+image = [{ from = "3.0", value = "linux.bin" }]
+qemu = "qemu-system-microblaze"
+machine = [{ from = "3.0", value = "petalogix-s3adsp1800" }]
+cpu = [{ from = "3.0", value = "" }]
+console = [{ from = "3.0", value = "ttyUL0" }]
 budget = { build-minutes = 90, boot-seconds = 300 }

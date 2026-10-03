@@ -1,0 +1,5 @@
+# What a loongarch64 cell adds after the era's fragment (spec 06.2). Newer kernels have a 32 bit side as well, and tinyconfig picks it. The image from 6.1 on is vmlinuz.efi, which only builds with the EFI stub and its compressed wrapper.
+CONFIG_64BIT=y
+CONFIG_EFI=y
+CONFIG_EFI_STUB=y
+CONFIG_EFI_ZBOOT=y

@@ -270,34 +270,33 @@ pub fn qemu_command(p: &Platform, version: &Version, suite: &str) -> Result<Vec<
     let machine = p.machine_for(version).ok_or_else(|| missing("machine"))?;
     let cpu = p.cpu_for(version).ok_or_else(|| missing("cpu"))?;
     let console = p.console_for(version).ok_or_else(|| missing("console"))?;
-    Ok([
-        p.qemu.as_str(),
-        "-machine",
-        machine,
-        "-cpu",
-        cpu,
-        "-accel",
-        "tcg",
-        "-smp",
-        &CPUS.to_string(),
-        "-m",
-        &MEMORY.to_string(),
-        "-kernel",
-        "/boot/kernel",
-        "-initrd",
-        "/boot/initramfs.cpio",
-        "-append",
-        &append(console, suite, version),
-        "-nographic",
-        "-monitor",
-        "none",
-        "-nic",
-        "none",
-        "-no-reboot",
-    ]
-    .iter()
-    .map(|s| (*s).to_owned())
-    .collect())
+    // An empty CPU is a machine with one CPU model, where QEMU takes no -cpu.
+    let cpu: &[&str] = if cpu.is_empty() { &[] } else { &["-cpu", cpu] };
+    Ok([p.qemu.as_str(), "-machine", machine]
+        .iter()
+        .chain(cpu)
+        .chain(&[
+            "-accel",
+            "tcg",
+            "-smp",
+            &CPUS.to_string(),
+            "-m",
+            &MEMORY.to_string(),
+            "-kernel",
+            "/boot/kernel",
+            "-initrd",
+            "/boot/initramfs.cpio",
+            "-append",
+            &append(console, suite, version),
+            "-nographic",
+            "-monitor",
+            "none",
+            "-nic",
+            "none",
+            "-no-reboot",
+        ])
+        .map(|s| (*s).to_owned())
+        .collect())
 }
 
 /// What the reader thread passes back.
