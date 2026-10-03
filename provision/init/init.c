@@ -106,12 +106,18 @@ __asm__(".text\n.global _start\n_start:\n"
 	"call cstart\n"
 	"hlt\n");
 
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv) || defined(__loongarch__)
 /* The generic table: no fork, open, pipe, mkdir or the like, only their at and 2 forms. */
+#define GK_GENERIC 1
 #define SYS_dup3 24
 #define SYS_mkdirat 34
 #define SYS_unlinkat 35
+#if defined(__aarch64__)
 #define SYS_renameat 38
+#else
+/* riscv64 and loongarch64 only have renameat2, which takes a fifth argument for flags. renameat ignores it. */
+#define SYS_renameat 276
+#endif
 #define SYS_mount 40
 #define SYS_openat 56
 #define SYS_close 57
@@ -133,6 +139,7 @@ __asm__(".text\n.global _start\n_start:\n"
 #define SYS_mmap 222
 #define SYS_wait4 260
 
+#if defined(__aarch64__)
 static slong sys6(slong n, slong a, slong b, slong c, slong d, slong e, slong f)
 {
 	register slong x8 __asm__("x8") = n;
@@ -155,8 +162,221 @@ __asm__(".text\n.global _start\n_start:\n"
 	"bl cstart\n"
 	"1: b 1b\n");
 
+#elif defined(__riscv)
+static slong sys6(slong n, slong a, slong b, slong c, slong d, slong e, slong f)
+{
+	register slong a7 __asm__("a7") = n;
+	register slong a0 __asm__("a0") = a;
+	register slong a1 __asm__("a1") = b;
+	register slong a2 __asm__("a2") = c;
+	register slong a3 __asm__("a3") = d;
+	register slong a4 __asm__("a4") = e;
+	register slong a5 __asm__("a5") = f;
+	__asm__ volatile("ecall"
+			 : "+r"(a0)
+			 : "r"(a7), "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a5)
+			 : "memory");
+	return a0;
+}
+
+/* The global pointer is loaded with relaxation off, or the linker would turn the load into one relative to gp itself. */
+__asm__(".text\n.global _start\n_start:\n"
+	".option push\n"
+	".option norelax\n"
+	"lla gp, __global_pointer$\n"
+	".option pop\n"
+	"mv a0, sp\n"
+	"andi sp, sp, -16\n"
+	"call cstart\n"
+	"1: j 1b\n");
+
+#else
+static slong sys6(slong n, slong a, slong b, slong c, slong d, slong e, slong f)
+{
+	register slong a7 __asm__("$a7") = n;
+	register slong a0 __asm__("$a0") = a;
+	register slong a1 __asm__("$a1") = b;
+	register slong a2 __asm__("$a2") = c;
+	register slong a3 __asm__("$a3") = d;
+	register slong a4 __asm__("$a4") = e;
+	register slong a5 __asm__("$a5") = f;
+	__asm__ volatile("syscall 0"
+			 : "+r"(a0)
+			 : "r"(a7), "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a5)
+			 : "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8", "memory");
+	return a0;
+}
+
+__asm__(".text\n.global _start\n_start:\n"
+	"move $fp, $zero\n"
+	"move $a0, $sp\n"
+	"bstrins.d $sp, $zero, 3, 0\n"
+	"bl cstart\n"
+	"1: b 1b\n");
+#endif
+
 #define AT_FDCWD (-100)
 #define AT_REMOVEDIR 0x200
+
+#elif defined(__arm__)
+/* The EABI numbers, with the number in r7. mmap is mmap2, which counts its offset in pages, and the offset is always 0. */
+#define SYS_exit 1
+#define SYS_fork 2
+#define SYS_read 3
+#define SYS_write 4
+#define SYS_open 5
+#define SYS_close 6
+#define SYS_unlink 10
+#define SYS_execve 11
+#define SYS_getpid 20
+#define SYS_mount 21
+#define SYS_sync 36
+#define SYS_kill 37
+#define SYS_rename 38
+#define SYS_mkdir 39
+#define SYS_rmdir 40
+#define SYS_pipe 42
+#define SYS_brk 45
+#define SYS_dup2 63
+#define SYS_reboot 88
+#define SYS_munmap 91
+#define SYS_wait4 114
+#define SYS_uname 122
+#define SYS_nanosleep 162
+#define SYS_mmap 192
+#define SYS_clock_gettime 263
+
+static slong sys6(slong n, slong a, slong b, slong c, slong d, slong e, slong f)
+{
+	register slong r7 __asm__("r7") = n;
+	register slong r0 __asm__("r0") = a;
+	register slong r1 __asm__("r1") = b;
+	register slong r2 __asm__("r2") = c;
+	register slong r3 __asm__("r3") = d;
+	register slong r4 __asm__("r4") = e;
+	register slong r5 __asm__("r5") = f;
+	__asm__ volatile("svc #0"
+			 : "+r"(r0)
+			 : "r"(r7), "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r5)
+			 : "memory");
+	return r0;
+}
+
+__asm__(".text\n.global _start\n_start:\n"
+	"mov fp, #0\n"
+	"mov r0, sp\n"
+	"bic sp, sp, #15\n"
+	"bl cstart\n"
+	"1: b 1b\n");
+
+#elif defined(__powerpc64__)
+#define SYS_exit 1
+#define SYS_fork 2
+#define SYS_read 3
+#define SYS_write 4
+#define SYS_open 5
+#define SYS_close 6
+#define SYS_unlink 10
+#define SYS_execve 11
+#define SYS_getpid 20
+#define SYS_mount 21
+#define SYS_sync 36
+#define SYS_kill 37
+#define SYS_rename 38
+#define SYS_mkdir 39
+#define SYS_rmdir 40
+#define SYS_pipe 42
+#define SYS_brk 45
+#define SYS_dup2 63
+#define SYS_reboot 88
+#define SYS_mmap 90
+#define SYS_munmap 91
+#define SYS_wait4 114
+#define SYS_uname 122
+#define SYS_nanosleep 162
+#define SYS_clock_gettime 246
+
+/* The kernel sets the summary overflow bit of cr0 on an error and returns the errno positive, so it is negated to look like every other platform's. */
+static slong sys6(slong n, slong a, slong b, slong c, slong d, slong e, slong f)
+{
+	register slong r0 __asm__("r0") = n;
+	register slong r3 __asm__("r3") = a;
+	register slong r4 __asm__("r4") = b;
+	register slong r5 __asm__("r5") = c;
+	register slong r6 __asm__("r6") = d;
+	register slong r7 __asm__("r7") = e;
+	register slong r8 __asm__("r8") = f;
+	__asm__ volatile("sc\n\tbns+ 1f\n\tneg 3, 3\n1:"
+			 : "+r"(r0), "+r"(r3), "+r"(r4), "+r"(r5), "+r"(r6), "+r"(r7), "+r"(r8)
+			 :
+			 : "memory", "cr0", "r9", "r10", "r11", "r12");
+	return r3;
+}
+
+/* ELFv2: the kernel puts the entry address in r12, and the TOC pointer is found from it. The first frame is the 32 bytes the ABI asks for, with a null back chain. */
+__asm__(".text\n.global _start\n_start:\n"
+	"addis 2, 12, .TOC.-_start@ha\n"
+	"addi 2, 2, .TOC.-_start@l\n"
+	"mr 3, 1\n"
+	"clrrdi 1, 1, 4\n"
+	"li 0, 0\n"
+	"stdu 0, -32(1)\n"
+	"bl cstart\n"
+	"nop\n"
+	"1: b 1b\n");
+
+#elif defined(__s390x__)
+/* mmap is the old one here too, which takes its six arguments in memory. */
+#define SYS_exit 1
+#define SYS_fork 2
+#define SYS_read 3
+#define SYS_write 4
+#define SYS_open 5
+#define SYS_close 6
+#define SYS_unlink 10
+#define SYS_execve 11
+#define SYS_getpid 20
+#define SYS_mount 21
+#define SYS_sync 36
+#define SYS_kill 37
+#define SYS_rename 38
+#define SYS_mkdir 39
+#define SYS_rmdir 40
+#define SYS_pipe 42
+#define SYS_brk 45
+#define SYS_dup2 63
+#define SYS_reboot 88
+#define SYS_old_mmap 90
+#define SYS_munmap 91
+#define SYS_wait4 114
+#define SYS_uname 122
+#define SYS_nanosleep 162
+#define SYS_clock_gettime 260
+
+static slong sys6(slong n, slong a, slong b, slong c, slong d, slong e, slong f)
+{
+	register slong r1 __asm__("r1") = n;
+	register slong r2 __asm__("r2") = a;
+	register slong r3 __asm__("r3") = b;
+	register slong r4 __asm__("r4") = c;
+	register slong r5 __asm__("r5") = d;
+	register slong r6 __asm__("r6") = e;
+	register slong r7 __asm__("r7") = f;
+	__asm__ volatile("svc 0"
+			 : "+r"(r2)
+			 : "r"(r1), "r"(r3), "r"(r4), "r"(r5), "r"(r6), "r"(r7)
+			 : "memory");
+	return r2;
+}
+
+/* The first frame is the 160 byte save area the ABI asks for, with a null back chain. */
+__asm__(".text\n.global _start\n_start:\n"
+	"lgr %r2, %r15\n"
+	"nill %r15, 0xfff8\n"
+	"aghi %r15, -160\n"
+	"xc 0(8, %r15), 0(%r15)\n"
+	"brasl %r14, cstart\n"
+	"1: j 1b\n");
 #else
 #error "gk-init has no system calls for this platform yet"
 #endif
@@ -253,7 +473,7 @@ static __attribute__((noreturn)) void sys_exit(int code)
 		sys1(SYS_exit, code);
 }
 
-#if defined(__aarch64__)
+#if defined(GK_GENERIC)
 static slong sys_open(const char *path, int flags, int mode) { return sys4(SYS_openat, AT_FDCWD, path, flags, mode); }
 static slong sys_fork(void) { return sys5(SYS_clone, SIGCHLD, 0, 0, 0, 0); }
 static slong sys_pipe(int fds[2]) { return sys2(SYS_pipe2, fds, 0); }
@@ -261,7 +481,7 @@ static slong sys_dup2(int a, int b) { return sys3(SYS_dup3, a, b, 0); }
 static slong sys_mkdir(const char *path) { return sys3(SYS_mkdirat, AT_FDCWD, path, 0755); }
 static slong sys_rmdir(const char *path) { return sys3(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR); }
 static slong sys_unlink(const char *path) { return sys3(SYS_unlinkat, AT_FDCWD, path, 0); }
-static slong sys_rename(const char *a, const char *b) { return sys4(SYS_renameat, AT_FDCWD, a, AT_FDCWD, b); }
+static slong sys_rename(const char *a, const char *b) { return sys5(SYS_renameat, AT_FDCWD, a, AT_FDCWD, b, 0); }
 #else
 static slong sys_open(const char *path, int flags, int mode) { return sys3(SYS_open, path, flags, mode); }
 static slong sys_fork(void) { return sys0(SYS_fork); }
@@ -275,7 +495,7 @@ static slong sys_rename(const char *a, const char *b) { return sys2(SYS_rename, 
 
 static void *sys_mmap(ulong n)
 {
-#if defined(__i386__)
+#if defined(__i386__) || defined(__s390x__)
 	ulong args[6] = {0, n, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, (ulong)-1, 0};
 	return (void *)sys1(SYS_old_mmap, args);
 #else

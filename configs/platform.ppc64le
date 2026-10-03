@@ -1,0 +1,10 @@
+# What a ppc64le cell adds after the era's fragment (spec 06.2). tinyconfig on powerpc is a 32 bit big endian kernel, so a tiny cell is turned into a 64 bit little endian one first. The console is hvc0, through the hypervisor on pseries and through OPAL on powernv.
+CONFIG_PPC64=y
+CONFIG_PPC_BOOK3S_32=n
+CONFIG_PPC_BOOK3S_64=y
+CONFIG_CPU_BIG_ENDIAN=n
+CONFIG_CPU_LITTLE_ENDIAN=y
+CONFIG_PPC_PSERIES=y
+CONFIG_PPC_POWERNV=y
+CONFIG_HVC_CONSOLE=y
+CONFIG_HVC_OPAL=y

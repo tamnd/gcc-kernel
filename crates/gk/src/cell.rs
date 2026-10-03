@@ -100,7 +100,9 @@ pub struct Setup {
     pub target: String,
     /// The options added before the fragment, from a file in `configs/`.
     pub extra: Option<PathBuf>,
-    /// The boot image, relative to `arch/<ARCH>/boot`.
+    /// The platform's own options, added after the fragment, from `configs/platform.<name>` when the platform has one.
+    pub platform_fragment: Option<PathBuf>,
+    /// The boot image, relative to `arch/<ARCH>/boot`, or `vmlinux` at the top of the tree.
     pub image_name: String,
     /// The six coordinates, and the boot ones once [`Setup::booting`] has run.
     pub coordinates: Coordinates,
@@ -207,9 +209,15 @@ impl Setup {
         let bundle_dir = forge::unpacked(&bundle)?;
         let image = forge::image_for(repo, &host)?;
         let fragment = repo.root.join(era.fragment());
-        // The extra options go first, so the digest of a defconfig cell is the fragment's alone, as it was before there were other configurations.
+        let platform_fragment = Some(
+            repo.root
+                .join("configs")
+                .join(format!("platform.{}", p.name)),
+        )
+        .filter(|f| f.is_file());
+        // The extra options go first and the platform's last, so the digest of a defconfig cell on a platform with no file of its own is the fragment's alone, as it was before there were other configurations.
         let mut fragment_text = Vec::new();
-        for f in extra.iter().chain([&fragment]) {
+        for f in extra.iter().chain([&fragment]).chain(&platform_fragment) {
             fragment_text
                 .extend(std::fs::read(f).map_err(|e| format!("reading {}: {e}", f.display()))?);
         }
@@ -249,6 +257,7 @@ impl Setup {
             config,
             target,
             extra,
+            platform_fragment,
             image_name,
             coordinates,
             boots: false,
@@ -968,7 +977,12 @@ pub fn run(
             make(&[s.target.as_str()], "config.log", 1)? == 0 && out.join(".config").is_file();
         if configured {
             let mut fragment = Vec::new();
-            for f in s.extra.iter().chain([&s.fragment]) {
+            for f in s
+                .extra
+                .iter()
+                .chain([&s.fragment])
+                .chain(&s.platform_fragment)
+            {
                 let text = std::fs::read_to_string(f)
                     .map_err(|e| format!("reading {}: {e}", f.display()))?;
                 fragment.extend(kconfig::parse_fragment(&text));
@@ -1054,11 +1068,14 @@ pub fn run(
                 "x86_64" | "i386" => "x86",
                 other => other,
             };
-            let image = out
-                .join("arch")
-                .join(srcarch)
-                .join("boot")
-                .join(&s.image_name);
+            let image = if s.image_name == "vmlinux" {
+                out.join("vmlinux")
+            } else {
+                out.join("arch")
+                    .join(srcarch)
+                    .join("boot")
+                    .join(&s.image_name)
+            };
             let mut linked = image.is_file();
             if linked && modules {
                 linked = make(
