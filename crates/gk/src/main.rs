@@ -5,6 +5,7 @@
 mod boot;
 mod build;
 mod cell;
+mod census;
 mod changed;
 mod differential;
 mod fetch;
@@ -55,7 +56,8 @@ commands:
              which is built and never booted
   search     run every cell of one row: search K --platform P --dense [--config C] [--jobs N] [--rerun]
              [--keep] [--ungraded] [--no-boot]. Cells already in the store are not run again.
-  publish    write matrix/matrix.json, the heat maps in reports/ and the status section of README.md
+  publish    write matrix/matrix.json, the heat maps, warning census and config differential in reports/
+             and the status section of README.md
              from the graded cells in the store [--ungraded]
   config-diff
              the configuration differences between GCC columns on one kernel (spec 11.3):

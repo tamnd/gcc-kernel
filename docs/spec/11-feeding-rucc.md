@@ -36,7 +36,7 @@ The persona version itself is not chosen by the matrix. The kernel plan picks th
 
 A persona is only correct if the kernel sees the same thing when it probes rucc as when it probes the GCC being impersonated. gcc-kernel measures what the kernel sees, per GCC column:
 
-- **The configuration differential across columns.** `gk config-diff K G1 G2` on the dense stripes gives, for each kernel, every `.config` line that changes between consecutive GCC columns. That is the list of `CC_HAS_*`, `CC_VERSION_TEXT`, `GCC_VERSION` and dependent symbols that a persona decides. rucc-kernel's `config-divergences.toml` for a persona must be a subset of the lines that differ between neighbouring real GCCs, and never contain a line that no GCC change ever touched.
+- **The configuration differential across columns.** `gk config-diff K G1 G2` on the dense stripes gives, for each kernel, every `.config` line that changes between consecutive GCC columns. That is the list of `CC_HAS_*`, `CC_VERSION_TEXT`, `GCC_VERSION` and dependent symbols that a persona decides. rucc-kernel's `config-divergences.toml` for a persona must be a subset of the lines that differ between neighbouring real GCCs, and never contain a line that no GCC change ever touched. On the Current set, `gk publish` writes the same comparison for every kernel as `reports/config-differential.md`, gathered per step between neighbouring columns.
 - **The flags differential across columns.** `gk flags-diff` gives the per-unit command lines that change with the GCC version, before Kconfig probes existed (4.18). For older kernels that is the only record of what `cc-option` decided.
 - **The version gates.** `gk gates K` lists every place a tree tests the compiler's version: `GCC_VERSION >= 40600`, `__GNUC__ >= 4`, `cc-ifversion`, `gcc-min-version`, `$(call cc-option,...)`, Kconfig `depends on GCC_VERSION >= 110000`. Joined with the columns, it says which gates flip at which GCC release. That is exactly the list of behaviours rucc's persona must switch at the same version, and the kernel plan's section 4.2 rule 3 needs it.
 
@@ -48,7 +48,7 @@ The kernel plan's `rk demands` counts which compiler features a kernel build use
 
 ## 11.5 The warning census
 
-From 5.15, `CONFIG_WERROR` exists and `allmodconfig` turns it on through `COMPILE_TEST`, and many directories have added `-Werror` of their own before that. A compiler that warns where GCC is silent breaks those builds. gcc-kernel records the warnings of every Current cell by option and unit (`warnings.jsonl`) and publishes the count per GCC column. For rucc this gives two rules, checked by rucc-kernel:
+From 5.15, `CONFIG_WERROR` exists and `allmodconfig` turns it on through `COMPILE_TEST`, and many directories have added `-Werror` of their own before that. A compiler that warns where GCC is silent breaks those builds. gcc-kernel records the warnings of every Current cell by option and unit (`warnings.jsonl`) and publishes the count per GCC column in `reports/warning-census.md`, written by `gk publish`, with the column that first gives each warning option and the units built with `-Werror` that warn. For rucc this gives two rules, checked by rucc-kernel:
 1. under a persona, rucc must not emit a warning on a unit where that GCC version emits none, when the unit builds with `-Werror`;
 2. the warning options the kernel disables per GCC version (`-Wno-*` from `cc-disable-warning`) must be accepted by rucc under that persona.
 
