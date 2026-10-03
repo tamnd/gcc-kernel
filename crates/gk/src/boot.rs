@@ -58,8 +58,6 @@ pub struct Boot<'a> {
     pub dir: &'a Path,
     /// Their file name without the extension, as `boot` for `boot.log` and `boot.json`.
     pub stem: &'a str,
-    /// KUnit modules whose suites are skipped, from the fragment.
-    pub skip: &'a [String],
 }
 
 /// One `GK-CHECK` line.
@@ -233,20 +231,12 @@ pub fn strip_timestamp(line: &str) -> &str {
 /// The kernel command line for a boot.
 ///
 /// The fragments build every KUnit suite in, and they run before init, which under TCG takes longer than the whole boot budget. So every suite but `kunit` turns them off: `kunit.enable=0` from 6.2, and a filter that matches no suite from 5.10 to 6.1. A kernel ignores the one it does not know.
-///
-/// On the `kunit` boot, the suites of the modules in `skip` are reported as skipped, through the attribute filter KUnit has from 6.6.
 #[must_use]
-pub fn append(console: &str, suite: &str, version: &Version, skip: &[String]) -> String {
-    let quiet = if suite != "kunit" {
-        " kunit.enable=0 kunit.filter_glob=gk-none".to_owned()
-    } else if skip.is_empty() {
-        String::new()
+pub fn append(console: &str, suite: &str, version: &Version) -> String {
+    let quiet = if suite == "kunit" {
+        ""
     } else {
-        let filter: Vec<String> = skip.iter().map(|m| format!("module!={m}")).collect();
-        format!(
-            " kunit.filter={} kunit.filter_action=skip",
-            filter.join(",")
-        )
+        " kunit.enable=0 kunit.filter_glob=gk-none"
     };
     format!(
         "console={console} panic=-1 oops=panic gk.suite={suite} gk.kernel={version} gk.cpus={CPUS}{quiet}"
@@ -254,12 +244,7 @@ pub fn append(console: &str, suite: &str, version: &Version, skip: &[String]) ->
 }
 
 /// The QEMU command, with the kernel and the initramfs at the paths the container mounts them on.
-pub fn qemu_command(
-    p: &Platform,
-    version: &Version,
-    suite: &str,
-    skip: &[String],
-) -> Result<Vec<String>, String> {
+pub fn qemu_command(p: &Platform, version: &Version, suite: &str) -> Result<Vec<String>, String> {
     let missing = |what: &str| format!("platforms.toml has no {what} for {version} on {}", p.name);
     let machine = p.machine_for(version).ok_or_else(|| missing("machine"))?;
     let cpu = p.cpu_for(version).ok_or_else(|| missing("cpu"))?;
@@ -281,7 +266,7 @@ pub fn qemu_command(
         "-initrd",
         "/boot/initramfs.cpio",
         "-append",
-        &append(console, suite, version, skip),
+        &append(console, suite, version),
         "-nographic",
         "-monitor",
         "none",
@@ -305,7 +290,7 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
     let (init, archive) = initramfs::for_platform(repo, b.platform)?;
     let image = forge::image_for(repo, "gk-boot")?;
     let qemu = crate::cell::image_digest(&image)?;
-    let command = qemu_command(b.platform, b.version, b.suite, b.skip)?;
+    let command = qemu_command(b.platform, b.version, b.suite)?;
     let kernel = std::fs::canonicalize(b.image)
         .map_err(|e| format!("reading {}: {e}", b.image.display()))?;
     std::fs::create_dir_all(b.dir).map_err(|e| format!("creating {}: {e}", b.dir.display()))?;
@@ -472,7 +457,6 @@ pub fn command(repo: &Repo, args: &[String]) -> Result<bool, String> {
             suite: &suite,
             dir: &dir,
             stem: "boot",
-            skip: &[],
         },
     )?;
     let passed = o.checks.iter().filter(|c| c.pass).count();
@@ -578,22 +562,10 @@ mod tests {
     }
 
     #[test]
-    fn the_kunit_boot_skips_the_fragment_modules() {
-        let v: Version = "7.2.8".parse().unwrap();
-        let skip = ["drm_sched_tests".to_owned(), "test_ratelimit".to_owned()];
-        let line = append("ttyS0", "kunit", &v, &skip);
-        assert!(line.ends_with(
-            " kunit.filter=module!=drm_sched_tests,module!=test_ratelimit kunit.filter_action=skip"
-        ));
-        assert!(!append("ttyS0", "kunit", &v, &[]).contains("kunit."));
-        assert!(!append("ttyS0", "smoke", &v, &skip).contains("filter="));
-    }
-
-    #[test]
     fn the_command_line_names_the_suite_and_the_kernel() {
         let v: Version = "7.2.8".parse().unwrap();
         assert_eq!(
-            append("ttyS0", "smoke", &v, &[]),
+            append("ttyS0", "smoke", &v),
             "console=ttyS0 panic=-1 oops=panic gk.suite=smoke gk.kernel=7.2.8 gk.cpus=2 kunit.enable=0 kunit.filter_glob=gk-none"
         );
     }
