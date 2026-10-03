@@ -30,3 +30,6 @@ CONFIG_KUNIT_ALL_TESTS=y
 
 # The kunit_fault suite oopses on purpose to check that KUnit catches it, which PANIC_ON_OOPS turns into a dead machine. 7.2.8 skips it on its own, but 6.18 does not.
 CONFIG_KUNIT_FAULT_TEST=n
+
+# Suites that fail under TCG on a loaded host whatever the compiler: the DRM scheduler tests race their own hrtimers, and the ratelimit stress test counts on timing. KUNIT_ALL_TESTS hides their options, so the KUnit boot skips them by module instead.
+# gk:kunit-skip drm_sched_tests test_ratelimit

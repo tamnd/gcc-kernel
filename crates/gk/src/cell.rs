@@ -106,6 +106,8 @@ pub struct Setup {
     pub coordinates: Coordinates,
     /// Whether the cell boots after L4.
     pub boots: bool,
+    /// The KUnit modules the fragment skips, from its `# gk:kunit-skip` lines.
+    pub kunit_skip: Vec<String>,
 }
 
 impl Setup {
@@ -216,6 +218,7 @@ impl Setup {
             image_name,
             coordinates,
             boots: false,
+            kunit_skip: kunit_skip(&String::from_utf8_lossy(&fragment_text)),
         })
     }
 
@@ -561,6 +564,30 @@ struct Booted {
     steps: Vec<Step>,
 }
 
+/// One boot of a cell's image. Only the KUnit boot skips the modules the fragment names.
+fn boot_once(
+    repo: &Repo,
+    s: &Setup,
+    image: &Path,
+    dir: &Path,
+    suite: &str,
+    stem: &str,
+) -> Result<boot::Outcome, String> {
+    let skip: &[String] = if suite == "kunit" { &s.kunit_skip } else { &[] };
+    boot::run(
+        repo,
+        &boot::Boot {
+            platform: &s.platform,
+            version: &s.version,
+            image,
+            suite,
+            dir,
+            stem,
+            skip,
+        },
+    )
+}
+
 /// Boot a linked cell, three times once it has booted at all, into `boot-1.log` and on. A kernel with KUnit built in boots a second time in each run that passed smoke, into `kunit-1.log` and on, and its suites are graded against the era GCC's cell for L7.
 fn boots(
     repo: &Repo,
@@ -578,17 +605,7 @@ fn boots(
     let mut kunit_seconds = 0.0;
     for n in 1..=BOOTS {
         let stem = format!("boot-{n}");
-        let o = boot::run(
-            repo,
-            &boot::Boot {
-                platform: &s.platform,
-                version: &s.version,
-                image,
-                suite: "smoke",
-                dir: cell_dir,
-                stem: &stem,
-            },
-        )?;
+        let o = boot_once(repo, s, image, cell_dir, "smoke", &stem)?;
         steps.push(Step {
             rung: Rung::Booted.to_string(),
             passed: o.booted(),
@@ -612,17 +629,7 @@ fn boots(
         }
         if kunit && rung == Rung::Smoke {
             let stem = format!("kunit-{n}");
-            let k = boot::run(
-                repo,
-                &boot::Boot {
-                    platform: &s.platform,
-                    version: &s.version,
-                    image,
-                    suite: "kunit",
-                    dir: cell_dir,
-                    stem: &stem,
-                },
-            )?;
+            let k = boot_once(repo, s, image, cell_dir, "kunit", &stem)?;
             kunit_seconds += k.seconds;
             kunit_splats.push(k.splats.iter().map(|l| boot::splat_key(l)).collect());
             suites.push(if k.ended() && k.panic.is_none() {
@@ -1166,6 +1173,16 @@ fn hostname() -> String {
         .unwrap_or_default()
 }
 
+/// The modules named on the `# gk:kunit-skip` lines of a fragment. Kconfig reads those lines as comments, and the KUnit boot skips the suites of these modules. A suite goes there when it fails under TCG on a loaded host for reasons that have nothing to do with the compiler, and when `KUNIT_ALL_TESTS` hides its option so the fragment cannot turn it off. Being in the fragment puts the list in the cell's identity.
+fn kunit_skip(fragment: &str) -> Vec<String> {
+    fragment
+        .lines()
+        .filter_map(|l| l.strip_prefix("# gk:kunit-skip "))
+        .flat_map(str::split_whitespace)
+        .map(str::to_owned)
+        .collect()
+}
+
 /// Whether make reports a recipe killed by SIGKILL, which on these hosts is the OOM killer. That says how much memory the machine had left, not what the GCC did, so it must not become a verdict.
 fn killed(log: &Path) -> bool {
     std::fs::read_to_string(log).is_ok_and(|text| {
@@ -1177,6 +1194,13 @@ fn killed(log: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_fragment_names_the_skipped_modules() {
+        let text = "CONFIG_KUNIT=y\n# gk:kunit-skip drm_sched_tests test_ratelimit\n# a comment\n";
+        assert_eq!(kunit_skip(text), ["drm_sched_tests", "test_ratelimit"]);
+        assert!(kunit_skip("CONFIG_KUNIT=y\n").is_empty());
+    }
 
     #[test]
     fn a_sigkill_is_not_a_verdict() {
