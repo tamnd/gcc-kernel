@@ -65,7 +65,7 @@ pub fn gcc_releases(listing: &[Entry]) -> Vec<(String, String)> {
         .collect()
 }
 
-/// The binutils releases, as version, date and URL. A release is taken as `.tar.xz` where the mirror has one and as `.tar.bz2` otherwise, which is all there is before 2.28.1. The releases from 2.14 to 2.21.1 were rolled again in 2011 as `binutils-2.20.1a.tar.bz2` and so on, and only those tarballs are signed, so where there is one it stands for the release. It unpacks to the same `binutils-2.20.1` directory.
+/// The binutils releases, as version, date and URL. A release is taken as `.tar.xz` where the mirror has one and as `.tar.bz2` otherwise, which is all there is before 2.28.1. The releases from 2.14 to 2.21.1 were rolled again in 2011 as `binutils-2.20.1a.tar.bz2` and so on, and only those tarballs are signed, so where there is one it stands for the release. It unpacks to the same `binutils-2.20.1` directory. A tarball without a `.sig` beside it, as the other releases from 2.12 to 2.13.2, is left out.
 #[must_use]
 pub fn binutils_releases(listing: &[Entry]) -> Vec<(String, String, String)> {
     let mut out: Vec<(String, String, String)> = Vec::new();
@@ -88,7 +88,9 @@ pub fn binutils_releases(listing: &[Entry]) -> Vec<(String, String, String)> {
                 } else {
                     name
                 };
+                let sig = format!("{}.sig", e.name);
                 if v.bytes().all(|c| c.is_ascii_digit() || c == b'.')
+                    && listing.iter().any(|s| s.name == sig)
                     && !out.iter().any(|(have, _, _)| have == v)
                 {
                     out.push((
@@ -126,13 +128,16 @@ mod tests {
 <tr><td><a href="binutils-2.47.tar.xz.sig">binutils-2.47.tar.xz.sig</a></td><td align="right">2026-07-20 10:01  </td></tr>
 <tr><td><a href="binutils-2.47.tar.bz2">binutils-2.47.tar.bz2</a></td><td align="right">2026-07-20 10:01  </td></tr>
 <tr><td><a href="binutils-2.24.tar.bz2">binutils-2.24.tar.bz2</a></td><td align="right">2013-12-02 10:01  </td></tr>
+<tr><td><a href="binutils-2.24.tar.bz2.sig">binutils-2.24.tar.bz2.sig</a></td><td align="right">2013-12-02 10:01  </td></tr>
 <tr><td><a href="binutils-2.20.1.tar.bz2">binutils-2.20.1.tar.bz2</a></td><td align="right">2011-08-26 10:01  </td></tr>
-<tr><td><a href="binutils-2.20.1a.tar.bz2">binutils-2.20.1a.tar.bz2</a></td><td align="right">2011-08-26 10:02  </td></tr>"#;
+<tr><td><a href="binutils-2.20.1a.tar.bz2">binutils-2.20.1a.tar.bz2</a></td><td align="right">2011-08-26 10:02  </td></tr>
+<tr><td><a href="binutils-2.20.1a.tar.bz2.sig">binutils-2.20.1a.tar.bz2.sig</a></td><td align="right">2011-08-26 10:02  </td></tr>
+<tr><td><a href="binutils-2.13.tar.bz2">binutils-2.13.tar.bz2</a></td><td align="right">2002-08-06 10:40  </td></tr>"#;
 
     #[test]
     fn listings_read_as_names_and_dates() {
         let entries = parse_listing(LISTING);
-        assert_eq!(entries.len(), 8);
+        assert_eq!(entries.len(), 11);
         assert_eq!(
             gcc_releases(&entries),
             [

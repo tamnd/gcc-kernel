@@ -1,6 +1,48 @@
 # The GCC columns of the matrix (spec 04).
 #
-# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 3.3 to 4.5 and the era GCCs of M4 to M6 (the mirror has no signatures for releases before 3.3, so those rows say so and are held to their SHA-256 alone), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.
+# Written by hand. `gk pins --write` fills in the url, the release date and the SHA-256 of upstream columns where they are left empty. G0 built x86_64 and aarch64 bundles, G1 adds i686 for the i386 platform, G2 adds the last points from 4.6 to 7.5 and the era GCCs of M7 to M10, G3 adds the last points from 2.95 to 4.5 and the era GCCs of M3 to M6 (the mirror has no signatures for releases before 3.3, so those rows say so and are held to their SHA-256 alone), G4 adds arm, riscv64, ppc64le, s390x and loongarch64 from the first GCC with each back end, and GCC 16.2 alone has the tier 3 targets.
+
+[[gcc]]
+id = "gcc-2.95.3"
+version = "2.95.3"
+flavor = "upstream"
+released = "2001-03-16"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-2.95.3.tar.gz"
+sha256 = "2a950e220c2f64c4abf781be3bb6d4c472ef8b3685873e77061788df85c6d5da"
+unsigned = "The mirror has only an unsigned md5sum.txt for releases before 3.3."
+forge = "gk-forge-woody"
+targets = ["i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 2.95, and the era GCC of M3, kernels 2.3 and 2.4."
+
+[[gcc]]
+id = "gcc-3.0.4"
+version = "3.0.4"
+flavor = "upstream"
+released = "2002-02-20"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-3.0.4/gcc-3.0.4.tar.gz"
+sha256 = "02743ff2d4d11aacf04d496fce5f64aab3feaa34c8ee8f1608d5d7ce8950f13f"
+unsigned = "The mirror has only an unsigned md5.sum for releases before 3.3."
+forge = "gk-forge-woody"
+targets = ["i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 3.0."
+
+[[gcc]]
+id = "gcc-3.1.1"
+version = "3.1.1"
+flavor = "upstream"
+released = "2002-07-25"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-3.1.1/gcc-3.1.1.tar.gz"
+sha256 = "8f417e9e8bdf988fca875668eb8fbf3ed8c52e8420ed30aab2c1378d28cc47fa"
+unsigned = "The mirror has only an unsigned md5.sum for releases before 3.3."
+forge = "gk-forge-woody"
+targets = ["i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 3.1."
 
 [[gcc]]
 id = "gcc-3.2.3"

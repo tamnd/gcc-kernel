@@ -435,6 +435,8 @@ mod tests {
         assert_eq!(ids.last(), Some(&"gcc-16.2.0"));
         assert_eq!(ids.len(), 33);
         assert_eq!(columns(&repo, "aarch64-linux-gnu").len(), 20);
+        let i686 = columns(&repo, "i686-linux-gnu");
+        assert_eq!(i686.first().map(|g| g.id.as_str()), Some("gcc-2.95.3"));
     }
 
     #[test]
@@ -468,6 +470,10 @@ mod tests {
             Some("gcc-3.4.6")
         );
         assert_eq!(era_column(&repo, "gcc-2.95.3", t), None);
+        assert_eq!(
+            era_column(&repo, "gcc-2.95.3", "i686-linux-gnu").as_deref(),
+            Some("gcc-2.95.3")
+        );
     }
 
     /// Run the frontier search over a row whose working set is `ok`, and return the edges and the columns it ran.

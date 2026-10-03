@@ -5,20 +5,36 @@
 #
 # The build triple has a vendor of its own so that configure treats even an x86_64 target as a cross build. The tools then carry the target prefix, as in x86_64-linux-gnu-gcc, and nothing of the forge's own libc or headers leaks into the target side. Only C is built, with libgcc and no libc, which is what a kernel needs.
 
-set -euo pipefail
+set -eu
+# Woody's bash 2.05 has no pipefail.
+set -o pipefail 2> /dev/null || true
 
 : "${GK_ID:?}" "${GK_GCC:?}" "${GK_BINUTILS:?}" "${GK_TARGET:?}" "${GK_PREREQS?}"
 : "${GK_GCC_TAR:=gcc-$GK_GCC.tar.xz}" "${GK_BINUTILS_TAR:=binutils-$GK_BINUTILS.tar.xz}"
 jobs="${GK_JOBS:-$(nproc)}"
 prefix="/opt/gk/t/$GK_ID"
-build="$(uname -m)-gkforge-linux-gnu"
+# An i386 forge such as woody runs on an x86_64 kernel, where uname says x86_64, so the word size of the userland decides.
+if [ "$(getconf LONG_BIT)" = 32 ]; then
+  build=i686-gkforge-linux-gnu
+else
+  build="$(uname -m)-gkforge-linux-gnu"
+fi
 work=/tmp/forge
-stage=/tmp/stage
-rm -rf "$work" "$stage"
-mkdir -p "$work" "$stage"
+# The container is thrown away after each build, so the bundle is installed at its own prefix rather than under a DESTDIR, which the install of releases as old as 2.95 does not know.
+rm -rf "$work" "$prefix"
+mkdir -p "$work"
 cd "$work"
 
 log() { echo "gk-forge: $*" >&2; }
+
+# Woody's tar cannot tell a compression by itself, so the decompressor is picked by the name.
+unpack() {
+  case "$1" in
+    *.gz) gzip -dc "$1" | tar -xf - ;;
+    *.bz2) bzip2 -dc "$1" | tar -xf - ;;
+    *) tar -xf "$1" ;;
+  esac
+}
 
 # The release as a number, 304 for 3.4.6, for the few steps that differ between old and new releases.
 gcc_major="${GK_GCC%%.*}"
@@ -27,17 +43,21 @@ gcc_minor="${gcc_minor%%.*}"
 gcc_series=$((gcc_major * 100 + gcc_minor))
 
 # GCC 3.x does not build with GCC 4's stricter C, as in its casts used as lvalues, so where the forge has gcc-3.4 those releases are built with it.
-if [ "$gcc_series" -lt 400 ] && command -v gcc-3.4 > /dev/null; then
+if [ "$gcc_series" -lt 400 ] && command -v gcc-3.4 > /dev/null 2>&1; then
   export CC=gcc-3.4
+fi
+# The gcc directory of 2.95 and older links its programs with neither the LDFLAGS seen by configure nor those given to make, so there the compiler itself is told to link statically.
+if [ "$gcc_series" -lt 300 ]; then
+  export CC="${CC:-gcc} -static"
 fi
 
 # Nothing reads the info pages, and the texinfo of the forge that builds the 4.x releases rejects their sources, so every make is told that makeinfo is `true`.
 
 log "unpacking binutils $GK_BINUTILS and gcc $GK_GCC"
-tar -xf "/src/$GK_BINUTILS_TAR"
-tar -xf "/src/$GK_GCC_TAR"
+unpack "/src/$GK_BINUTILS_TAR"
+unpack "/src/$GK_GCC_TAR"
 for p in $GK_PREREQS; do
-  tar -xf "/src/infrastructure/$p" -C "gcc-$GK_GCC"
+  (cd "gcc-$GK_GCC" && unpack "/src/infrastructure/$p")
   dir="${p%.tar.*}"
   ln -s "$dir" "gcc-$GK_GCC/${dir%%-*}"
 done
@@ -57,14 +77,14 @@ mkdir b-binutils
   fi
   make MAKEINFO=true -j"$jobs" LDFLAGS=-all-static
   if make -n install-strip > /dev/null 2>&1; then
-    make MAKEINFO=true install-strip DESTDIR="$stage"
+    make MAKEINFO=true install-strip
   else
-    make MAKEINFO=true install DESTDIR="$stage"
-    strip "$stage$prefix"/bin/* "$stage$prefix/$GK_TARGET"/bin/* 2> /dev/null || true
+    make MAKEINFO=true install
+    strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true
   fi
 ) > binutils.log 2>&1 || { tail -n 60 binutils.log >&2; exit 1; }
 
-export PATH="$stage$prefix/bin:$PATH"
+export PATH="$prefix/bin:$PATH"
 
 # Before 4.3 libgcc is built inside the gcc directory by all-gcc, there is no all-target-libgcc and no install-strip-gcc, and --with-newlib is what keeps libgcc from looking for the target's C headers.
 # It is a plain word rather than an array, because the bash of etch fails on an empty array under set -u.
@@ -95,33 +115,49 @@ mkdir b-gcc
   fi
   # install-strip-gcc came in 4.4. Before that the tools are installed as they are and stripped here.
   if make -n install-strip-gcc > /dev/null 2>&1; then
-    make MAKEINFO=true install-strip-gcc DESTDIR="$stage"
+    make MAKEINFO=true install-strip-gcc
   else
-    make MAKEINFO=true install-gcc DESTDIR="$stage"
-    for f in "$stage$prefix"/bin/* "$stage$prefix"/libexec/gcc/"$GK_TARGET"/*/*; do
-      if file "$f" | grep -q 'ELF.*executable'; then
+    make MAKEINFO=true install-gcc
+    # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there without an error, before it gets to the driver, which it installs last.
+    if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
+      (cd gcc && make MAKEINFO=true install-driver)
+    fi
+    for f in "$prefix"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do
+      if [ -f "$f" ] && file "$f" | grep -q 'ELF.*executable'; then
         strip "$f"
       fi
     done
   fi
   if [ "$gcc_series" -ge 403 ]; then
-    make MAKEINFO=true install-target-libgcc DESTDIR="$stage"
+    make MAKEINFO=true install-target-libgcc
   fi
 ) > gcc.log 2>&1 || { tail -n 80 gcc.log >&2; exit 1; }
 
-# A bundle runs in hosts as old as sarge, which have neither the forge's libc nor a 64 bit loader, so every program in it has to be static. Plugins such as liblto_plugin.so are shared objects and are left alone.
-for f in "$stage$prefix"/bin/* "$stage$prefix/$GK_TARGET"/bin/* "$stage$prefix"/libexec/gcc/"$GK_TARGET"/*/*; do
+# A bundle runs in hosts as old as sarge, which have neither the forge's libc nor a 64 bit loader, so every program in it has to be static. Plugins such as liblto_plugin.so are shared objects and are left alone. Before 3.4 cc1 and collect2 live under lib/gcc-lib rather than libexec/gcc.
+for f in "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do
   if [ -f "$f" ] && file "$f" | grep -q 'executable.*dynamically linked'; then
     log "$f is dynamically linked"
     exit 1
   fi
 done
 
+if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
+  log "no $GK_TARGET-gcc was installed"
+  exit 1
+fi
+
 log "packing"
-# The man and info pages are all there is under share, and pod2man stamps the day it ran into every binutils man page, so two forges of the same bundle on different days would differ. Nothing in a cell reads them.
-rm -rf "${stage:?}$prefix/share"
-# Jessie's tar has no --sort and jessie has no zstd. There the member list is sorted by hand, and the tarball is left uncompressed for gk to compress outside the container.
-cd "$stage$prefix"
+# The man and info pages are all there is under share, or under man and info before 3.0, and pod2man stamps the day it ran into every binutils man page, so two forges of the same bundle on different days would differ. Nothing in a cell reads them.
+rm -rf "${prefix:?}/share" "${prefix:?}/man" "${prefix:?}/info"
+# Jessie's tar has no --sort and jessie has no zstd. There the member list is sorted by hand, and the tarball is left uncompressed for gk to compress outside the container. Woody's tar cannot set member times either, so there the installed tree itself is left for gk to pack.
+cd "$prefix"
+if ! tar --mtime=@0 -cf /dev/null --files-from /dev/null 2> /dev/null; then
+  tree="/out/$GK_ID-$GK_TARGET.tree"
+  rm -rf "$tree"
+  cp -a . "$tree"
+  log "done: $tree, to be packed by gk"
+  exit 0
+fi
 if tar --sort=name -cf /dev/null --files-from /dev/null 2>/dev/null; then
   list=(--sort=name .)
 else
