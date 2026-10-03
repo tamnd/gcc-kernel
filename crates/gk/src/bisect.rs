@@ -1,0 +1,410 @@
+//! `gk history` and `gk bisect-kernel`: the full history clone and the bisection of an edge over it (spec 03.5).
+//!
+//! The clone is a bare repository at `GK_HISTORY`, or `history/linux.git` in the cache. `gk history update` makes it from Linus's tree and adds the tags of the stable tree, which is enough to bisect anything from 2.6.12 on, mainline or stable. The history from before git joins it at G3.
+//!
+//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix.
+
+use crate::cell::{self, CellRecord, Setup};
+use crate::{fetch, store};
+use gk_model::Version;
+use gk_model::repo::Repo;
+use serde::Serialize;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+
+/// Linus's tree.
+const MAINLINE: &str = "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git";
+
+/// The stable tree, whose tags are the point releases.
+const STABLE: &str = "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git";
+
+/// The most commits a bisection tests. 2.6.12 to 7.2 is about 1.4 million commits, which is 21 steps.
+const MAX_STEPS: usize = 40;
+
+/// The clone: `GK_HISTORY`, or `history/linux.git` in the cache.
+#[must_use]
+pub fn history_dir() -> PathBuf {
+    std::env::var_os("GK_HISTORY").map_or_else(
+        || fetch::cache_dir().join("history").join("linux.git"),
+        PathBuf::from,
+    )
+}
+
+fn git(dir: &Path, args: &[&str]) -> Result<String, String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| format!("running git: {e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+/// Make the clone, or bring it up to date. Run weekly.
+pub fn update() -> Result<(), String> {
+    let dir = history_dir();
+    if !dir.join("HEAD").is_file() {
+        let parent = dir
+            .parent()
+            .ok_or("the history clone has no parent directory")?;
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("creating {}: {e}", parent.display()))?;
+        println!("cloning {MAINLINE} into {}", dir.display());
+        let status = Command::new("git")
+            .args(["clone", "--bare", "--quiet", MAINLINE])
+            .arg(&dir)
+            .status()
+            .map_err(|e| format!("running git: {e}"))?;
+        if !status.success() {
+            return Err("cloning the mainline tree failed".into());
+        }
+    }
+    println!("fetching mainline and the stable tags");
+    git(
+        &dir,
+        &[
+            "fetch",
+            "--quiet",
+            MAINLINE,
+            "+refs/heads/master:refs/heads/master",
+            "+refs/tags/*:refs/tags/*",
+        ],
+    )?;
+    git(
+        &dir,
+        &["fetch", "--quiet", STABLE, "+refs/tags/*:refs/tags/*"],
+    )?;
+    let tags = git(&dir, &["tag", "--list", "v*"])?.lines().count();
+    println!("{}: {tags} tags", dir.display());
+    Ok(())
+}
+
+/// The tag of a release, as `v3.0` or `v4.9.337`.
+fn tag(kernel: &str) -> String {
+    format!(
+        "v{}",
+        kernel.trim_start_matches("linux-").trim_start_matches('v')
+    )
+}
+
+/// The version a tree says it is, from the top of its `Makefile`, as `3.17` or `3.16.7`.
+fn makefile_version(makefile: &str) -> Option<Version> {
+    let field = |name: &str| {
+        makefile.lines().find_map(|l| {
+            let (k, v) = l.split_once('=')?;
+            (k.trim() == name).then(|| v.trim().to_owned())
+        })
+    };
+    let (major, minor, sub) = (field("VERSION")?, field("PATCHLEVEL")?, field("SUBLEVEL")?);
+    let text = if sub.is_empty() || sub == "0" {
+        format!("{major}.{minor}")
+    } else {
+        format!("{major}.{minor}.{sub}")
+    };
+    text.parse().ok()
+}
+
+/// What a bisection asks of each cell.
+#[derive(Debug, Clone)]
+pub struct Options {
+    /// The configuration.
+    pub config: &'static str,
+    /// The rung a cell must reach to count as passing, or `None` for the higher rung of the two ends.
+    pub rung: Option<String>,
+    /// Parallel jobs for each build.
+    pub jobs: usize,
+}
+
+/// One tested commit.
+#[derive(Debug, Clone, Serialize)]
+struct Tested {
+    commit: String,
+    version: String,
+    rung: String,
+    term: String,
+}
+
+/// The record a bisection leaves in the store under `bisections/`.
+#[derive(Debug, Clone, Serialize)]
+struct Bisection {
+    from: String,
+    to: String,
+    gcc: String,
+    platform: String,
+    config: String,
+    rung: String,
+    first: String,
+    subject: String,
+    contained_in: String,
+    tested: Vec<Tested>,
+}
+
+/// The rung of a release cell, run or from the store.
+fn release_rung(
+    repo: &Repo,
+    kernel: &str,
+    gcc: &str,
+    platform: &str,
+    opts: &Options,
+    boot: bool,
+) -> Result<String, String> {
+    let setup = Setup::new(repo, kernel, gcc, platform, opts.config)?;
+    let setup = if boot { setup.booting(repo)? } else { setup };
+    let record = run_or_load(repo, &setup, opts.jobs)?;
+    println!("{kernel:<10} {:<3} {}", record.rung, record.verdict);
+    Ok(record.rung)
+}
+
+fn run_or_load(repo: &Repo, setup: &Setup, jobs: usize) -> Result<CellRecord, String> {
+    let dir = store::cell_dir(&setup.coordinates.identity());
+    if let Ok(text) = std::fs::read_to_string(dir.join("cell.json"))
+        && let Ok(record) = serde_json::from_str::<CellRecord>(&text)
+    {
+        return Ok(record);
+    }
+    cell::run(repo, setup, jobs, false).map(|(_, r)| r)
+}
+
+/// Export a commit's tree into the cache.
+fn export(history: &Path, commit: &str) -> Result<PathBuf, String> {
+    let tree = fetch::cache_dir()
+        .join("trees")
+        .join(format!("git-{commit}"));
+    let _ = std::fs::remove_dir_all(&tree);
+    std::fs::create_dir_all(&tree).map_err(|e| format!("creating {}: {e}", tree.display()))?;
+    let archive = Command::new("git")
+        .arg("-C")
+        .arg(history)
+        .args(["archive", "--format=tar", commit])
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("running git archive: {e}"))?;
+    let status = Command::new("tar")
+        .arg("-xf")
+        .arg("-")
+        .arg("-C")
+        .arg(&tree)
+        .stdin(archive.stdout.ok_or("git archive has no output")?)
+        .status()
+        .map_err(|e| format!("running tar: {e}"))?;
+    if !status.success() {
+        let _ = std::fs::remove_dir_all(&tree);
+        return Err(format!("exporting {commit} failed"));
+    }
+    Ok(tree)
+}
+
+/// Bisect between two releases for the first commit on which the cell of `gcc` on `platform` changes whether it reaches the rung.
+pub fn run(
+    repo: &Repo,
+    from: &str,
+    to: &str,
+    gcc: &str,
+    platform: &str,
+    opts: &Options,
+) -> Result<(), String> {
+    let history = history_dir();
+    if !history.join("HEAD").is_file() {
+        return Err(format!(
+            "{} is not there yet; run gk history update",
+            history.display()
+        ));
+    }
+    let lock = history.join("gk-bisect.lock");
+    if lock.exists() {
+        return Err(format!(
+            "{} exists, so another bisection is running on this clone",
+            lock.display()
+        ));
+    }
+    std::fs::write(&lock, std::process::id().to_string())
+        .map_err(|e| format!("writing {}: {e}", lock.display()))?;
+    let result = bisect(repo, &history, from, to, gcc, platform, opts);
+    let _ = git(&history, &["bisect", "reset"]);
+    let _ = std::fs::remove_file(&lock);
+    result
+}
+
+#[allow(clippy::too_many_lines)]
+fn bisect(
+    repo: &Repo,
+    history: &Path,
+    from: &str,
+    to: &str,
+    gcc: &str,
+    platform: &str,
+    opts: &Options,
+) -> Result<(), String> {
+    let (old_tag, new_tag) = (tag(from), tag(to));
+    for t in [&old_tag, &new_tag] {
+        git(
+            history,
+            &[
+                "rev-parse",
+                "--verify",
+                "--quiet",
+                &format!("{t}^{{commit}}"),
+            ],
+        )
+        .map_err(|_| format!("{t} is not in the history clone"))?;
+    }
+    let boot = opts.rung.as_deref().is_some_and(|r| r >= "L5");
+    let r_old = release_rung(repo, from, gcc, platform, opts, boot)?;
+    let r_new = release_rung(repo, to, gcc, platform, opts, boot)?;
+    let rung = opts
+        .rung
+        .clone()
+        .unwrap_or_else(|| r_old.clone().max(r_new.clone()));
+    let passes = |r: &str| r >= rung.as_str();
+    let (p_old, p_new) = (passes(&r_old), passes(&r_new));
+    if p_old == p_new {
+        return Err(format!(
+            "{from} reaches {r_old} and {to} reaches {r_new}, so both ends {} {rung} and there is nothing to bisect",
+            if p_old { "reach" } else { "miss" }
+        ));
+    }
+    let term = |p: bool| if p { "reaches" } else { "misses" };
+    let (old_term, new_term) = (term(p_old), term(p_new));
+    println!("bisecting {old_tag}..{new_tag} for the first commit whose cell {new_term} {rung}");
+    let _ = git(history, &["bisect", "reset"]);
+    git(
+        history,
+        &[
+            "bisect",
+            "start",
+            "--no-checkout",
+            &format!("--term-old={old_term}"),
+            &format!("--term-new={new_term}"),
+            &new_tag,
+            &old_tag,
+        ],
+    )?;
+    let mut tested = Vec::new();
+    let mut first = None;
+    for _ in 0..MAX_STEPS {
+        let commit = git(history, &["rev-parse", "BISECT_HEAD"])?
+            .trim()
+            .to_owned();
+        let tree = export(history, &commit)?;
+        let makefile = std::fs::read_to_string(tree.join("Makefile")).unwrap_or_default();
+        let outcome = match makefile_version(&makefile) {
+            Some(version) => Setup::at_commit(
+                repo,
+                &commit,
+                &version,
+                tree.clone(),
+                gcc,
+                platform,
+                opts.config,
+            )
+            .and_then(|s| if boot { s.booting(repo) } else { Ok(s) })
+            .and_then(|s| run_or_load(repo, &s, opts.jobs))
+            .map(|r| (version, r)),
+            None => Err("the Makefile has no version".into()),
+        };
+        let _ = std::fs::remove_dir_all(&tree);
+        let said = match &outcome {
+            Ok((version, r)) => {
+                let t = term(passes(&r.rung));
+                println!(
+                    "{} {:<10} {:<3} {t}",
+                    &commit[..12],
+                    version.as_str(),
+                    r.rung
+                );
+                tested.push(Tested {
+                    commit: commit.clone(),
+                    version: version.as_str().to_owned(),
+                    rung: r.rung.clone(),
+                    term: t.into(),
+                });
+                git(history, &["bisect", t])?
+            }
+            Err(e) => {
+                println!("{} skipped: {e}", &commit[..12]);
+                git(history, &["bisect", "skip"])?
+            }
+        };
+        if let Some(line) = said
+            .lines()
+            .find(|l| l.contains(&format!("is the first {new_term} commit")))
+        {
+            first = line.split_whitespace().next().map(str::to_owned);
+            break;
+        }
+        if said.contains("only 'skip'ped commits left") {
+            return Err(format!("only skipped commits are left:\n{said}"));
+        }
+    }
+    let first = first.ok_or_else(|| format!("no answer after {MAX_STEPS} steps"))?;
+    let subject = git(history, &["log", "-1", "--format=%s", &first])?
+        .trim()
+        .to_owned();
+    let contained_in = git(
+        history,
+        &["describe", "--contains", "--match", "v*", &first],
+    )
+    .map(|s| {
+        s.trim()
+            .split(['~', '^'])
+            .next()
+            .unwrap_or_default()
+            .to_owned()
+    })
+    .unwrap_or_default();
+    println!(
+        "first commit whose cell {new_term} {rung}: {} {subject}{}",
+        &first[..12],
+        if contained_in.is_empty() {
+            String::new()
+        } else {
+            format!(" (in {contained_in})")
+        }
+    );
+    let record = Bisection {
+        from: from.into(),
+        to: to.into(),
+        gcc: gcc.into(),
+        platform: platform.into(),
+        config: opts.config.into(),
+        rung,
+        first,
+        subject,
+        contained_in,
+        tested,
+    };
+    let dir = store::root().join("bisections");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
+    let name = format!("{from}-{to}-{gcc}-{platform}-{}.json", opts.config);
+    let json = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())? + "\n";
+    std::fs::write(dir.join(&name), json).map_err(|e| format!("writing bisections/{name}: {e}"))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_tree_says_its_version_in_the_makefile() {
+        let top = "# SPDX\nVERSION = 3\nPATCHLEVEL = 17\nSUBLEVEL = 0\nEXTRAVERSION = -rc3\nNAME = Shuffling Zombie Juror\n";
+        assert_eq!(makefile_version(top).unwrap().as_str(), "3.17");
+        let stable = "VERSION = 4\nPATCHLEVEL = 9\nSUBLEVEL = 337\nEXTRAVERSION =\n";
+        assert_eq!(makefile_version(stable).unwrap().as_str(), "4.9.337");
+        assert!(makefile_version("all:\n").is_none());
+    }
+
+    #[test]
+    fn releases_are_tagged_with_a_v() {
+        assert_eq!(tag("3.0"), "v3.0");
+        assert_eq!(tag("linux-4.9.337"), "v4.9.337");
+    }
+}

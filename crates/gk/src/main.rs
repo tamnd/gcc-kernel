@@ -1,7 +1,8 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `boot`, `probe`, `cell`, `search --dense`, `store`, `publish`, `report`, `config-diff`, `classify`, `triage`, `explain`, `ladder` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `boot`, `probe`, `cell`, `search`, `store`, `publish`, `report`, `config-diff`, `classify`, `triage`, `explain`, `ladder`, `history`, `bisect-kernel` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
+mod bisect;
 mod boot;
 mod build;
 mod cell;
@@ -72,6 +73,12 @@ commands:
   triage     the failed cells no signature names, clustered by first error, largest first
   explain    explain K G P [--config C]: the cell's first error, its class, and whether the fix
              is in the kernel's tree
+  history    history update: clone Linus's tree into the history clone, or bring it up to date,
+             with the tags of the stable tree
+  bisect-kernel
+             bisect-kernel K1 K2 G --platform P [--config C] [--rung R] [--jobs N]: the first commit
+             between two releases where the cell of G changes whether it reaches rung R, which is
+             the higher rung of the two ends when R is not given
   store      list the cells in the result store, or:
              store show ID, store check, store pack FILE.tar.zst
   ladder     print the outcome ladder and the verdict each rung earns
@@ -106,6 +113,10 @@ fn main() -> ExitCode {
             let rest = &args[1..];
             text_command(|repo| classify::explain(repo, rest))
         }
+        Some("history") if args.get(1).map(String::as_str) == Some("update") => {
+            text_command(|_| bisect::update().map(|()| String::new()))
+        }
+        Some("bisect-kernel") => bisect_command(&args[1..]),
         Some("fetch") => fetch(&args[1..]),
         Some("hosts") if args.get(1).map(String::as_str) == Some("check") => hosts_check(),
         Some("pins") if args.get(1).map(String::as_str) == Some("changed") => changed(&args[2..]),
@@ -189,7 +200,54 @@ fn changed(args: &[String]) -> ExitCode {
     }
 }
 
-/// `gk search K --platform P --dense`.
+/// `gk bisect-kernel K1 K2 G --platform P`.
+fn bisect_command(args: &[String]) -> ExitCode {
+    let mut opts = bisect::Options {
+        config: "defconfig+gk",
+        rung: None,
+        jobs: std::thread::available_parallelism().map_or(8, std::num::NonZero::get),
+    };
+    let mut platform = None;
+    let mut names = Vec::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        let value = |it: &mut std::slice::Iter<String>| it.next().cloned().unwrap_or_default();
+        match a.as_str() {
+            "--platform" => platform = Some(value(&mut it)),
+            "--rung" => opts.rung = Some(value(&mut it).to_uppercase()),
+            "--config" => match cell::config_named(&value(&mut it)) {
+                Ok(c) => opts.config = c.0,
+                Err(e) => {
+                    eprintln!("gk bisect-kernel: {e}");
+                    return ExitCode::from(2);
+                }
+            },
+            "--jobs" => {
+                let Ok(n) = value(&mut it).parse() else {
+                    eprintln!("gk bisect-kernel: --jobs takes a number");
+                    return ExitCode::from(2);
+                };
+                opts.jobs = n;
+            }
+            _ => names.push(a.clone()),
+        }
+    }
+    let (Some(platform), [from, to, gcc]) = (platform, names.as_slice()) else {
+        eprintln!(
+            "usage: gk bisect-kernel K1 K2 G --platform P [--config C] [--rung R] [--jobs N]"
+        );
+        return ExitCode::from(2);
+    };
+    match Repo::find().and_then(|repo| bisect::run(&repo, from, to, gcc, &platform, &opts)) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("gk: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// `gk search K --platform P [--dense]`.
 fn search_command(args: &[String]) -> ExitCode {
     let mut opts = search::Options {
         dense: false,
