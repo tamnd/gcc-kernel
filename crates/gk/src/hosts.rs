@@ -3,11 +3,12 @@
 use gk_model::repo::Repo;
 use std::process::Command;
 
-/// What a container reports, one tool per line, in the order gcc, binutils, make, qemu. A tool the image lacks prints `-`.
-const PROBE: &str = "gcc -dumpfullversion 2>/dev/null || gcc -dumpversion 2>/dev/null || echo -; \
-ld --version 2>/dev/null | head -n 1 | awk '{print $NF}' | grep . || echo -; \
-make --version 2>/dev/null | head -n 1 | awk '{print $NF}' | grep . || echo -; \
-qemu-system-x86_64 --version 2>/dev/null | head -n 1 | awk '{print $4}' | grep . || echo -";
+/// What a container reports, one tool per line, in the order gcc, binutils, make, qemu: the first version number on the first line of each tool's `--version`, which is the one the tool calls its own in every release from hamm on. `-dumpversion` is no use for this, since wheezy's says `4.7` for 4.7.2. A tool the image lacks prints `-`.
+const PROBE: &str = "v() { sed -n '1s/^[^0-9]*\\([0-9][0-9.]*[0-9]\\).*/\\1/p' | grep . || echo -; }; \
+gcc --version 2>/dev/null | v; \
+ld --version 2>/dev/null | v; \
+make --version 2>/dev/null | v; \
+qemu-system-x86_64 --version 2>/dev/null | v";
 
 /// Check every host that has an image or a Dockerfile. Returns whether they all agree.
 pub fn check(repo: &Repo) -> Result<bool, String> {

@@ -1,6 +1,6 @@
 # Host environments and forge containers (spec 05.2 and 04.4).
 #
-# A host is where a kernel is built: its GCC is HOSTCC and its make, perl, bison and flex run the build. The compiler under test never comes from the host. It comes in through CROSS_COMPILE as a static bundle built in a forge. `image` is the pushed image by digest and stays empty until the image has been built. The GCC, binutils and make versions are what the distribution archive lists, and `gk hosts check` compares them with what the images report. The one `boot` container holds the QEMU that boots every cell, and its digest is part of each booted cell's identity.
+# A host is where a kernel is built: its GCC is HOSTCC and its make, perl, bison and flex run the build. The compiler under test never comes from the host. It comes in through CROSS_COMPILE as a static bundle built in a forge. `image` is the pushed image by digest and stays empty until the image has been built. The GCC, binutils and make versions are the ones the tools give for themselves in their `--version`, which `gk hosts check` compares with the images. For a snapshot or prerelease that is not the package version: etch's gcc 4.1.1 package calls itself 4.1.2, lenny's binutils 2.18.1 calls itself 2.18.0.20080103, slink's 2.9.1.0.19a says 2.9.1, and hamm's make 3.76 says 3.76.1. The one `boot` container holds the QEMU that boots every cell, and its digest is part of each booted cell's identity.
 
 [[host]]
 name = "gk-host-minix"
@@ -32,7 +32,7 @@ base = "debian/eol:hamm"
 arches = ["i386"]
 gcc = "2.7.2.3"
 binutils = "2.9.1"
-make = "3.76"
+make = "3.76.1"
 
 [[host]]
 name = "gk-host-slink"
@@ -40,7 +40,7 @@ kind = "host"
 base = "debian/eol:slink"
 arches = ["i386"]
 gcc = "2.7.2.3"
-binutils = "2.9.1.0.19a"
+binutils = "2.9.1"
 make = "3.77"
 
 [[host]]
@@ -54,6 +54,7 @@ make = "3.79.1"
 
 [[host]]
 name = "gk-host-sarge"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-sarge@sha256:71de22652846c9a411db13935481b4be385753e160ddc663995002a3a858a570"
 kind = "host"
 base = "debian/eol:sarge"
 arches = ["i386", "amd64"]
@@ -63,24 +64,27 @@ make = "3.80"
 
 [[host]]
 name = "gk-host-etch"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-etch@sha256:d260983afed3c410d4d8ef8558dff15d5b81c876b2f2cef5e9d0ed800f1ab4b3"
 kind = "host"
 base = "debian/eol:etch"
 arches = ["i386", "amd64"]
-gcc = "4.1.1"
+gcc = "4.1.2"
 binutils = "2.17"
 make = "3.81"
 
 [[host]]
 name = "gk-host-lenny"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-lenny@sha256:239cf0b203d70e6b8d2370fd6b1d09d0dc271107901a381f6dd8c70713696d99"
 kind = "host"
 base = "debian/eol:lenny"
 arches = ["i386", "amd64"]
 gcc = "4.3.2"
-binutils = "2.18.1"
+binutils = "2.18.0.20080103"
 make = "3.81"
 
 [[host]]
 name = "gk-host-squeeze"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-squeeze@sha256:fe53a1f101f9f7e84921550745b6efe587f9fa5409d209fda9406899926b6f83"
 kind = "host"
 base = "debian/eol:squeeze"
 arches = ["i386", "amd64"]
@@ -90,6 +94,7 @@ make = "3.81"
 
 [[host]]
 name = "gk-host-wheezy"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-wheezy@sha256:b903f557927f699a00caa62d793bfd912b850bb09c003edf89c3c416e7d17bf6"
 kind = "host"
 base = "debian/eol:wheezy"
 arches = ["i386", "amd64"]
@@ -99,6 +104,7 @@ make = "3.81"
 
 [[host]]
 name = "gk-host-jessie"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-jessie@sha256:827978eb2061c659a61942c6cb355df9fc5b2c2a9fa6f2780945ccd07560ac63"
 kind = "host"
 base = "debian/eol:jessie"
 arches = ["amd64"]
@@ -108,6 +114,7 @@ make = "4.0"
 
 [[host]]
 name = "gk-host-stretch"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-stretch@sha256:8d719e7f708522cc3ef1e61e6024067d1902c01ba07b46c7ffcefe8cd61c31c9"
 kind = "host"
 base = "debian/eol:stretch"
 arches = ["amd64"]
@@ -171,6 +178,7 @@ gcc = "10.2.1"
 
 [[host]]
 name = "gk-forge-stretch"
+image = "ghcr.io/tamnd/gcc-kernel/gk-forge-stretch@sha256:3fe0ba680e04e32764b90d552c58465df123a674a21ba903c3ea5a5589c2a5ac"
 kind = "forge"
 base = "debian/eol:stretch"
 arches = ["amd64"]
@@ -178,6 +186,7 @@ gcc = "6.3.0"
 
 [[host]]
 name = "gk-forge-jessie"
+image = "ghcr.io/tamnd/gcc-kernel/gk-forge-jessie@sha256:f674a17b1c31fd0f8f6dada0824459a07cc738458cb324cc90a26553e8bb804e"
 kind = "forge"
 base = "debian/eol:jessie"
 arches = ["amd64"]
@@ -185,6 +194,7 @@ gcc = "4.9.2"
 
 [[host]]
 name = "gk-forge-squeeze"
+image = "ghcr.io/tamnd/gcc-kernel/gk-forge-squeeze@sha256:d6f76a4c078fac06fe119a7ca62d9b62656a263b74ae4059e28f4e3fec77369c"
 kind = "forge"
 base = "debian/eol:squeeze"
 arches = ["amd64", "i386"]
@@ -192,10 +202,11 @@ gcc = "4.4.5"
 
 [[host]]
 name = "gk-forge-etch"
+image = "ghcr.io/tamnd/gcc-kernel/gk-forge-etch@sha256:7d06d60913a77ab1e29b42009d9d065305824b4f62039c890f9b4b14e7a6769c"
 kind = "forge"
 base = "debian/eol:etch"
 arches = ["amd64"]
-gcc = "4.1.1"
+gcc = "4.1.2"
 
 [[host]]
 name = "gk-forge-woody"
