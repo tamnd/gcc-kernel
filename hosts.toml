@@ -27,6 +27,7 @@ make = "3.75"
 
 [[host]]
 name = "gk-host-hamm"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-hamm@sha256:de2bd30615b7e75e68bab1f737dd2b4774047dba204f168b187ef3ce6294716a"
 kind = "host"
 base = "debian/eol:hamm"
 arches = ["i386"]
@@ -36,6 +37,7 @@ make = "3.76.1"
 
 [[host]]
 name = "gk-host-slink"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-slink@sha256:a5ba949573a0d7692496395c98f1ea4b605c965ccfb1e5f232057ad2b9ac1cfe"
 kind = "host"
 base = "debian/eol:slink"
 arches = ["i386"]
@@ -45,6 +47,7 @@ make = "3.77"
 
 [[host]]
 name = "gk-host-woody"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-woody@sha256:0ac40eddb79b5b17d55bb86f22ae747981af7c219971d60b36a800b49bcde318"
 kind = "host"
 base = "debian/eol:woody"
 arches = ["i386"]
@@ -124,6 +127,7 @@ make = "4.1"
 
 [[host]]
 name = "gk-host-buster"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-buster@sha256:6cbf5ce91fdca551c668f06d5b6baeef7ca622ffeb4b41c7e61ef6e9d44c473c"
 kind = "host"
 base = "debian/eol:buster"
 arches = ["amd64"]
@@ -133,6 +137,7 @@ make = "4.2.1"
 
 [[host]]
 name = "gk-host-bullseye"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-bullseye@sha256:73a1144e083511157e109d561f2f5e660cec5c1b0407150f18fc71f891a09eff"
 kind = "host"
 base = "debian/eol:bullseye"
 arches = ["amd64"]
@@ -210,6 +215,7 @@ gcc = "4.1.2"
 
 [[host]]
 name = "gk-forge-woody"
+image = "ghcr.io/tamnd/gcc-kernel/gk-forge-woody@sha256:0abce10debea071a2a6637773046612e71f47139b74533a2029a9a0ccb4aac4c"
 kind = "forge"
 base = "debian/eol:woody"
 arches = ["i386"]
@@ -217,6 +223,7 @@ gcc = "2.95.4"
 
 [[host]]
 name = "gk-forge-slink"
+image = "ghcr.io/tamnd/gcc-kernel/gk-forge-slink@sha256:0867dc5a4e9c8ece943283ab8dbbce314c42cdbaf954900ff8aa44b01c9917e9"
 kind = "forge"
 base = "debian/eol:slink"
 arches = ["i386"]
