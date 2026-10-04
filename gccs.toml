@@ -18,6 +18,21 @@ columns = ["last-point"]
 why = "The last 2.5, and the era GCC of M0, kernels 1.0 to 1.2. Those kernels link only as a.out, so its tools are built for i486-linuxaout, with binutils 2.8.1, the oldest release on the mirror, which still knows that target."
 
 [[gcc]]
+id = "gcc-2.6.3"
+version = "2.6.3"
+flavor = "upstream"
+released = "1994-11-30"
+url = "https://ftp.gnu.org/old-gnu/gcc/gcc-2.6.3.tar.bz2"
+sha256 = "71f673849f4dc7f20aba6ba1ecb6221c6704ef3152779aef15602e974ae3c140"
+unsigned = "The mirror has neither a signature nor a checksum for this release."
+forge = "gk-forge-slink"
+targets = ["i686-linux-gnu"]
+tools = "i486-linuxaout"
+binutils = "binutils-2.8.1"
+columns = ["last-point"]
+why = "The last 2.6, from the time of 1.1 and 1.2. Like 2.5.8 its tools are built for i486-linuxaout with binutils 2.8.1, because the kernels of its day link only as a.out."
+
+[[gcc]]
 id = "gcc-2.7.2.3"
 version = "2.7.2.3"
 flavor = "upstream"
@@ -30,6 +45,34 @@ targets = ["i686-linux-gnu"]
 binutils = "auto"
 columns = ["last-point"]
 why = "The last 2.7, and the era GCC of M1 and M2, kernels 1.3 to 2.2."
+
+[[gcc]]
+id = "gcc-2.8.1"
+version = "2.8.1"
+flavor = "upstream"
+released = "1998-03-02"
+url = "https://ftp.gnu.org/gnu/gcc/gcc-2.8.1.tar.gz"
+sha256 = "3b30fbfdf93e628373d90d174243f3267b0eec9ebe792bb64fd15b8828c2ea4c"
+unsigned = "The mirror has neither a signature nor a checksum for this release."
+forge = "gk-forge-slink"
+targets = ["i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last 2.8, released while the egcs fork went its own way."
+
+[[gcc]]
+id = "egcs-1.1.2"
+version = "2.91.66"
+flavor = "upstream"
+released = "1999-03-15"
+url = "https://gcc.gnu.org/pub/gcc/old-releases/egcs/egcs-1.1.2.tar.bz2"
+sha256 = "9d1dca503780ca9e92d9e7146f7f9427ec42893a711dff486c86959621e8fa4a"
+unsigned = "EGCS was released by Cygnus on its own server, which is now gcc.gnu.org's old-releases, and has neither a signature nor a checksum there."
+forge = "gk-forge-woody"
+targets = ["i686-linux-gnu"]
+binutils = "auto"
+columns = ["last-point"]
+why = "The last EGCS, which Red Hat 6 shipped as its compiler and Red Hat 7 as kgcc, for building kernels. It names itself egcs-2.91.66, which is the version its column goes by, so it sorts between 2.8.1 and 2.95.3."
 
 [[gcc]]
 id = "gcc-2.95.3"
