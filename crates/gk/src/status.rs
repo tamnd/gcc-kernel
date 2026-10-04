@@ -66,8 +66,7 @@ fn ran(cells: &[Entry], kernel: &Version, gcc: &str, platform: &str, config: &st
         e.gcc == gcc
             && e.platform == platform
             && e.config == config
-            && e
-                .kernel
+            && e.kernel
                 .parse::<Version>()
                 .is_ok_and(|k| k <= *kernel && crate::census::line(&k) == line)
     })
