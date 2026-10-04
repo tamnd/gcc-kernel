@@ -109,10 +109,14 @@ old_gcc=
 if [ "$gcc_series" -lt 403 ]; then
   old_gcc=--with-newlib
 fi
-# EGCS has no --enable-languages, and builds every front end it ships, the Objective C runtime among them, which wants the target's stdio.h. LANGUAGES on make's command line is handed down to the gcc directory and keeps both the build and the install to C.
-langs=
+# Variables on make's command line are handed down to the gcc directory, which is how the two releases below are kept away from the target's headers. EGCS has no --enable-languages, and builds every front end it ships, the Objective C runtime among them, which wants the target's stdio.h, so LANGUAGES keeps both its build and its install to C.
+make_vars=
 if [ "$gcc_series" -lt 295 ]; then
-  langs=LANGUAGES=c
+  make_vars=LANGUAGES=c
+fi
+# The 3.3 Linux headers of i386 and a few others leave the signal frame unwinder out of libgcc only for libc5, where 3.2 and 3.4 leave it out whenever there is no libc. Without it libgcc wants signal.h, so libgcc is built as if for libc5. LIBGCC2_INCLUDES is empty otherwise and only reaches libgcc.
+if [ "$gcc_series" -ge 303 ] && [ "$gcc_series" -lt 304 ]; then
+  make_vars=LIBGCC2_INCLUDES=-DUSE_GNULIBC_1
 fi
 
 # Before egcs GCC is a single directory, with no top level to build it from and no way to build libgcc without the target's headers. A kernel of that age needs only the driver, cc1, cpp and the headers GCC brings with it, so those are built in the tree and put in place by hand.
@@ -152,7 +156,7 @@ mkdir b-gcc
       --disable-libmpx --disable-werror &&
     # Before 4.3 the top level does not hand the LDFLAGS seen by configure down to the gcc directory, so the driver and cc1 come out dynamic unless make is told as well.
     if [ "$gcc_series" -lt 403 ]; then
-      make MAKEINFO=true $langs -j"$jobs" LDFLAGS=-static all-gcc
+      make MAKEINFO=true $make_vars -j"$jobs" LDFLAGS=-static all-gcc
     else
       make MAKEINFO=true -j"$jobs" all-gcc
     fi &&
@@ -164,9 +168,9 @@ mkdir b-gcc
       make MAKEINFO=true install-strip-gcc
     else
       # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there, before it gets to the driver, which it installs last. 2.95 stops without an error and EGCS with one, so before 3.0 a failed install-gcc is let through, and the check for the driver below still catches one that did not get installed.
-      { make MAKEINFO=true $langs install-gcc || [ "$gcc_series" -lt 300 ]; } &&
+      { make MAKEINFO=true $make_vars install-gcc || [ "$gcc_series" -lt 300 ]; } &&
         if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
-          (cd gcc && make MAKEINFO=true $langs install-driver)
+          (cd gcc && make MAKEINFO=true $make_vars install-driver)
         fi &&
         for f in "$prefix"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do
           if [ -f "$f" ] && file "$f" | grep -q 'ELF.*executable'; then
