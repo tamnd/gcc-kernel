@@ -69,7 +69,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "gk"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "gk-cc",
  "gk-model",
@@ -82,7 +82,7 @@ dependencies = [
 
 [[package]]
 name = "gk-cc"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "libc",
  "serde",
@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "gk-model"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "regex",
  "serde",
