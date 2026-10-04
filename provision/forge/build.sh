@@ -183,9 +183,12 @@ for f in "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* "$prefix"/libexec/gcc/"$GK_T
   fi
 done
 
+# GCC's own install of the driver ignores its errors, so a make that passes can still leave no driver, and the log is the only place that says why.
 if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
   log "no $GK_TARGET-gcc was installed"
-  exit 1
+  log "what was installed under bin: $(cd "$prefix/bin" && echo *)"
+  grep -n -B2 -A4 -E 'install-driver|xgcc' gcc.log | tail -n 60 >&2 || true
+  failed gcc.log 80
 fi
 
 log "packing"
