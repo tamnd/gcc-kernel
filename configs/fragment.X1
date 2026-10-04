@@ -1,0 +1,14 @@
+# The test fragment for era X1, kernels 0.95 to 0.99.15 (spec 07.2 and 07.7). It is the fragment of M0, since these trees are the ones 1.0 grew out of and a boot of them would look the same. 0.95 and 0.96c have no configuration target at all and are set up by editing the top Makefile, so for them the fragment has nothing to merge into. 0.99 has `Configure`, which only asks questions, as in 1.0. No tree of this era is a row of the matrix yet (reports/museum-0x.md), and the fragment is here so that the ungraded cells of the experiment can run.
+
+# Off everywhere, so that every column of a row gets the same configuration. None of the four exist in this era, so the merge notes them and moves on. They stay so the fragment of every era starts the same way.
+CONFIG_WERROR=n
+CONFIG_GCC_PLUGINS=n
+CONFIG_RUST=n
+CONFIG_DEBUG_INFO_BTF=n
+
+# The root file system of the boot image. Ext2 is there from 0.99 but the RAM disk image is minix, as on the boot floppies of the time.
+CONFIG_MINIX_FS=y
+CONFIG_PROC_FS=y
+
+# gk-init-museum is an ELF program. 1.2 has the loader and builds it in by default, and 1.0 has none, so the merge notes it there.
+CONFIG_BINFMT_ELF=y

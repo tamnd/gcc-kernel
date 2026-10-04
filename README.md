@@ -169,6 +169,22 @@ The kernel picks the host. `HOSTCC` and the host tools come from a Debian contai
 
 The matrix is not swept densely. Each row is searched outward from the GCC the kernel was built with when it was current, until the edges are found, with samples inside to catch holes. A few stripes are run in full: the kernels kernel.org maintains today, the last point of every longterm line, the GCC 16 column, and the era diagonal.
 
+## Before 1.0
+
+The 0.x kernels are outside the matrix, and [reports/museum-0x.md](reports/museum-0x.md) has what happened to them. In short, Linus's own GCC 1.40 of September 1991, the one with `-mstring-insns`, survives on oldlinux, and with it pristine 0.11 and 0.12 build and boot under Bochs:
+
+```
+0.01     ..........  needs Minix to build
+0.11     ##########  built, booted, smoke rc passed
+0.12     ##########  built, booted, smoke rc passed
+0.95     #.........  L0, no config target
+0.96c    #.........  L0, no config target
+0.99.11  ###.......  L2, compiles as C++
+0.99.12  ###.......  L2, compiles as C++
+0.99.13  ###.......  L2, panic declared twice
+0.99.15  ###.......  L2, GNU ld 1.x syntax
+```
+
 ## The rules
 
 **Nothing is patched.** Kernels are unmodified tarballs checked by hash. GCC and binutils are built from release tarballs. Anything that cannot be built without a patch is recorded as unbuildable, with its log.

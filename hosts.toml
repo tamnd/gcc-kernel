@@ -12,7 +12,7 @@ gcc = "1.40"
 [[host]]
 name = "gk-host-linux012"
 kind = "host"
-base = "a Linux 0.12 root image with gcc 1.40 binaries, in QEMU"
+base = "the oldlinux Linux 0.11 development disk with the gcc 1.40 binaries of 1991-09-22, in Bochs, since QEMU does not run these kernels (reports/museum-0x.md)"
 arches = ["emulated"]
 gcc = "1.40"
 
