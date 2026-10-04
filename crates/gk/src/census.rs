@@ -24,7 +24,7 @@ type Kernels<'a> = BTreeMap<&'a Version, Vec<(&'a Version, &'a Cell)>>;
 const EVERY_STEP: [&str; 2] = ["CC_VERSION_TEXT", "GCC_VERSION"];
 
 /// The line a kernel belongs to: X.Y from 3.0, and 2.6.Y or the like before.
-fn line(v: &Version) -> Vec<u32> {
+pub(crate) fn line(v: &Version) -> Vec<u32> {
     if v.series(1) < [3].to_vec() {
         v.series(3)
     } else {
@@ -436,9 +436,16 @@ mod tests {
     fn an_older_point_stands_in_for_its_line_until_the_new_one_runs() {
         let repo = Repo::load(Path::new("../..")).unwrap();
         let k = repo.kernels.in_set("current")[0].version.clone();
-        let old: Version = format!("{}.{}.1", k.parts()[0], k.parts()[1]).parse().unwrap();
+        let old: Version = format!("{}.{}.1", k.parts()[0], k.parts()[1])
+            .parse()
+            .unwrap();
         let none = PathBuf::from("/nonexistent");
-        let before = [cell(&old, "gcc-14.2.0", none.clone(), &[("-Wold", 2, false)])];
+        let before = [cell(
+            &old,
+            "gcc-14.2.0",
+            none.clone(),
+            &[("-Wold", 2, false)],
+        )];
         assert!(warnings(&repo, &before).contains("| 14.2.0 | 1 | 2 |"));
         let after = [
             cell(&old, "gcc-14.2.0", none.clone(), &[("-Wold", 2, false)]),
