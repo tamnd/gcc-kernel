@@ -284,11 +284,13 @@ impl Setup {
         })
     }
 
-    /// Whether this cell can boot: the platform has an init pin and the kernel is 2.6 or later, which is all `gk-init` covers so far.
+    /// Whether this cell can boot: the platform has an init pin, and the kernel is 2.6 or later, or 1.0 or later on i386, which `gk-init-museum` covers. The floppy boot of the kernels before 0.99.10 is not done yet.
     #[must_use]
     pub fn can_boot(&self) -> bool {
+        let museum = initramfs::museum(&self.version);
         self.platform.init.is_some()
-            && self.version.series(2) >= [2, 6].to_vec()
+            && (!museum || self.platform.name == "i386")
+            && self.version.series(1) >= [1].to_vec()
             && !BUILD_ONLY.contains(&self.config)
     }
 

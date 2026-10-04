@@ -10,8 +10,8 @@ CONFIG_DEBUG_INFO_BTF=n
 CONFIG_SERIAL=y
 CONFIG_SERIAL_CONSOLE=y
 
-# The boot image is a ROMFS initial RAM disk mounted as root, since initramfs is a 2.6 thing.
+# The boot image is a Minix initial RAM disk mounted as root, since initramfs is a 2.6 thing. It is the same image for every museum era, and Minix is the one file system all of them can write.
 CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_INITRD=y
-CONFIG_ROMFS_FS=y
+CONFIG_MINIX_FS=y
 CONFIG_PROC_FS=y

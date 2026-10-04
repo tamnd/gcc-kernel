@@ -1,0 +1,22 @@
+#!/bin/sh
+# gk-syslinux APPEND INITRD QEMU [ARGS...]: boot /boot/kernel from a SYSLINUX disk.
+#
+# The -kernel loader of QEMU writes initrd_addr_max at offset 0x22c of the setup code, a field that boot protocol 2.03 added. Kernels with an older protocol have code there, so they crash before they print anything. A real boot loader puts the kernel where those kernels expect it. This writes a FAT disk with SYSLINUX, the kernel and, when INITRD is not "-", that file as the initrd, then runs QEMU with the disk as the first IDE drive.
+set -eu
+
+append=$1
+initrd=$2
+shift 2
+
+disk=/tmp/syslinux.img
+mkfs.fat -F 16 -C "$disk" 32768 > /dev/null
+syslinux --install "$disk"
+mcopy -i "$disk" /boot/kernel ::linux
+if [ "$initrd" != "-" ]; then
+	mcopy -i "$disk" "$initrd" ::initrd
+	append="initrd=initrd $append"
+fi
+printf 'DEFAULT linux\nPROMPT 0\nLABEL linux\n KERNEL linux\n APPEND %s\n' "$append" > /tmp/syslinux.cfg
+mcopy -i "$disk" /tmp/syslinux.cfg ::syslinux.cfg
+
+exec "$@" -drive "file=$disk,format=raw,if=ide,index=0"
