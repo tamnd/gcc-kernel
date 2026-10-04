@@ -388,7 +388,11 @@ fn which(kernels: &BTreeSet<Version>, all: usize) -> String {
 }
 
 /// The gates of each tree, under the first column that gets the other answer from them.
-fn gate_steps(cols: &[(String, Version)], trees: &[(Version, PathBuf)], steps: &mut BTreeMap<Version, Step>) {
+fn gate_steps(
+    cols: &[(String, Version)],
+    trees: &[(Version, PathBuf)],
+    steps: &mut BTreeMap<Version, Step>,
+) {
     for (kernel, tree) in trees {
         for g in gates(tree) {
             let Some((_, at)) = first_column(cols, &g.flips) else {
@@ -454,7 +458,14 @@ fn cell_steps(repo: &Repo, cells: &[Cell], steps: &mut BTreeMap<Version, Step>) 
 }
 
 /// One column's section of the report.
-fn section(out: &mut String, title: &str, s: &Step, name: &dyn Fn(&Version) -> String, all: usize, compared: usize) {
+fn section(
+    out: &mut String,
+    title: &str,
+    s: &Step,
+    name: &dyn Fn(&Version) -> String,
+    all: usize,
+    compared: usize,
+) {
     if s.gates.is_empty() && s.symbols.is_empty() && s.flags.is_empty() {
         return;
     }
