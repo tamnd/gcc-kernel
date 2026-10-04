@@ -227,7 +227,7 @@ gcc = "1.40"
 
 [[host]]
 name = "gk-boot"
-image = "ghcr.io/tamnd/gcc-kernel/gk-boot@sha256:c34e110caca5dcd2126e6c463fe26acf57f74ae6e6c50ba4a603e9071f43bfe6"
+image = "ghcr.io/tamnd/gcc-kernel/gk-boot@sha256:6a886f08aed007ff04100767819b3d08eb6513cd44b1defa6b18a4bcf24144fb"
 kind = "boot"
 base = "debian:trixie"
 arches = ["amd64"]
