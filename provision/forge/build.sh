@@ -66,6 +66,12 @@ fi
 log "unpacking binutils $GK_BINUTILS and gcc $GK_GCC"
 unpack "/src/$GK_BINUTILS_TAR"
 unpack "/src/$GK_GCC_TAR"
+# EGCS unpacks to egcs-<release>, while the version it gives itself, and so the one the forge is handed, is the GCC one, so its directory takes the name the rest of the script looks for.
+for d in egcs-*; do
+  if [ -d "$d" ] && [ ! -d "gcc-$GK_GCC" ]; then
+    mv "$d" "gcc-$GK_GCC"
+  fi
+done
 for p in $GK_PREREQS; do
   (cd "gcc-$GK_GCC" && unpack "/src/infrastructure/$p")
   dir="${p%.tar.*}"
