@@ -1,6 +1,6 @@
 //! The Current set's warning census (spec 11.5) and configuration differential (spec 11.3), which `gk publish` writes as `reports/warning-census.md` and `reports/config-differential.md`.
 //!
-//! Both read the newest cell at every crossing of a Current kernel with an upstream GCC column, so a rerun replaces the cell it reran, and a crossing that has not run yet is left out rather than counted as clean.
+//! Both read the newest cell at every crossing of a Current kernel with an upstream GCC column, so a rerun replaces the cell it reran, and a crossing that has not run yet is left out rather than counted as clean. A line that has just moved to a new point is read at the point before until the new one has run.
 
 use crate::build::Warnings;
 use crate::differential::config_of;
@@ -23,13 +23,22 @@ type Kernels<'a> = BTreeMap<&'a Version, Vec<(&'a Version, &'a Cell)>>;
 /// Symbols that change at every step, which the tables leave out so the probes stand out.
 const EVERY_STEP: [&str; 2] = ["CC_VERSION_TEXT", "GCC_VERSION"];
 
-/// The newest cell at every crossing of a Current kernel with an upstream GCC column.
+/// The line a kernel belongs to: X.Y from 3.0, and 2.6.Y or the like before.
+fn line(v: &Version) -> Vec<u32> {
+    if v.series(1) < [3].to_vec() {
+        v.series(3)
+    } else {
+        v.series(2)
+    }
+}
+
+/// The newest cell at every crossing of a Current kernel with an upstream GCC column. When kernel.org moves a line to a new point, the point before it stands in for the line until the new one has cells of its own on that platform and configuration, so a new pin does not empty the reports.
 fn latest<'a>(repo: &Repo, cells: &'a [Cell]) -> BTreeMap<Key, &'a Cell> {
-    let current: Vec<Version> = repo
+    let lines: Vec<Vec<u32>> = repo
         .kernels
         .in_set("current")
         .iter()
-        .map(|k| k.version.clone())
+        .map(|k| line(&k.version))
         .collect();
     let mut out: BTreeMap<Key, &Cell> = BTreeMap::new();
     for c in cells {
@@ -41,7 +50,7 @@ fn latest<'a>(repo: &Repo, cells: &'a [Cell]) -> BTreeMap<Key, &'a Cell> {
             .kernel
             .parse::<Version>()
             .ok()
-            .filter(|k| current.contains(k))
+            .filter(|k| lines.contains(&line(k)))
         else {
             continue;
         };
@@ -53,7 +62,20 @@ fn latest<'a>(repo: &Repo, cells: &'a [Cell]) -> BTreeMap<Key, &'a Cell> {
             out.insert(key, c);
         }
     }
-    out
+    let mut newest: BTreeMap<(&str, &str, Vec<u32>), &Version> = BTreeMap::new();
+    for (p, config, k, _) in out.keys() {
+        let at = newest.entry((p, config, line(k))).or_insert(k);
+        if *at < k {
+            *at = k;
+        }
+    }
+    let keep: BTreeSet<(String, String, Version)> = newest
+        .into_iter()
+        .map(|((p, config, _), k)| (p.to_owned(), config.to_owned(), k.clone()))
+        .collect();
+    out.into_iter()
+        .filter(|((p, config, k, _), _)| keep.contains(&(p.clone(), config.clone(), k.clone())))
+        .collect()
 }
 
 /// The configurations in the cells, in name order.
@@ -408,6 +430,23 @@ mod tests {
         assert!(text.contains(&format!(
             "| 16.2.0 | {k} | x86_64 | fs/x.c | -Wnew | 4 | 0 |"
         )));
+    }
+
+    #[test]
+    fn an_older_point_stands_in_for_its_line_until_the_new_one_runs() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let k = repo.kernels.in_set("current")[0].version.clone();
+        let old: Version = format!("{}.{}.1", k.parts()[0], k.parts()[1]).parse().unwrap();
+        let none = PathBuf::from("/nonexistent");
+        let before = [cell(&old, "gcc-14.2.0", none.clone(), &[("-Wold", 2, false)])];
+        assert!(warnings(&repo, &before).contains("| 14.2.0 | 1 | 2 |"));
+        let after = [
+            cell(&old, "gcc-14.2.0", none.clone(), &[("-Wold", 2, false)]),
+            cell(&k, "gcc-16.2.0", none, &[("-Wnew", 4, false)]),
+        ];
+        let text = warnings(&repo, &after);
+        assert!(text.contains("-Wnew"));
+        assert!(!text.contains("-Wold"));
     }
 
     #[test]
