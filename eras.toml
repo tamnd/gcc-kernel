@@ -7,13 +7,14 @@ name = "X0"
 from = "0.01"
 gcc = "gcc-1.40"
 hosts = [{ from = "0.01", value = "gk-host-minix" }, { from = "0.10", value = "gk-host-linux012" }]
+notes = "The era GCC is the gcc 1.40 Linus built 0.11 and 0.12 with, the binaries of 22 September 1991 in oldlinux's gccbin.tar.Z, whose cc1 takes -mstring-insns. With them pristine 0.11 and 0.12 build and boot, but only under Bochs, since QEMU's floppy and IDE models stop their drivers, and only by hand so far, so no tree of this era is a row yet. 0.01 needs the Minix assembler and Minix's ls, so it waits for gk-host-minix. reports/museum-0x.md has the runs."
 
 [[era]]
 name = "X1"
 from = "0.95"
 gcc = "gcc-2.5.8"
-hosts = [{ from = "0.95", value = "gk-host-bo" }]
-notes = "The era GCC is somewhere from 2.3.3 to 2.5.8 and is chosen at G3."
+hosts = [{ from = "0.95", value = "gk-host-hamm" }]
+notes = "Built in hamm for the reason M0 is: bo's libc5 tools fail on a recent host kernel before they do any work. 2.5.8 is the newest GCC of the era and the only one the forge has. No tree of the era builds with it: 0.95 and 0.96c have no configuration target, 0.99.11 and 0.99.12 compile as C++ and the bundle has C only, 0.99.13 declares panic twice in a way 2.5.8 refuses, and 0.99.15 links with the -T of GNU ld 1.x, which binutils 2.8.1 reads as a script. reports/museum-0x.md has the cells."
 
 [[era]]
 name = "M0"
