@@ -34,6 +34,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: gk-host-hamm
+            dir: provision/hosts/gk-host-hamm
+          - name: gk-host-slink
+            dir: provision/hosts/gk-host-slink
+          - name: gk-host-woody
+            dir: provision/hosts/gk-host-woody
           - name: gk-host-sarge
             dir: provision/hosts/gk-host-sarge
           - name: gk-host-etch
@@ -48,6 +54,10 @@ jobs:
             dir: provision/hosts/gk-host-jessie
           - name: gk-host-stretch
             dir: provision/hosts/gk-host-stretch
+          - name: gk-host-buster
+            dir: provision/hosts/gk-host-buster
+          - name: gk-host-bullseye
+            dir: provision/hosts/gk-host-bullseye
           - name: gk-host-bookworm
             dir: provision/hosts/gk-host-bookworm
           - name: gk-host-trixie
@@ -64,6 +74,10 @@ jobs:
             dir: provision/forge/gk-forge-squeeze
           - name: gk-forge-etch
             dir: provision/forge/gk-forge-etch
+          - name: gk-forge-woody
+            dir: provision/forge/gk-forge-woody
+          - name: gk-forge-slink
+            dir: provision/forge/gk-forge-slink
           - name: gk-boot
             dir: provision/boot/gk-boot
     steps:
