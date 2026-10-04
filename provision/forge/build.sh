@@ -28,6 +28,15 @@ cd "$work"
 
 log() { echo "gk-forge: $*" >&2; }
 
+# A failed step shows the first errors in its log as well as the end of it, since a make that keeps going buries the cause under the install that fails after it.
+failed() {
+  log "first errors in $1:"
+  grep -n -B3 -E 'error|Error [0-9]' "$1" | head -n 40 >&2
+  log "end of $1:"
+  tail -n "$2" "$1" >&2
+  exit 1
+}
+
 # Woody's tar cannot tell a compression by itself, so the decompressor is picked by the name.
 unpack() {
   case "$1" in
@@ -84,7 +93,7 @@ mkdir b-binutils
       make MAKEINFO=true install && { strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true; }
     fi &&
     test -x "$prefix/bin/$GK_TARGET-as"
-) > binutils.log 2>&1 || { tail -n 60 binutils.log >&2; exit 1; }
+) > binutils.log 2>&1 || failed binutils.log 60
 
 export PATH="$prefix/bin:$PATH"
 
@@ -118,7 +127,7 @@ if [ ! -d "gcc-$GK_GCC/gcc" ]; then
       cp cc1 cpp specs "$lib/" &&
       cp -R include/. "$lib/include/" &&
       strip "$prefix/bin/$GK_TARGET-gcc" "$lib/cc1" "$lib/cpp"
-  ) > gcc.log 2>&1 || { tail -n 80 gcc.log >&2; exit 1; }
+  ) > gcc.log 2>&1 || failed gcc.log 80
 else
 log "gcc for $GK_TARGET"
 mkdir b-gcc
@@ -158,7 +167,7 @@ mkdir b-gcc
   if [ "$gcc_series" -ge 403 ]; then
     make MAKEINFO=true install-target-libgcc
   fi
-) > gcc.log 2>&1 || { tail -n 80 gcc.log >&2; exit 1; }
+) > gcc.log 2>&1 || failed gcc.log 80
 fi
 
 # A bundle runs in hosts as old as sarge, which have neither the forge's libc nor a 64 bit loader, so every program in it has to be static. Plugins such as liblto_plugin.so are shared objects and are left alone. Before 3.4 cc1 and collect2 live under lib/gcc-lib rather than libexec/gcc.
