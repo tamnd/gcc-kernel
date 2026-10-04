@@ -1002,6 +1002,16 @@ fn scripts_race(tree: &Path) -> bool {
         .is_ok_and(|m| m.lines().any(|l| l.starts_with("scripts/fixdep:")))
 }
 
+/// Whether the top Makefile hands each goal to a make of its own in the output directory, as from 2.6.0 until `sub-make` took over in 2.6.2x. With `-j` the image and `modules` then build side by side in two makes that know nothing of each other, and both write `include/linux/version.h` and `include/config/MARKER`, so the cell fails whatever the GCC. Those trees get their goals one after the other, which builds the same thing.
+fn goals_race(tree: &Path) -> bool {
+    std::fs::read_to_string(tree.join("Makefile")).is_ok_and(|m| {
+        m.lines().any(|l| {
+            l.starts_with("$(filter-out all,$(MAKECMDGOALS)) all:")
+                || l.starts_with("$(filter-out _all,$(MAKECMDGOALS)) _all:")
+        })
+    })
+}
+
 /// Run a cell up to L4, or up to L6 when it boots, and write its directory. Returns the directory and the record.
 #[allow(clippy::too_many_lines)]
 pub fn run(
@@ -1166,7 +1176,28 @@ pub fn run(
         } else if scripts_race(&s.tree) {
             code = make(&["V=1", "scripts"], "scripts.log", 1)?;
         }
-        if code == 0 {
+        if code == 0 && goals_race(&s.tree) {
+            let log = cell_dir.join("make.log");
+            for (i, target) in targets.iter().enumerate() {
+                if i == 0 {
+                    code = make(&["V=1", target], "make.log", jobs)?;
+                } else {
+                    code = make(&["V=1", target], "make-goal.log", jobs)?;
+                    let more = cell_dir.join("make-goal.log");
+                    let text = std::fs::read(&more)
+                        .map_err(|e| format!("reading {}: {e}", more.display()))?;
+                    std::fs::OpenOptions::new()
+                        .append(true)
+                        .open(&log)
+                        .and_then(|mut f| std::io::Write::write_all(&mut f, &text))
+                        .map_err(|e| format!("writing {}: {e}", log.display()))?;
+                    let _ = std::fs::remove_file(&more);
+                }
+                if code != 0 {
+                    break;
+                }
+            }
+        } else if code == 0 {
             code = make(&args, "make.log", jobs)?;
         }
         built = code == 0;
@@ -1470,6 +1501,27 @@ mod tests {
         assert!(!scripts_race(&dir));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(!scripts_race(&dir));
+    }
+
+    #[test]
+    fn goals_race_until_sub_make_takes_them_together() {
+        let dir = std::env::temp_dir().join(format!("gk-goals-race-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let makefile = dir.join("Makefile");
+        for (rule, races) in [
+            ("$(filter-out all,$(MAKECMDGOALS)) all:\n", true),
+            ("$(filter-out _all,$(MAKECMDGOALS)) _all:\n", true),
+            (
+                "$(filter-out _all sub-make $(CURDIR)/Makefile, $(MAKECMDGOALS)) _all: sub-make\n",
+                false,
+            ),
+            ("__sub-make:\n", false),
+        ] {
+            std::fs::write(&makefile, rule).unwrap();
+            assert_eq!(goals_race(&dir), races, "{rule}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(!goals_race(&dir));
     }
 
     #[test]
