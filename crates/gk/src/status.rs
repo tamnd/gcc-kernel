@@ -59,23 +59,18 @@ fn percent(done: usize, total: usize) -> usize {
     (done * 100).checked_div(total).unwrap_or(0)
 }
 
-/// The newest cell at one crossing.
-fn newest<'a>(
-    cells: &'a [Entry],
-    kernel: &Version,
-    gcc: &str,
-    platform: &str,
-    config: &str,
-) -> Option<&'a Entry> {
-    cells
-        .iter()
-        .filter(|e| {
-            e.gcc == gcc
-                && e.platform == platform
-                && e.config == config
-                && e.kernel.parse::<Version>().ok().as_ref() == Some(kernel)
-        })
-        .max_by_key(|e| e.started)
+/// Whether a crossing has a cell. A Current kernel that kernel.org has moved to a new point is counted by the cells of the point before until the new one has run, as in the census, so a new pin does not empty the progress bars.
+fn ran(cells: &[Entry], kernel: &Version, gcc: &str, platform: &str, config: &str) -> bool {
+    let line = crate::census::line(kernel);
+    cells.iter().any(|e| {
+        e.gcc == gcc
+            && e.platform == platform
+            && e.config == config
+            && e
+                .kernel
+                .parse::<Version>()
+                .is_ok_and(|k| k <= *kernel && crate::census::line(&k) == line)
+    })
 }
 
 /// The tier 1 platforms, in the order of `platforms.toml`.
@@ -94,7 +89,7 @@ fn progress(out: &mut String, m: &Matrix, rows: &[(String, Vec<Crossing>)]) {
     for (label, crossings) in rows {
         let d = crossings
             .iter()
-            .filter(|(k, g, p, c)| newest(&m.cells, k, g, p, c).is_some())
+            .filter(|(k, g, p, c)| ran(&m.cells, k, g, p, c))
             .count();
         let t = crossings.len();
         done += d;
@@ -118,7 +113,7 @@ fn progress(out: &mut String, m: &Matrix, rows: &[(String, Vec<Crossing>)]) {
     out.push_str("```\n");
 }
 
-/// The crossings of the current stripe, grouped by platform and configuration.
+/// The crossings of the current stripe, grouped by platform and configuration. Its columns are the upstream ones from 8.1 (spec 09.6); the older columns pinned for the history are searched against these rows, not run dense on them.
 fn current_stripe(repo: &Repo) -> Rows {
     let kernels = repo.kernels.in_set("current");
     let mut rows = Vec::new();
@@ -130,7 +125,7 @@ fn current_stripe(repo: &Repo) -> Rows {
                     continue;
                 }
                 for g in crate::search::columns(repo, &p.triple) {
-                    if p.applies(&k.version, &g.version) {
+                    if g.version.series(2) >= [8, 1].to_vec() && p.applies(&k.version, &g.version) {
                         crossings.push((k.version.clone(), g.id.clone(), p.name.clone(), config));
                     }
                 }
@@ -235,7 +230,7 @@ pub fn section(repo: &Repo, m: &Matrix, date: &str) -> String {
         count(m.cells.len(), "cell")
     );
 
-    out.push_str("\n### Progress\n\nThe current stripe of G1 is every Current kernel with every upstream GCC column on the tier 1 platforms, with `defconfig+gk` and `tinyconfig+gk`. The GCC 16 column is every release from 5.0 on with the newest GCC 16.\n\n");
+    out.push_str("\n### Progress\n\nThe current stripe of G1 is every Current kernel with every upstream GCC column from 8.1 on the tier 1 platforms, with `defconfig+gk` and `tinyconfig+gk`. The GCC 16 column is every release from 5.0 on with the newest GCC 16. A Current kernel that has just moved to a new point release counts the cells of the point before until the new one has run.\n\n");
     progress(&mut out, m, &current_stripe(repo));
     out.push('\n');
     progress(&mut out, m, &gcc16_column(repo));
@@ -436,6 +431,21 @@ mod tests {
             format!("# x\n\nintro\n\n{BEGIN}\nnew\n{END}\n\n## Next\n")
         );
         assert!(splice("no markers", "x").is_none());
+    }
+
+    #[test]
+    fn a_moved_pin_counts_the_cells_of_the_point_before() {
+        let m: Matrix =
+            serde_json::from_str(&std::fs::read_to_string("../../matrix/matrix.json").unwrap())
+                .unwrap();
+        let mut e = m.cells[0].clone();
+        e.kernel = "6.12.40".into();
+        let cells = vec![e.clone()];
+        let at = |k: &str| ran(&cells, &k.parse().unwrap(), &e.gcc, &e.platform, &e.config);
+        assert!(at("6.12.40"));
+        assert!(at("6.12.48"));
+        assert!(!at("6.12.30"));
+        assert!(!at("6.13.2"));
     }
 
     #[test]

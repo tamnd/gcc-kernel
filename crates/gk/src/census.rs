@@ -24,7 +24,7 @@ type Kernels<'a> = BTreeMap<&'a Version, Vec<(&'a Version, &'a Cell)>>;
 const EVERY_STEP: [&str; 2] = ["CC_VERSION_TEXT", "GCC_VERSION"];
 
 /// The line a kernel belongs to: X.Y from 3.0, and 2.6.Y or the like before.
-fn line(v: &Version) -> Vec<u32> {
+pub(crate) fn line(v: &Version) -> Vec<u32> {
     if v.series(1) < [3].to_vec() {
         v.series(3)
     } else {
