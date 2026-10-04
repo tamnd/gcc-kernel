@@ -109,6 +109,11 @@ old_gcc=
 if [ "$gcc_series" -lt 403 ]; then
   old_gcc=--with-newlib
 fi
+# EGCS has no --enable-languages, and builds every front end it ships, the Objective C runtime among them, which wants the target's stdio.h. LANGUAGES on make's command line is handed down to the gcc directory and keeps both the build and the install to C.
+langs=
+if [ "$gcc_series" -lt 295 ]; then
+  langs=LANGUAGES=c
+fi
 
 # Before egcs GCC is a single directory, with no top level to build it from and no way to build libgcc without the target's headers. A kernel of that age needs only the driver, cc1, cpp and the headers GCC brings with it, so those are built in the tree and put in place by hand.
 if [ ! -d "gcc-$GK_GCC/gcc" ]; then
@@ -147,7 +152,7 @@ mkdir b-gcc
       --disable-libmpx --disable-werror &&
     # Before 4.3 the top level does not hand the LDFLAGS seen by configure down to the gcc directory, so the driver and cc1 come out dynamic unless make is told as well.
     if [ "$gcc_series" -lt 403 ]; then
-      make MAKEINFO=true -j"$jobs" LDFLAGS=-static all-gcc
+      make MAKEINFO=true $langs -j"$jobs" LDFLAGS=-static all-gcc
     else
       make MAKEINFO=true -j"$jobs" all-gcc
     fi &&
@@ -158,10 +163,10 @@ mkdir b-gcc
     if make -n install-strip-gcc > /dev/null 2>&1; then
       make MAKEINFO=true install-strip-gcc
     else
-      make MAKEINFO=true install-gcc &&
+      make MAKEINFO=true $langs install-gcc &&
         # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there without an error, before it gets to the driver, which it installs last.
         if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
-          (cd gcc && make MAKEINFO=true install-driver)
+          (cd gcc && make MAKEINFO=true $langs install-driver)
         fi &&
         for f in "$prefix"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do
           if [ -f "$f" ] && file "$f" | grep -q 'ELF.*executable'; then
