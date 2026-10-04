@@ -188,13 +188,26 @@ pub(crate) fn letter(verdict: &str) -> &'static str {
     }
 }
 
-/// The square of a cell in a heat map, with ⚠️ after it when its boots disagreed.
+/// Whether a cell works on the museum smoke suite only, which is a weaker claim than the full suite of 2.6 and later (spec 13, question 2).
+pub(crate) fn museum_works(e: &Entry) -> bool {
+    e.verdict == "works"
+        && e.kernel
+            .parse::<Version>()
+            .is_ok_and(|v| crate::kernelorg::is_museum(&v))
+}
+
+/// The square of a cell in a heat map, with ⚠️ after it when its boots disagreed. A museum kernel that works gets a green circle instead of the green square.
 pub(crate) fn square(e: &Entry) -> String {
-    format!("{}{}", letter(&e.verdict), if e.flaky { "⚠️" } else { "" })
+    let mark = if museum_works(e) {
+        "🟢"
+    } else {
+        letter(&e.verdict)
+    };
+    format!("{mark}{}", if e.flaky { "⚠️" } else { "" })
 }
 
 /// The legend under every heat map.
-pub(crate) const LEGEND: &str = "🟩 works, 🟨 runs, 🟧 builds, 🟥 fails, · n/a, and blank where the cell has not run yet. ⚠️ marks a flaky cell, whose boots disagreed and which keeps the lowest rung.";
+pub(crate) const LEGEND: &str = "🟩 works, 🟢 works on the smaller museum suite of a kernel before 2.6, 🟨 runs, 🟧 builds, 🟥 fails, · n/a, and blank where the cell has not run yet. ⚠️ marks a flaky cell, whose boots disagreed and which keeps the lowest rung.";
 
 /// The heat map of one platform, or `None` when it has no cells.
 #[must_use]
@@ -380,6 +393,7 @@ mod tests {
                 newer,
                 cell("7.2.8", "gcc-8.5.0", "fails", false),
                 cell("6.18", "gcc-16.2.0", "works", true),
+                cell("2.4.37.11", "gcc-16.2.0", "works", false),
             ],
         };
         let text = heat_map(&repo, &m, "x86_64").unwrap();
@@ -388,6 +402,7 @@ mod tests {
             .filter(|l| l.starts_with("| 6") || l.starts_with("| 7"))
             .collect();
         assert_eq!(rows.len(), 4);
+        assert!(text.contains("| 2.4.37.11 |") && text.contains(" 🟢 |"));
         assert!(rows[0].starts_with("| 6.18 |"));
         assert!(rows[0].ends_with(" 🟩⚠️ |"));
         // The oldest columns have no cell, so the first square is gcc-8.5.0's.

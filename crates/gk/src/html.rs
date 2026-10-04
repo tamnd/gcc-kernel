@@ -14,6 +14,7 @@ th,td{border:1px solid #ddd;padding:2px 4px;text-align:center;white-space:nowrap
 th{background:#f4f4f4;font-weight:normal}
 td.k{text-align:left}
 td.works{background:#3fb950}
+td.museum{background:#a6e3b0}
 td.runs{background:#e3b341}
 td.builds{background:#f0883e}
 td.fails{background:#f85149}
@@ -81,7 +82,7 @@ fn platform_page(repo: &Repo, m: &Matrix, platform: &str) -> Option<String> {
     configs.sort_unstable();
     configs.dedup();
     let mut body = format!(
-        "<p><a href=\"index.html\">gcc-kernel</a></p>\n<h1>{}</h1>\n<p>A row per kernel and a column per GCC. Green works, yellow runs, orange builds, red fails, a dot is n/a, and an empty square has not run yet. A dashed square is flaky. Hover over a square for its rung, class and first error.</p>\n",
+        "<p><a href=\"index.html\">gcc-kernel</a></p>\n<h1>{}</h1>\n<p>A row per kernel and a column per GCC. Green works, light green works on the smaller museum suite of a kernel before 2.6, yellow runs, orange builds, red fails, a dot is n/a, and an empty square has not run yet. A dashed square is flaky. Hover over a square for its rung, class and first error.</p>\n",
         esc(platform)
     );
     for config in configs {
@@ -115,6 +116,7 @@ fn platform_page(repo: &Repo, m: &Matrix, platform: &str) -> Option<String> {
                 match cell {
                     Some(e) => {
                         let class = match e.verdict.as_str() {
+                            "works" if crate::publish::museum_works(e) => "museum",
                             v @ ("works" | "runs" | "builds" | "fails") => v,
                             _ => "na",
                         };
