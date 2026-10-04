@@ -107,21 +107,20 @@ fi
 # Before egcs GCC is a single directory, with no top level to build it from and no way to build libgcc without the target's headers. A kernel of that age needs only the driver, cc1, cpp and the headers GCC brings with it, so those are built in the tree and put in place by hand.
 if [ ! -d "gcc-$GK_GCC/gcc" ]; then
   log "gcc for $GK_TARGET, without libgcc"
-  # The Makefile of these releases calls the compiler cc unless told otherwise. The config.sub of 2.5 does not know a vendor of our own, nor i686, so there the forge calls itself plain i386-linux. Before 2.7 gcc.c and cccp.c declare sys_errlist without the const glibc gives it, and the compile stops on the conflict, so the declaration is brought in line.
+  # The Makefile of these releases calls the compiler cc unless told otherwise. The config.sub of 2.5 does not know a vendor of our own, nor i686, so there the forge calls itself plain i386-linux. Before 2.7 gcc.c and cccp.c declare sys_errlist without the const glibc gives it, unless bsd4_4 is defined, and the compile stops on the conflict. In those two files bsd4_4 decides nothing else, so it is defined on the command line, which leaves the sources as they were released.
   lib="$prefix/lib/gcc-lib/$GK_TARGET/$GK_GCC"
   host="$build"
   if ! sh "gcc-$GK_GCC/config.sub" "$host" > /dev/null 2>&1; then
     host=i386-linux
   fi
+  cc="${CC:-gcc}"
+  if [ "$gcc_series" -lt 207 ]; then
+    cc="$cc -Dbsd4_4"
+  fi
   (
     cd "gcc-$GK_GCC" &&
-      for f in *.c; do
-        if grep -q '^extern char \*sys_errlist\[\];' "$f"; then
-          sed 's/^extern char \*sys_errlist\[\];/extern const char *const sys_errlist[];/' "$f" > "$f.gk" && mv "$f.gk" "$f" || exit 1
-        fi
-      done &&
       ./configure --host="$host" --target="$GK_TARGET" --prefix="$prefix" --with-gnu-as --with-gnu-ld &&
-      make CC="${CC:-gcc}" MAKEINFO=true LANGUAGES=c -j"$jobs" xgcc cc1 cpp specs stmp-int-hdrs &&
+      make CC="$cc" MAKEINFO=true LANGUAGES=c -j"$jobs" xgcc cc1 cpp specs stmp-int-hdrs &&
       mkdir -p "$lib/include" "$prefix/bin" &&
       cp xgcc "$prefix/bin/$GK_TARGET-gcc" &&
       cp cc1 cpp specs "$lib/" &&
