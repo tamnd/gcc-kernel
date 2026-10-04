@@ -1,8 +1,10 @@
-//! `gk boot`: the boot rig of spec 07.4 for kernels from 2.6 on.
+//! `gk boot`: the boot rig of spec 07.4.
 //!
 //! QEMU runs in the `gk-boot` container with no network, the kernel image and the platform's initramfs mounted read only, and the serial console on stdout. The machine, CPU and console come from `platforms.toml` for the kernel's version, and acceleration is always TCG, so a cell boots the same way on every build machine. Every console line goes to `boot.log` as it arrives, and what the rig read from them goes to `boot.json`.
 //!
 //! The run ends when QEMU exits, which `gk-init` causes by powering off. It is cut short when the boot budget runs out, and when the end marker has been printed and the console then stays quiet for five seconds, which is how a kernel that cannot power off is told apart from a hung one.
+//!
+//! Kernels before 2.6 boot the museum way: one CPU, 32 MB, and `gk-init-museum` on a Minix root image, which is the initrd from 1.3.73 and the second IDE disk before. Kernels older than boot protocol 2.03 start from a SYSLINUX disk that `gk-syslinux` writes in the container, because the `-kernel` loader of QEMU writes a 2.03 field over their setup code. Before 2.1.25 there is no serial console, so QEMU runs with its monitor on stdin and stdout, the rig asks it for the VGA text screen once a second, and the lines come from the screens (spec 07.6).
 
 use crate::{forge, initramfs, tap};
 use gk_model::Version;
@@ -264,20 +266,134 @@ pub fn append(console: &str, suite: &str, version: &Version) -> String {
     )
 }
 
-/// The QEMU command, with the kernel and the initramfs at the paths the container mounts them on.
-pub fn qemu_command(p: &Platform, version: &Version, suite: &str) -> Result<Vec<String>, String> {
+/// The memory of a museum boot, in MB. Kernels before 2.2 size memory with a BIOS call that stops at 64 MB, and 1.x tests every page at boot.
+pub const MUSEUM_MEMORY: u32 = 32;
+
+/// Where the container mounts what the kernel boots from: the initramfs from 2.6 on, and the museum root image before.
+#[must_use]
+pub fn root_path(version: &Version) -> &'static str {
+    if initramfs::museum(version) {
+        "/boot/root.img"
+    } else {
+        "/boot/initramfs.cpio"
+    }
+}
+
+/// Whether a kernel has the boot protocol of 1.3.73 and later, which takes an initrd. Before it the root image goes on the second IDE disk, after the boot loader's.
+fn takes_initrd(version: &Version) -> bool {
+    version.series(3) >= [1, 3, 73].to_vec()
+}
+
+/// The boot protocol of an x86 kernel image, from its setup header, or 0 for the images before 1.3.73 that have no header.
+#[must_use]
+pub fn protocol(image: &[u8]) -> u16 {
+    match image.get(0x202..0x208) {
+        Some([b'H', b'd', b'r', b'S', lo, hi]) => u16::from_le_bytes([*lo, *hi]),
+        _ => 0,
+    }
+}
+
+/// Whether a kernel boots from a SYSLINUX disk. The `-kernel` loader of QEMU writes `initrd_addr_max` at offset 0x22c of the setup code whatever the protocol, and before protocol 2.03 that offset holds code, so those kernels die on an invalid opcode before they print anything.
+#[must_use]
+pub fn needs_loader(protocol: u16) -> bool {
+    protocol < 0x203
+}
+
+/// Whether the rig reads the console from the VGA text screen, for kernels with no serial console (spec 07.6).
+#[must_use]
+pub fn vga(p: &Platform, version: &Version) -> bool {
+    p.console_for(version) == Some("vga")
+}
+
+/// The kernel command line of a museum boot. Old kernels hand the words with an `=` they do not know to init as its environment, which is where `gk-init-museum` reads the suite and the kernel from.
+///
+/// From 2.1 the SMP kernels of the era find the IO-APIC in the MP table that the BIOS writes and route the timer and the disks through it, which QEMU does not wire the way they expect, so the boot turns it off with `noapic` and everything goes through the 8259.
+#[must_use]
+pub fn museum_append(console: &str, suite: &str, version: &Version) -> String {
+    let root = if takes_initrd(version) {
+        "/dev/ram0"
+    } else {
+        "/dev/hdb"
+    };
+    // `no-scroll` keeps a VGA console from scrolling by moving the screen through video memory, from 2.0. Older kernels hand it to init, which ignores it.
+    let console = if console == "vga" {
+        "no-scroll ".to_owned()
+    } else {
+        format!("console={console} ")
+    };
+    let noapic = if version.series(2) >= [2, 1].to_vec() {
+        " noapic"
+    } else {
+        ""
+    };
+    format!("{console}root={root} rw panic=-1{noapic} gk.suite={suite} gk.kernel={version}")
+}
+
+/// The QEMU command, with the kernel and the initramfs at the paths the container mounts them on. `protocol` is the kernel's boot protocol, which picks the loader of a museum boot.
+pub fn qemu_command(
+    p: &Platform,
+    version: &Version,
+    suite: &str,
+    protocol: u16,
+) -> Result<Vec<String>, String> {
     let missing = |what: &str| format!("platforms.toml has no {what} for {version} on {}", p.name);
     let machine = p.machine_for(version).ok_or_else(|| missing("machine"))?;
     let cpu = p.cpu_for(version).ok_or_else(|| missing("cpu"))?;
     let console = p.console_for(version).ok_or_else(|| missing("console"))?;
     // An empty CPU is a machine with one CPU model, where QEMU takes no -cpu.
     let cpu: &[&str] = if cpu.is_empty() { &[] } else { &["-cpu", cpu] };
-    Ok([p.qemu.as_str(), "-machine", machine]
+    let mut command: Vec<String> = [p.qemu.as_str(), "-machine", machine]
         .iter()
         .chain(cpu)
-        .chain(&[
-            "-accel",
-            "tcg",
+        .chain(&["-accel", "tcg"])
+        .map(|s| (*s).to_owned())
+        .collect();
+    let rest: Vec<String> = if initramfs::museum(version) {
+        let append = museum_append(console, suite, version);
+        // One CPU: the SMP kernels of the era want an MP table that the machines they ran on had.
+        let mut rest = vec![
+            "-smp".into(),
+            "1".into(),
+            "-m".into(),
+            MUSEUM_MEMORY.to_string(),
+        ];
+        if !takes_initrd(version) {
+            // The image is mounted read only and the smoke suite writes to it, so the writes go to a scratch overlay.
+            rest.extend([
+                "-drive".into(),
+                format!(
+                    "file={},format=raw,if=ide,index=1,snapshot=on",
+                    root_path(version)
+                ),
+            ]);
+        }
+        if needs_loader(protocol) {
+            // gk-syslinux writes the boot disk, adds it as the first IDE drive and runs the rest.
+            let initrd = if takes_initrd(version) {
+                root_path(version)
+            } else {
+                "-"
+            };
+            command.splice(0..0, ["gk-syslinux".into(), append, initrd.into()]);
+        } else {
+            rest.extend(["-kernel".into(), "/boot/kernel".into()]);
+            if takes_initrd(version) {
+                rest.extend(["-initrd".into(), root_path(version).into()]);
+            }
+            rest.extend(["-append".into(), append]);
+        }
+        if console == "vga" {
+            // The monitor takes `pmemsave` on stdin and the screen is read from memory.
+            rest.extend(
+                ["-display", "none", "-serial", "none", "-monitor", "stdio"].map(String::from),
+            );
+        } else {
+            rest.extend(["-nographic", "-monitor", "none"].map(String::from));
+        }
+        rest.extend(["-nic", "none", "-no-reboot"].map(String::from));
+        rest
+    } else {
+        [
             "-smp",
             &CPUS.to_string(),
             "-m",
@@ -294,9 +410,83 @@ pub fn qemu_command(p: &Platform, version: &Version, suite: &str) -> Result<Vec<
             "-nic",
             "none",
             "-no-reboot",
-        ])
+        ]
+        .iter()
         .map(|s| (*s).to_owned())
-        .collect())
+        .collect()
+    };
+    command.extend(rest);
+    Ok(command)
+}
+
+/// The VGA text screen: 25 rows of 80 cells, each a character and an attribute, at 0xb8000.
+pub const SCREEN_BYTES: usize = 80 * 25 * 2;
+
+/// The rows of a VGA text screen, as text with the trailing blanks taken off. Anything that is not printable ASCII is a blank.
+#[must_use]
+pub fn screen_rows(bytes: &[u8]) -> Vec<String> {
+    bytes
+        .chunks(160)
+        .take(25)
+        .map(|row| {
+            row.chunks(2)
+                .map(|cell| match cell[0] {
+                    c @ 0x21..=0x7e => c as char,
+                    _ => ' ',
+                })
+                .collect::<String>()
+                .trim_end()
+                .to_owned()
+        })
+        .collect()
+}
+
+/// Turns successive VGA screens into console lines. The screen scrolls, so each new screen is matched against the last one by how far it moved, and a row is taken once a row below it has been written or it has stayed the same for one capture, so a line is never read half written.
+#[derive(Debug, Default)]
+pub struct Screen {
+    rows: Vec<String>,
+    taken: usize,
+}
+
+impl Screen {
+    /// Take one capture, and return the lines it finished. `last` takes every row, for the final capture.
+    pub fn take(&mut self, rows: Vec<String>, last: bool) -> Vec<String> {
+        let n = rows.len();
+        let mut prev = std::mem::take(&mut self.rows);
+        prev.resize(n, String::new());
+        // How far the screen scrolled: the least shift under which every old row is blank, the same, or the start of the new one. A cleared screen matches only far enough down to be all blank.
+        let shift = (0..=n)
+            .find(|&s| {
+                (0..n - s).all(|i| {
+                    let (a, b) = (&prev[i + s], &rows[i]);
+                    a.is_empty() || b.starts_with(a.as_str())
+                })
+            })
+            .unwrap_or(n);
+        let taken = self.taken.saturating_sub(shift);
+        let filled = rows
+            .iter()
+            .rposition(|r| !r.is_empty())
+            .map_or(0, |i| i + 1);
+        let settled = filled > 0
+            && (last
+                || prev
+                    .get(filled - 1 + shift)
+                    .is_some_and(|r| *r == rows[filled - 1]));
+        let done = if settled {
+            filled
+        } else {
+            filled.saturating_sub(1)
+        };
+        let out = if done > taken {
+            rows[taken..done].to_vec()
+        } else {
+            Vec::new()
+        };
+        self.taken = done.max(taken);
+        self.rows = rows;
+        out
+    }
 }
 
 /// What the reader thread passes back.
@@ -310,9 +500,10 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
     let (init, archive) = initramfs::for_kernel(repo, b.platform, b.version)?;
     let image = forge::image_for(repo, "gk-boot")?;
     let qemu = crate::cell::image_digest(&image)?;
-    let command = qemu_command(b.platform, b.version, b.suite)?;
     let kernel = std::fs::canonicalize(b.image)
         .map_err(|e| format!("reading {}: {e}", b.image.display()))?;
+    let head = std::fs::read(&kernel).map_err(|e| format!("reading {}: {e}", kernel.display()))?;
+    let command = qemu_command(b.platform, b.version, b.suite, protocol(&head))?;
     std::fs::create_dir_all(b.dir).map_err(|e| format!("creating {}: {e}", b.dir.display()))?;
     let log_path = b.dir.join(format!("{}.log", b.stem));
     let mut log = std::fs::File::create(&log_path)
@@ -331,20 +522,50 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
     } else {
         b.platform.budget.boot_seconds
     }));
-    let mut child = Command::new("docker")
+    let vga = vga(b.platform, b.version);
+    let screen_dir = b.dir.join(format!("{}-vga", b.stem));
+    let mut docker = Command::new("docker");
+    docker
         .args(["run", "--rm", "--network=none", "--name", &name])
         .arg("-v")
         .arg(format!("{}:/boot/kernel:ro", kernel.display()))
         .arg("-v")
-        .arg(format!("{}:/boot/initramfs.cpio:ro", archive.display()))
+        .arg(format!("{}:{}:ro", archive.display(), root_path(b.version)));
+    if vga {
+        std::fs::create_dir_all(&screen_dir)
+            .map_err(|e| format!("creating {}: {e}", screen_dir.display()))?;
+        docker
+            .arg("-i")
+            .arg("-v")
+            .arg(format!("{}:/vga", screen_dir.display()))
+            .stdin(Stdio::piped());
+    } else {
+        docker.stdin(Stdio::null());
+    }
+    let mut child = docker
         .arg(&image)
         .args(&command)
-        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("running docker: {e}"))?;
-    watch(&mut child, &name, budget, clock, &mut log, &mut outcome);
+    let capture = if vga {
+        child.stdin.take().map(|stdin| (stdin, screen_dir.clone()))
+    } else {
+        None
+    };
+    watch(
+        &mut child,
+        &name,
+        budget,
+        clock,
+        &mut log,
+        &mut outcome,
+        capture,
+    );
+    if vga {
+        let _ = std::fs::remove_dir_all(&screen_dir);
+    }
     outcome.seconds = clock.elapsed().as_secs_f64();
     if b.suite == "kunit" {
         let text =
@@ -358,7 +579,34 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
     Ok(outcome)
 }
 
-/// Read the console of a running QEMU into `log` and `outcome` until it exits, stopping it when the budget runs out or when it stays quiet after the end marker.
+/// Read the screen of a QEMU with a VGA console once a second, through `pmemsave` on its monitor, and pass on the lines it finishes. It stops when the monitor is gone, after one last read of the screen.
+fn capture(mut monitor: std::process::ChildStdin, dir: &Path, tx: &mpsc::Sender<Read>) {
+    let file = dir.join("screen");
+    let mut screen = Screen::default();
+    let mut send = |bytes: &[u8], last: bool| {
+        if bytes.len() == SCREEN_BYTES {
+            for line in screen.take(screen_rows(bytes), last) {
+                let _ = tx.send(Read::Line(line + "\n"));
+            }
+        }
+    };
+    loop {
+        // The file name is quoted, or the monitor reads `4000 /vga/screen` as a division.
+        let asked = monitor
+            .write_all(format!("pmemsave 0xb8000 {SCREEN_BYTES} \"/vga/screen\"\n").as_bytes())
+            .and_then(|()| monitor.flush());
+        std::thread::sleep(Duration::from_secs(1));
+        let bytes = std::fs::read(&file).unwrap_or_default();
+        if asked.is_err() {
+            send(&bytes, true);
+            break;
+        }
+        send(&bytes, false);
+    }
+    let _ = tx.send(Read::Closed);
+}
+
+/// Read the console of a running QEMU into `log` and `outcome` until it exits, stopping it when the budget runs out or when it stays quiet after the end marker. With a VGA console, the lines come from the screen and what QEMU prints on stdout is its monitor, which is dropped.
 fn watch(
     child: &mut std::process::Child,
     name: &str,
@@ -366,14 +614,20 @@ fn watch(
     clock: Instant,
     log: &mut std::fs::File,
     outcome: &mut Outcome,
+    vga: Option<(std::process::ChildStdin, PathBuf)>,
 ) {
     let (tx, rx) = mpsc::channel();
     let mut readers = Vec::new();
+    let mut stdout = child.stdout.take();
+    if let Some((monitor, dir)) = vga {
+        if let Some(mut out) = stdout.take() {
+            std::thread::spawn(move || std::io::copy(&mut out, &mut std::io::sink()));
+        }
+        let tx = tx.clone();
+        readers.push(std::thread::spawn(move || capture(monitor, &dir, &tx)));
+    }
     for stream in [
-        child
-            .stdout
-            .take()
-            .map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
+        stdout.map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
         child
             .stderr
             .take()
@@ -588,6 +842,101 @@ mod tests {
             append("ttyS0", "smoke", &v),
             "console=ttyS0 panic=-1 oops=panic gk.suite=smoke gk.kernel=7.2.8 gk.cpus=2 kunit.enable=0 kunit.filter_glob=gk-none"
         );
+    }
+
+    fn rows(lines: &[&str]) -> Vec<String> {
+        let mut r: Vec<String> = lines.iter().map(|l| (*l).to_owned()).collect();
+        r.resize(25, String::new());
+        r
+    }
+
+    #[test]
+    fn a_screen_row_is_taken_once_it_is_finished() {
+        let mut s = Screen::default();
+        assert_eq!(
+            s.take(rows(&["GK-BOOTED 2.0.40", "GK-BEG"]), false),
+            ["GK-BOOTED 2.0.40"]
+        );
+        assert!(
+            s.take(rows(&["GK-BOOTED 2.0.40", "GK-BEGIN smoke"]), false)
+                .is_empty()
+        );
+        assert_eq!(
+            s.take(rows(&["GK-BOOTED 2.0.40", "GK-BEGIN smoke"]), false),
+            ["GK-BEGIN smoke"]
+        );
+        assert!(
+            s.take(rows(&["GK-BOOTED 2.0.40", "GK-BEGIN smoke"]), false)
+                .is_empty()
+        );
+        assert_eq!(
+            s.take(
+                rows(&["GK-BOOTED 2.0.40", "GK-BEGIN smoke", "GK-END smoke pass"]),
+                true
+            ),
+            ["GK-END smoke pass"]
+        );
+    }
+
+    #[test]
+    fn a_scrolled_screen_is_followed() {
+        let mut s = Screen::default();
+        let full: Vec<String> = (0..25).map(|i| format!("line {i}")).collect();
+        let lines = s.take(full.clone(), false);
+        assert_eq!(lines.len(), 24);
+        let mut moved: Vec<String> = full[2..].to_vec();
+        moved.extend(["line 25".to_owned(), "line 26".to_owned()]);
+        assert_eq!(s.take(moved, true), ["line 24", "line 25", "line 26"]);
+    }
+
+    #[test]
+    fn a_cleared_screen_starts_over() {
+        let mut s = Screen::default();
+        let boot: Vec<String> = (0..25).map(|i| format!("kernel {i}")).collect();
+        s.take(boot, false);
+        assert_eq!(
+            s.take(rows(&["GK-BOOTED 1.2.13", "GK-BEGIN smoke", ""]), false),
+            ["GK-BOOTED 1.2.13"]
+        );
+    }
+
+    #[test]
+    fn vga_cells_become_text() {
+        let mut bytes = vec![0u8; SCREEN_BYTES];
+        for (i, c) in b"GK-END smoke pass".iter().enumerate() {
+            bytes[160 + 2 * i] = *c;
+            bytes[160 + 2 * i + 1] = 7;
+        }
+        let r = screen_rows(&bytes);
+        assert_eq!(r.len(), 25);
+        assert_eq!(r[0], "");
+        assert_eq!(r[1], "GK-END smoke pass");
+    }
+
+    #[test]
+    fn museum_command_lines_name_the_root() {
+        let v: Version = "1.2.13".parse().unwrap();
+        assert_eq!(
+            museum_append("vga", "smoke", &v),
+            "no-scroll root=/dev/hdb rw panic=-1 gk.suite=smoke gk.kernel=1.2.13"
+        );
+        let v: Version = "2.2.26".parse().unwrap();
+        assert_eq!(
+            museum_append("ttyS0", "smoke", &v),
+            "console=ttyS0 root=/dev/ram0 rw panic=-1 noapic gk.suite=smoke gk.kernel=2.2.26"
+        );
+    }
+
+    #[test]
+    fn the_setup_header_gives_the_protocol() {
+        let mut image = vec![0u8; 0x400];
+        assert_eq!(protocol(&image), 0);
+        image[0x202..0x208].copy_from_slice(b"HdrS\x02\x02");
+        assert_eq!(protocol(&image), 0x202);
+        assert!(needs_loader(protocol(&image)));
+        image[0x206] = 3;
+        assert!(!needs_loader(protocol(&image)));
+        assert_eq!(protocol(&image[..0x100]), 0);
     }
 
     #[test]

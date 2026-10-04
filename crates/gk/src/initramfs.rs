@@ -4,7 +4,7 @@
 //!
 //! The result lives in `<cache>/init/<platform>`, with an `init.json` that says what it was built from. It is built again only when the source, the bundle or the image change.
 
-use crate::{fetch, forge, net};
+use crate::{fetch, forge, minix, net};
 use gk_model::Version;
 use gk_model::platforms::Platform;
 use gk_model::repo::Repo;
@@ -58,23 +58,79 @@ pub fn dir(platform: &str) -> PathBuf {
     fetch::cache_dir().join("init").join(platform)
 }
 
+/// One of the init programs and what it is packed into.
+struct Program {
+    /// The source file under `provision/init`.
+    source: &'static str,
+    /// The file name of the compiled program in the cache.
+    binary: &'static str,
+    /// The file name of what it is packed into.
+    archive: &'static str,
+    /// The file name of the manifest.
+    manifest: &'static str,
+    /// Flags on top of the fixed ones and the platform's own.
+    flags: &'static [&'static str],
+    /// How the program is packed.
+    pack: fn(&[u8]) -> Vec<u8>,
+}
+
+/// `init.c` in a newc initramfs, for 2.6 on.
+const MODERN: Program = Program {
+    source: "init.c",
+    binary: "init",
+    archive: "initramfs.cpio",
+    manifest: "init.json",
+    flags: &[],
+    pack: initramfs,
+};
+
+/// `init-museum.c` on a Minix root image, for 1.x to 2.4 on i386. It is built for the 486, which is the oldest CPU the museum boots on.
+const MUSEUM: Program = Program {
+    source: "init-museum.c",
+    binary: "init-museum",
+    archive: "museum.img",
+    manifest: "museum.json",
+    flags: &["-march=i486"],
+    pack: minix::image,
+};
+
 /// The initramfs of a platform, built if it is missing or stale. Returns its manifest and path.
 pub fn for_platform(repo: &Repo, p: &Platform) -> Result<(Manifest, PathBuf), String> {
+    build(repo, p, &MODERN)
+}
+
+/// Whether a kernel boots the museum way, from a Minix root image with `gk-init-museum`, which is every kernel before 2.6.
+#[must_use]
+pub fn museum(version: &Version) -> bool {
+    version.series(2) < [2, 6].to_vec()
+}
+
+/// The museum root image of a platform, built if it is missing or stale. Returns its manifest and path.
+pub fn museum_image(repo: &Repo, p: &Platform) -> Result<(Manifest, PathBuf), String> {
+    if p.name != "i386" {
+        return Err(format!("there is no museum init for {}", p.name));
+    }
+    build(repo, p, &MUSEUM)
+}
+
+/// Compile one init program for a platform and pack it, unless what is in the cache was built from the same source, bundle, image and flags.
+fn build(repo: &Repo, p: &Platform, what: &Program) -> Result<(Manifest, PathBuf), String> {
     let pin = p
         .init
         .as_ref()
         .ok_or_else(|| format!("platforms.toml has no init for {}", p.name))?;
     let triple = pin.triple.as_deref().unwrap_or(&p.triple);
-    let source_path = repo.root.join("provision/init/init.c");
+    let source_path = repo.root.join("provision/init").join(what.source);
     let source = std::fs::read(&source_path)
         .map_err(|e| format!("reading {}: {e}", source_path.display()))?;
     let bundle = forge::manifest(&pin.gcc, triple)?;
     let image = forge::image_for(repo, &pin.host)?;
     let mut flags: Vec<String> = FLAGS.iter().map(|f| (*f).to_owned()).collect();
     flags.extend(pin.flags.iter().cloned());
+    flags.extend(what.flags.iter().map(|f| (*f).to_owned()));
     let dir = dir(&p.name);
-    let archive = dir.join("initramfs.cpio");
-    let manifest_path = dir.join("init.json");
+    let archive = dir.join(what.archive);
+    let manifest_path = dir.join(what.manifest);
     let wanted = |m: &Manifest| {
         m.source == format!("sha256:{}", net::sha256_bytes(&source))
             && m.bundle == bundle.digest
@@ -93,7 +149,7 @@ pub fn for_platform(repo: &Repo, p: &Platform) -> Result<(Manifest, PathBuf), St
     std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
     let bundle_dir = forge::unpacked(&bundle)?;
     let mount = format!("/opt/gk/t/{}", bundle.id);
-    let program = dir.join("init");
+    let program = dir.join(what.binary);
     let _ = std::fs::remove_file(&program);
     let out = Command::new("docker")
         .args(["run", "--rm", "--network=none"])
@@ -110,17 +166,22 @@ pub fn for_platform(repo: &Repo, p: &Platform) -> Result<(Manifest, PathBuf), St
         .arg(&image)
         .arg(format!("{mount}/bin/{triple}-gcc"))
         .args(&flags)
-        .args(["-o", "/out/init", "init.c"])
+        .arg("-o")
+        .arg(format!("/out/{}", what.binary))
+        .arg(what.source)
         .output()
         .map_err(|e| format!("running docker: {e}"))?;
     let said = String::from_utf8_lossy(&out.stderr).trim().to_owned();
     if !out.status.success() {
-        return Err(format!("compiling init for {} failed:\n{said}", p.name));
+        return Err(format!(
+            "compiling {} for {} failed:\n{said}",
+            what.source, p.name
+        ));
     }
     if !said.is_empty() {
         return Err(format!(
-            "init for {} compiles with warnings, which it must not:\n{said}",
-            p.name
+            "{} for {} compiles with warnings, which it must not:\n{said}",
+            what.source, p.name
         ));
     }
     let init =
@@ -128,7 +189,7 @@ pub fn for_platform(repo: &Repo, p: &Platform) -> Result<(Manifest, PathBuf), St
     if !is_static_elf(&init) {
         return Err(format!("{} is not a static ELF program", program.display()));
     }
-    let bytes = initramfs(&init);
+    let bytes = (what.pack)(&init);
     let partial = archive.with_extension("part");
     std::fs::write(&partial, &bytes).map_err(|e| format!("writing {}: {e}", partial.display()))?;
     std::fs::rename(&partial, &archive)
@@ -156,12 +217,15 @@ pub fn static_dev(version: &Version) -> bool {
     version.series(3) < [2, 6, 32].to_vec()
 }
 
-/// The initramfs a kernel boots from: the platform's, or for a kernel with no devtmpfs the same program in an archive that also has `/dev/null`. The manifest's digest is the digest of the archive returned, so a 3.x or later cell keeps the identity it had.
+/// The initramfs a kernel boots from: the museum root image before 2.6, the platform's, or for a kernel with no devtmpfs the same program in an archive that also has `/dev/null`. The manifest's digest is the digest of the archive returned, so a 3.x or later cell keeps the identity it had.
 pub fn for_kernel(
     repo: &Repo,
     p: &Platform,
     version: &Version,
 ) -> Result<(Manifest, PathBuf), String> {
+    if museum(version) {
+        return museum_image(repo, p);
+    }
     let (m, archive) = for_platform(repo, p)?;
     if !static_dev(version) {
         return Ok((m, archive));
@@ -366,6 +430,10 @@ pub fn run(repo: &Repo, only: &[String]) -> Result<(), String> {
     for p in platforms {
         let (m, path) = for_platform(repo, p)?;
         println!("{:<8} {} {}", p.name, m.digest, path.display());
+        if p.name == "i386" {
+            let (m, path) = museum_image(repo, p)?;
+            println!("{:<8} {} {}", p.name, m.digest, path.display());
+        }
     }
     Ok(())
 }

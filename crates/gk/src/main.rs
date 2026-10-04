@@ -20,6 +20,7 @@ mod html;
 mod initramfs;
 mod kconfig;
 mod kernelorg;
+mod minix;
 mod net;
 mod pins;
 mod publish;
