@@ -74,7 +74,7 @@ done
 
 log "binutils for $GK_TARGET"
 mkdir b-binutils
-# set -e does not reach into a subshell on the left of ||, so each step is chained, here and in the build of the oldest GCCs below. The newer GCC build is held to the check for its driver after it.
+# set -e does not reach into a subshell on the left of ||, so each step is chained, here and in both GCC builds below. Without that a make that fails goes on to the next step, and the log ends on an install that cannot find what the failed step should have made.
 (
   cd b-binutils &&
     "../binutils-$GK_BINUTILS/configure" \
@@ -131,41 +131,41 @@ else
 log "gcc for $GK_TARGET"
 mkdir b-gcc
 (
-  cd b-gcc
-  LDFLAGS=-static "../gcc-$GK_GCC/configure" $old_gcc \
-    --build="$build" --host="$build" --target="$GK_TARGET" --prefix="$prefix" \
-    --enable-languages=c --without-headers --disable-bootstrap --disable-nls \
-    --disable-multilib --disable-shared --disable-threads --disable-libssp --disable-libgomp \
-    --disable-libquadmath --disable-libatomic --disable-libsanitizer --disable-libvtv \
-    --disable-libstdcxx --disable-libcc1 --disable-decimal-float --disable-libmudflap \
-    --disable-libmpx --disable-werror
-  # Before 4.3 the top level does not hand the LDFLAGS seen by configure down to the gcc directory, so the driver and cc1 come out dynamic unless make is told as well.
-  if [ "$gcc_series" -lt 403 ]; then
-    make MAKEINFO=true -j"$jobs" LDFLAGS=-static all-gcc
-  else
-    make MAKEINFO=true -j"$jobs" all-gcc
-  fi
-  if [ "$gcc_series" -ge 403 ]; then
-    make MAKEINFO=true -j"$jobs" all-target-libgcc
-  fi
-  # install-strip-gcc came in 4.4. Before that the tools are installed as they are and stripped here.
-  if make -n install-strip-gcc > /dev/null 2>&1; then
-    make MAKEINFO=true install-strip-gcc
-  else
-    make MAKEINFO=true install-gcc
-    # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there without an error, before it gets to the driver, which it installs last.
-    if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
-      (cd gcc && make MAKEINFO=true install-driver)
+  cd b-gcc &&
+    LDFLAGS=-static "../gcc-$GK_GCC/configure" $old_gcc \
+      --build="$build" --host="$build" --target="$GK_TARGET" --prefix="$prefix" \
+      --enable-languages=c --without-headers --disable-bootstrap --disable-nls \
+      --disable-multilib --disable-shared --disable-threads --disable-libssp --disable-libgomp \
+      --disable-libquadmath --disable-libatomic --disable-libsanitizer --disable-libvtv \
+      --disable-libstdcxx --disable-libcc1 --disable-decimal-float --disable-libmudflap \
+      --disable-libmpx --disable-werror &&
+    # Before 4.3 the top level does not hand the LDFLAGS seen by configure down to the gcc directory, so the driver and cc1 come out dynamic unless make is told as well.
+    if [ "$gcc_series" -lt 403 ]; then
+      make MAKEINFO=true -j"$jobs" LDFLAGS=-static all-gcc
+    else
+      make MAKEINFO=true -j"$jobs" all-gcc
+    fi &&
+    if [ "$gcc_series" -ge 403 ]; then
+      make MAKEINFO=true -j"$jobs" all-target-libgcc
+    fi &&
+    # install-strip-gcc came in 4.4. Before that the tools are installed as they are and stripped here.
+    if make -n install-strip-gcc > /dev/null 2>&1; then
+      make MAKEINFO=true install-strip-gcc
+    else
+      make MAKEINFO=true install-gcc &&
+        # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there without an error, before it gets to the driver, which it installs last.
+        if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
+          (cd gcc && make MAKEINFO=true install-driver)
+        fi &&
+        for f in "$prefix"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do
+          if [ -f "$f" ] && file "$f" | grep -q 'ELF.*executable'; then
+            strip "$f"
+          fi
+        done
+    fi &&
+    if [ "$gcc_series" -ge 403 ]; then
+      make MAKEINFO=true install-target-libgcc
     fi
-    for f in "$prefix"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do
-      if [ -f "$f" ] && file "$f" | grep -q 'ELF.*executable'; then
-        strip "$f"
-      fi
-    done
-  fi
-  if [ "$gcc_series" -ge 403 ]; then
-    make MAKEINFO=true install-target-libgcc
-  fi
 ) > gcc.log 2>&1 || failed gcc.log 80
 fi
 
