@@ -163,8 +163,8 @@ mkdir b-gcc
     if make -n install-strip-gcc > /dev/null 2>&1; then
       make MAKEINFO=true install-strip-gcc
     else
-      make MAKEINFO=true $langs install-gcc &&
-        # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there without an error, before it gets to the driver, which it installs last.
+      # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there, before it gets to the driver, which it installs last. 2.95 stops without an error and EGCS with one, so before 3.0 a failed install-gcc is let through, and the check for the driver below still catches one that did not get installed.
+      { make MAKEINFO=true $langs install-gcc || [ "$gcc_series" -lt 300 ]; } &&
         if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
           (cd gcc && make MAKEINFO=true $langs install-driver)
         fi &&
