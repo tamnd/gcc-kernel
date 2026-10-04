@@ -92,7 +92,8 @@ impl Patterns {
             .captures_iter(line)
             .map(|c| (c[1].to_owned(), num(&c[2])))
             .collect();
-        if let (Some((_, m)), false) = (majors.iter().find(|(op, _)| op == "=="), minors.is_empty()) {
+        if let (Some((_, m)), false) = (majors.iter().find(|(op, _)| op == "=="), minors.is_empty())
+        {
             for (op, n) in &minors {
                 out.extend(after(op, (*m, *n, 0), (0, 1, 0)));
             }
@@ -133,7 +134,8 @@ pub fn gates(tree: &Path) -> Vec<Gate> {
             };
             if kind.is_dir() {
                 let top = dir == tree;
-                if !(top && (name == "Documentation" || name == "tools")) && !name.starts_with('.') {
+                if !(top && (name == "Documentation" || name == "tools")) && !name.starts_with('.')
+                {
                     dirs.push(path);
                 }
                 continue;
@@ -185,7 +187,10 @@ fn columns(repo: &Repo) -> Vec<(String, Version)> {
 }
 
 /// The first column that gets the other answer from a gate, or `None` when no pinned GCC is that new yet.
-fn first_column<'a>(columns: &'a [(String, Version)], flips: &Version) -> Option<&'a (String, Version)> {
+fn first_column<'a>(
+    columns: &'a [(String, Version)],
+    flips: &Version,
+) -> Option<&'a (String, Version)> {
     columns.iter().find(|(_, v)| v >= flips)
 }
 
@@ -236,7 +241,9 @@ pub fn unit_flags(path: &Path) -> Option<BTreeMap<String, usize>> {
                 format!("--param={}", words.next().map_or("", String::as_str))
             } else if w.starts_with("--param=")
                 || w.starts_with("-std=")
-                || (["-f", "-m", "-W", "-O", "-g"].iter().any(|p| w.starts_with(p))
+                || (["-f", "-m", "-W", "-O", "-g"]
+                    .iter()
+                    .any(|p| w.starts_with(p))
                     && !w.starts_with("-Wp,"))
             {
                 w.clone()
@@ -273,12 +280,21 @@ pub fn flag_changes(
 }
 
 /// The newest cell directory in the store for one crossing.
-fn cell_dir(kernel: &Version, gcc: &str, platform: &str, config: &str) -> Result<Option<PathBuf>, String> {
+fn cell_dir(
+    kernel: &Version,
+    gcc: &str,
+    platform: &str,
+    config: &str,
+) -> Result<Option<PathBuf>, String> {
     let mut found: Option<(PathBuf, u64)> = None;
     for (dir, r) in store::cells()? {
         let c = &r.coordinates;
         let same_gcc = c.gcc.name == gcc || c.gcc.name.strip_prefix("gcc-") == Some(gcc);
-        let k = c.kernel.name.trim_start_matches("linux-").parse::<Version>();
+        let k = c
+            .kernel
+            .name
+            .trim_start_matches("linux-")
+            .parse::<Version>();
         if same_gcc
             && c.platform == platform
             && c.config.name == config
@@ -324,7 +340,10 @@ pub fn flags_command(args: &[String]) -> Result<String, String> {
         out.push_str("Every flag is passed with both or with neither.\n");
         return Ok(out);
     }
-    let _ = write!(out, "| Flag | Units with {g1} | Units with {g2} |\n|---|--:|--:|\n");
+    let _ = write!(
+        out,
+        "| Flag | Units with {g1} | Units with {g2} |\n|---|--:|--:|\n"
+    );
     for (f, x, y) in changes {
         let _ = writeln!(out, "| `{f}` | {x} | {y} |");
     }
@@ -368,14 +387,11 @@ fn which(kernels: &BTreeSet<Version>, all: usize) -> String {
     }
 }
 
-/// The persona surface, as `reports/persona-surface.md`, from the Current set's newest cells and the trees of its kernels.
-#[must_use]
-pub fn persona_surface(repo: &Repo, cells: &[Cell], trees: &[(Version, PathBuf)]) -> String {
-    let cols = columns(repo);
-    let mut steps: BTreeMap<Version, Step> = BTreeMap::new();
+/// The gates of each tree, under the first column that gets the other answer from them.
+fn gate_steps(cols: &[(String, Version)], trees: &[(Version, PathBuf)], steps: &mut BTreeMap<Version, Step>) {
     for (kernel, tree) in trees {
         for g in gates(tree) {
-            let Some((_, at)) = first_column(&cols, &g.flips) else {
+            let Some((_, at)) = first_column(cols, &g.flips) else {
                 continue;
             };
             let entry = steps
@@ -387,8 +403,15 @@ pub fn persona_surface(repo: &Repo, cells: &[Cell], trees: &[(Version, PathBuf)]
             entry.1.insert(kernel.clone());
         }
     }
+}
+
+/// The newest cells of one platform, configuration and kernel, with their GCC versions, oldest GCC first.
+type Rows<'a> = BTreeMap<(&'a str, &'a str, &'a Version), Vec<(&'a Version, &'a Cell)>>;
+
+/// The Kconfig symbols and flags that change between neighbouring columns with cells, under the newer column. Returns how many kernels had two configurations to compare.
+fn cell_steps(repo: &Repo, cells: &[Cell], steps: &mut BTreeMap<Version, Step>) -> usize {
     let newest = latest(repo, cells);
-    let mut by_row: BTreeMap<(&str, &str, &Version), Vec<(&Version, &Cell)>> = BTreeMap::new();
+    let mut by_row: Rows = BTreeMap::new();
     for ((platform, config, kernel, gcc), c) in &newest {
         by_row
             .entry((platform, config, kernel))
@@ -410,7 +433,8 @@ pub fn persona_surface(repo: &Repo, cells: &[Cell], trees: &[(Version, PathBuf)]
                     let seen = step.symbols.entry((d.symbol, v1.clone())).or_default();
                     seen.platforms.insert((*platform).to_owned());
                     seen.kernels.insert((*kernel).clone());
-                    seen.before.insert(d.from.unwrap_or_else(|| "(absent)".into()));
+                    seen.before
+                        .insert(d.from.unwrap_or_else(|| "(absent)".into()));
                     seen.after.insert(d.to.unwrap_or_else(|| "(absent)".into()));
                 }
             }
@@ -426,6 +450,76 @@ pub fn persona_surface(repo: &Repo, cells: &[Cell], trees: &[(Version, PathBuf)]
             }
         }
     }
+    compared.len()
+}
+
+/// One column's section of the report.
+fn section(out: &mut String, title: &str, s: &Step, name: &dyn Fn(&Version) -> String, all: usize, compared: usize) {
+    if s.gates.is_empty() && s.symbols.is_empty() && s.flags.is_empty() {
+        return;
+    }
+    let _ = write!(out, "\n## {title}\n");
+    if !s.gates.is_empty() {
+        out.push_str(
+            "\n### Version gates\n\n| Flips at | Where | Test | Kernels |\n|---|---|---|---|\n",
+        );
+        let mut rows: Vec<_> = s.gates.iter().collect();
+        rows.sort_by(|a, b| (&a.1.0, &a.0).cmp(&(&b.1.0, &b.0)));
+        for ((file, text), (flips, ks)) in rows {
+            let _ = writeln!(
+                out,
+                "| {flips} | {file} | `{}` | {} |",
+                escape(text).replace('`', "'"),
+                which(ks, all)
+            );
+        }
+    }
+    if !s.symbols.is_empty() {
+        out.push_str("\n### Kconfig symbols\n\n| Symbol | From | Platforms | Kernels | Before | After |\n|---|---|---|---|---|---|\n");
+        for ((symbol, from), seen) in &s.symbols {
+            let _ = writeln!(
+                out,
+                "| {symbol} | {} | {} | {} | {} | {} |",
+                name(from),
+                seen.platforms
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                which(&seen.kernels, compared),
+                one(&seen.before),
+                one(&seen.after)
+            );
+        }
+    }
+    if !s.flags.is_empty() {
+        out.push_str(
+            "\n### Flags\n\n| Flag | Change | From | Platforms | Kernels |\n|---|---|---|---|---|\n",
+        );
+        for ((flag, starts, from), seen) in &s.flags {
+            let _ = writeln!(
+                out,
+                "| `{flag}` | {} | {} | {} | {} |",
+                if *starts { "starts" } else { "stops" },
+                name(from),
+                seen.platforms
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                list(&seen.kernels.iter().cloned().collect::<Vec<_>>())
+            );
+        }
+    }
+}
+
+/// The persona surface, as `reports/persona-surface.md`, from the Current set's newest cells and the trees of its kernels.
+#[must_use]
+pub fn persona_surface(repo: &Repo, cells: &[Cell], trees: &[(Version, PathBuf)]) -> String {
+    let cols = columns(repo);
+    let mut steps: BTreeMap<Version, Step> = BTreeMap::new();
+    gate_steps(&cols, trees, &mut steps);
+    let compared = cell_steps(repo, cells, &mut steps);
     let kernels: Vec<Version> = trees.iter().map(|(k, _)| k.clone()).collect();
     let mut out = format!(
         "# Persona surface\n\nWhat the kernel notices about each GCC release (spec 11.3), over the Current set: {}. A persona that stands for a GCC has to give the same answers to all of it. Written by `gk report persona-surface`.\n\nThree things are listed per GCC column. The version gates are the places the sources test the version outright, in `#if` lines, Makefiles and Kconfig, read from the trees and placed at the first pinned column that gets the other answer. The Kconfig symbols are the `.config` lines that differ from the column before that has a cell, from the newest cells, with `{}` and `{}` left out since they change at every step. The flags are the ones kbuild starts or stops passing to the units, from the cells that kept their `compile.jsonl`. A column with nothing in it is left out of the sections.\n",
@@ -434,7 +528,9 @@ pub fn persona_surface(repo: &Repo, cells: &[Cell], trees: &[(Version, PathBuf)]
         EVERY_STEP[1]
     );
     if steps.is_empty() {
-        out.push_str("\nNothing to list yet: no Current tree was read and no Current cell has run.\n");
+        out.push_str(
+            "\nNothing to list yet: no Current tree was read and no Current cell has run.\n",
+        );
         return out;
     }
     out.push_str("\n| Column | Gates | Kconfig symbols | Flags |\n|---|--:|--:|--:|\n");
@@ -455,50 +551,7 @@ pub fn persona_surface(repo: &Repo, cells: &[Cell], trees: &[(Version, PathBuf)]
     }
     let all = kernels.len();
     for (v, s) in &steps {
-        if s.gates.is_empty() && s.symbols.is_empty() && s.flags.is_empty() {
-            continue;
-        }
-        let _ = write!(out, "\n## {}\n", name(v));
-        if !s.gates.is_empty() {
-            out.push_str("\n### Version gates\n\n| Flips at | Where | Test | Kernels |\n|---|---|---|---|\n");
-            let mut rows: Vec<_> = s.gates.iter().collect();
-            rows.sort_by(|a, b| (&a.1.0, &a.0).cmp(&(&b.1.0, &b.0)));
-            for ((file, text), (flips, ks)) in rows {
-                let _ = writeln!(
-                    out,
-                    "| {flips} | {file} | `{}` | {} |",
-                    escape(text).replace('`', "'"),
-                    which(ks, all)
-                );
-            }
-        }
-        if !s.symbols.is_empty() {
-            out.push_str("\n### Kconfig symbols\n\n| Symbol | From | Platforms | Kernels | Before | After |\n|---|---|---|---|---|---|\n");
-            for ((symbol, from), seen) in &s.symbols {
-                let _ = writeln!(
-                    out,
-                    "| {symbol} | {} | {} | {} | {} | {} |",
-                    name(from),
-                    seen.platforms.iter().cloned().collect::<Vec<_>>().join(", "),
-                    which(&seen.kernels, compared.len()),
-                    one(&seen.before),
-                    one(&seen.after)
-                );
-            }
-        }
-        if !s.flags.is_empty() {
-            out.push_str("\n### Flags\n\n| Flag | | From | Platforms | Kernels |\n|---|---|---|---|---|\n");
-            for ((flag, starts, from), seen) in &s.flags {
-                let _ = writeln!(
-                    out,
-                    "| `{flag}` | {} | {} | {} | {} |",
-                    if *starts { "starts" } else { "stops" },
-                    name(from),
-                    seen.platforms.iter().cloned().collect::<Vec<_>>().join(", "),
-                    list(&seen.kernels.iter().cloned().collect::<Vec<_>>())
-                );
-            }
-        }
+        section(&mut out, &name(v), s, &name, all, compared);
     }
     out
 }
@@ -530,10 +583,19 @@ mod tests {
     #[test]
     fn each_kind_of_gate_is_read_at_the_release_it_flips() {
         assert_eq!(at("#if GCC_VERSION >= 110100"), ["11.1.0"]);
-        assert_eq!(at("\tdepends on GCC_VERSION > 80000 || CC_IS_CLANG"), ["8.0.1"]);
+        assert_eq!(
+            at("\tdepends on GCC_VERSION > 80000 || CC_IS_CLANG"),
+            ["8.0.1"]
+        );
         assert_eq!(at("#if __GNUC__ < 5"), ["5.0.0"]);
-        assert_eq!(at("#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)"), ["4.6.0"]);
-        assert_eq!(at("KBUILD_CFLAGS += $(call cc-ifversion, -lt, 0409, -fno-x)"), ["4.9.0"]);
+        assert_eq!(
+            at("#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)"),
+            ["4.6.0"]
+        );
+        assert_eq!(
+            at("KBUILD_CFLAGS += $(call cc-ifversion, -lt, 0409, -fno-x)"),
+            ["4.9.0"]
+        );
         assert_eq!(at("ifeq ($(call gcc-min-version, 120100),y)"), ["12.1.0"]);
         assert!(at("#define GCC_VERSION (__GNUC__ * 10000)").is_empty());
     }
@@ -543,8 +605,14 @@ mod tests {
         let tree = std::env::temp_dir().join(format!("gk-gates-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tree);
         for (file, text) in [
-            ("include/linux/compiler-gcc.h", "#if GCC_VERSION < 50100\n#error old\n#endif\n"),
-            ("arch/x86/Makefile", "x := $(call cc-ifversion, -ge, 0800, y)\n"),
+            (
+                "include/linux/compiler-gcc.h",
+                "#if GCC_VERSION < 50100\n#error old\n#endif\n",
+            ),
+            (
+                "arch/x86/Makefile",
+                "x := $(call cc-ifversion, -ge, 0800, y)\n",
+            ),
             ("Documentation/x.h", "#if GCC_VERSION >= 90000\n"),
             ("tools/x.c", "#if __GNUC__ >= 9\n"),
             ("init/README", "GCC_VERSION >= 90000\n"),
@@ -562,7 +630,11 @@ mod tests {
         assert_eq!(
             seen,
             [
-                ("include/linux/compiler-gcc.h".to_owned(), 1, "5.1.0".to_owned()),
+                (
+                    "include/linux/compiler-gcc.h".to_owned(),
+                    1,
+                    "5.1.0".to_owned()
+                ),
                 ("arch/x86/Makefile".to_owned(), 1, "8.0.0".to_owned()),
             ]
         );

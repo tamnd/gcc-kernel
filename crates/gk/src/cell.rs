@@ -61,7 +61,11 @@ fn settle_target(version: &Version) -> Option<&'static str> {
 }
 
 /// A kernel's tree, fetched and unpacked into the cache if it is not there yet.
-pub(crate) fn fetched_tree(repo: &Repo, version: &Version, file_name: &str) -> Result<PathBuf, String> {
+pub(crate) fn fetched_tree(
+    repo: &Repo,
+    version: &Version,
+    file_name: &str,
+) -> Result<PathBuf, String> {
     fetch::run(
         repo,
         &Request {
