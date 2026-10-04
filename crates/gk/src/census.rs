@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 /// Platform, configuration, kernel and GCC version.
-type Key = (String, String, Version, Version);
+pub(crate) type Key = (String, String, Version, Version);
 
 /// A symbol that changed on one kernel: the kernel, and the values before and after.
 type Change = (Version, Option<String>, Option<String>);
@@ -21,7 +21,7 @@ type Change = (Version, Option<String>, Option<String>);
 type Kernels<'a> = BTreeMap<&'a Version, Vec<(&'a Version, &'a Cell)>>;
 
 /// Symbols that change at every step, which the tables leave out so the probes stand out.
-const EVERY_STEP: [&str; 2] = ["CC_VERSION_TEXT", "GCC_VERSION"];
+pub(crate) const EVERY_STEP: [&str; 2] = ["CC_VERSION_TEXT", "GCC_VERSION"];
 
 /// The line a kernel belongs to: X.Y from 3.0, and 2.6.Y or the like before.
 pub(crate) fn line(v: &Version) -> Vec<u32> {
@@ -33,7 +33,7 @@ pub(crate) fn line(v: &Version) -> Vec<u32> {
 }
 
 /// The newest cell at every crossing of a Current kernel with an upstream GCC column. When kernel.org moves a line to a new point, the point before it stands in for the line until the new one has cells of its own on that platform and configuration, so a new pin does not empty the reports.
-fn latest<'a>(repo: &Repo, cells: &'a [Cell]) -> BTreeMap<Key, &'a Cell> {
+pub(crate) fn latest<'a>(repo: &Repo, cells: &'a [Cell]) -> BTreeMap<Key, &'a Cell> {
     let lines: Vec<Vec<u32>> = repo
         .kernels
         .in_set("current")
@@ -84,7 +84,7 @@ fn configs(latest: &BTreeMap<Key, &Cell>) -> BTreeSet<String> {
 }
 
 /// Text that is safe inside a markdown table cell.
-fn escape(s: &str) -> String {
+pub(crate) fn escape(s: &str) -> String {
     s.replace('|', "\\|").replace('\n', " ")
 }
 
@@ -345,7 +345,7 @@ pub fn config_differential(repo: &Repo, cells: &[Cell]) -> String {
 }
 
 /// `5.10.270, 6.1.188 and 7.2.8`.
-fn list(kernels: &[Version]) -> String {
+pub(crate) fn list(kernels: &[Version]) -> String {
     let names: Vec<String> = kernels.iter().map(ToString::to_string).collect();
     match names.split_last() {
         None => String::new(),

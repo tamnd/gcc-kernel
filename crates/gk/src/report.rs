@@ -338,7 +338,7 @@ fn latest(repo: &Repo) -> Option<&Gcc> {
 
 /// `gk report new-gcc G|latest [--config C] [--ungraded] [--stdout]`. Writes the report and returns its path, or returns the report itself with `--stdout`.
 pub fn command(repo: &Repo, args: &[String]) -> Result<String, String> {
-    let usage = "usage: gk report new-gcc G|latest [--config C] [--ungraded] [--stdout]";
+    let usage = "usage: gk report new-gcc G|latest [--config C] [--ungraded] [--stdout], or gk report persona-surface [--ungraded] [--stdout]";
     let (mut words, mut config) = (Vec::new(), crate::cell::CONFIG.to_owned());
     let (mut ungraded, mut stdout) = (false, false);
     let mut it = args.iter();
@@ -350,6 +350,17 @@ pub fn command(repo: &Repo, args: &[String]) -> Result<String, String> {
             other if !other.starts_with('-') => words.push(other.to_owned()),
             other => return Err(format!("gk report: unexpected {other:?}")),
         }
+    }
+    if words == ["persona-surface"] {
+        let text = crate::surface::report(repo, &cells(repo, ungraded)?)?;
+        if stdout {
+            return Ok(text);
+        }
+        let name = "reports/persona-surface.md";
+        let dir = repo.root.join("reports");
+        std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
+        std::fs::write(repo.root.join(name), text).map_err(|e| format!("writing {name}: {e}"))?;
+        return Ok(format!("{name}\n"));
     }
     let ["new-gcc", g] = words.iter().map(String::as_str).collect::<Vec<_>>()[..] else {
         return Err(usage.into());

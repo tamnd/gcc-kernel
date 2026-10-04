@@ -1,6 +1,6 @@
 //! `gk`, the gcc-kernel command line.
 //!
-//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `boot`, `probe`, `cell`, `search`, `store`, `publish`, `report`, `config-diff`, `classify`, `triage`, `explain`, `ladder`, `history`, `bisect-kernel` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
+//! Only `check`, `pins`, `fetch`, `forge`, `hosts check`, `pins changed`, `init`, `boot`, `probe`, `cell`, `search`, `store`, `publish`, `report`, `config-diff`, `gates`, `flags-diff`, `classify`, `triage`, `explain`, `ladder`, `history`, `bisect-kernel` and `version` work so far. The rest of the commands in `docs/spec/10-gcc-kernel-repo.md` land with the milestones that need them.
 
 mod bisect;
 mod boot;
@@ -28,6 +28,7 @@ mod report;
 mod search;
 mod status;
 mod store;
+mod surface;
 mod tap;
 
 use gk_model::repo::Repo;
@@ -71,8 +72,14 @@ commands:
              the configuration differences between GCC columns on one kernel (spec 11.3):
              config-diff K [G1 G2] --platform P [--config C], every pair of neighbouring
              columns in the store when no GCCs are named
+  gates      gates K: every place the kernel's tree tests the GCC version, with the release it flips at
+             and the first GCC column that sees it (spec 11.3)
+  flags-diff flags-diff K G1 G2 --platform P [--config C]: the flags kbuild passes to the units with one
+             GCC and not the other, from the cells' compile.jsonl
   report     report new-gcc G [--config C] [--ungraded] [--stdout]: write reports/new-gcc-<version>.md,
-             the release report of spec 10.8 over the Current set
+             the release report of spec 10.8 over the Current set, or report persona-surface
+             [--ungraded] [--stdout]: write reports/persona-surface.md, the gates, Kconfig symbols and
+             flags that change at each GCC column (spec 11.3)
   classify   run signatures.toml over every failed cell in the store and write the class into
              its cell.json, or only print them with --dry-run
   triage     the failed cells no signature names, clustered by first error, largest first
@@ -112,6 +119,14 @@ fn main() -> ExitCode {
         Some("publish") => publish_command(&args[1..]),
         Some("config-diff") => config_diff(&args[1..]),
         Some("report") => report_command(&args[1..]),
+        Some("gates") => {
+            let rest = &args[1..];
+            text_command(|repo| surface::gates_command(repo, rest))
+        }
+        Some("flags-diff") => {
+            let rest = &args[1..];
+            text_command(|_| surface::flags_command(rest))
+        }
         Some("classify") => classify_command(&args[1..]),
         Some("triage") => text_command(classify::triage),
         Some("explain") => {
