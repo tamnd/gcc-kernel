@@ -1462,7 +1462,11 @@ mod tests {
         let makefile = dir.join("Makefile");
         std::fs::write(&makefile, ".PHONY: scripts scripts/fixdep\nscripts:\n\t$(Q)$(MAKE) $(build)=scripts\n\nscripts/fixdep:\n\t$(Q)$(MAKE) $(build)=scripts $@\n").unwrap();
         assert!(scripts_race(&dir));
-        std::fs::write(&makefile, "scripts_basic:\n\t$(Q)$(MAKE) $(build)=scripts/basic\n").unwrap();
+        std::fs::write(
+            &makefile,
+            "scripts_basic:\n\t$(Q)$(MAKE) $(build)=scripts/basic\n",
+        )
+        .unwrap();
         assert!(!scripts_race(&dir));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(!scripts_race(&dir));
