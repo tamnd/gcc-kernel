@@ -996,6 +996,12 @@ fn kunit_reference(repo: &Repo, s: &Setup) -> Result<Reference, String> {
     Ok(Reference::Cell(id, record.suites, record.splats))
 }
 
+/// Whether the top Makefile reaches `scripts/` through two phony targets, `scripts` and `scripts/fixdep`, as in the first 2.6 releases. A parallel build then runs two makes in `scripts/` at once, and they race on the temporary files of `split-include`, so the cell fails whatever the GCC. Those trees get their helpers built first, with one job, which changes nothing that is compiled for the kernel.
+fn scripts_race(tree: &Path) -> bool {
+    std::fs::read_to_string(tree.join("Makefile"))
+        .is_ok_and(|m| m.lines().any(|l| l.starts_with("scripts/fixdep:")))
+}
+
 /// Run a cell up to L4, or up to L6 when it boots, and write its directory. Returns the directory and the record.
 #[allow(clippy::too_many_lines)]
 pub fn run(
@@ -1157,6 +1163,8 @@ pub fn run(
         if kernelorg::is_museum(&s.version) {
             // Before 2.6 the dependencies are made by hand, and one job at a time, before anything is built.
             code = make(&["dep"], "dep.log", 1)?;
+        } else if scripts_race(&s.tree) {
+            code = make(&["V=1", "scripts"], "scripts.log", 1)?;
         }
         if code == 0 {
             code = make(&args, "make.log", jobs)?;
@@ -1445,6 +1453,19 @@ mod tests {
         assert!(!killed(&log));
         assert!(!killed(&dir.join("missing.log")));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn only_the_first_2_6_makefiles_race_in_scripts() {
+        let dir = std::env::temp_dir().join(format!("gk-scripts-race-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let makefile = dir.join("Makefile");
+        std::fs::write(&makefile, ".PHONY: scripts scripts/fixdep\nscripts:\n\t$(Q)$(MAKE) $(build)=scripts\n\nscripts/fixdep:\n\t$(Q)$(MAKE) $(build)=scripts $@\n").unwrap();
+        assert!(scripts_race(&dir));
+        std::fs::write(&makefile, "scripts_basic:\n\t$(Q)$(MAKE) $(build)=scripts/basic\n").unwrap();
+        assert!(!scripts_race(&dir));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(!scripts_race(&dir));
     }
 
     #[test]
