@@ -95,8 +95,8 @@ mkdir b-binutils
       --disable-nls --disable-werror --disable-multilib --disable-shared --enable-static \
       --disable-gdb --disable-gdbserver --disable-sim --disable-gprofng --disable-readline \
       --disable-libdecnumber --enable-deterministic-archives &&
-    # Releases older than about 2.17 have neither the configure-host target nor install-strip at the top level.
-    if make -n configure-host > /dev/null 2>&1; then
+    # Releases older than about 2.17 have neither the configure-host target nor install-strip at the top level. The Makefile is read rather than asked with make -n, which recurses into directories not yet configured and so fails on 2.38 even though the target is there.
+    if grep -q '^configure-host:' Makefile; then
       make MAKEINFO=true -j"$jobs" configure-host
     fi &&
     make MAKEINFO=true -j"$jobs" LDFLAGS=-all-static &&
