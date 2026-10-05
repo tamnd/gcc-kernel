@@ -146,16 +146,19 @@ pub struct FailedUnit {
     pub error: String,
 }
 
-/// Whether a record is a unit: a C or assembly source compiled to an object.
+/// Whether a record is a unit: a C or assembly source compiled to an object, or a C source compiled to assembly. kbuild's prepare step builds `bounds.c`, `asm-offsets.c` and `devicetable-offsets.c` with `-S`, and a flag the compiler refuses fails there first.
 #[must_use]
 pub fn is_unit(record: &CompileRecord) -> bool {
-    !record.probe
-        && record.argv.iter().any(|a| a == "-c")
-        && record.inputs.iter().any(|i| {
+    let has = |ext: &[&str]| {
+        record.inputs.iter().any(|i| {
             Path::new(&i.path)
                 .extension()
-                .is_some_and(|e| e == "c" || e == "S")
+                .is_some_and(|e| ext.iter().any(|x| e == *x))
         })
+    };
+    !record.probe
+        && ((record.argv.iter().any(|a| a == "-c") && has(&["c", "S"]))
+            || (record.argv.iter().any(|a| a == "-S") && has(&["c"])))
 }
 
 /// Count the log.
@@ -460,6 +463,18 @@ mod tests {
             error_census(&records),
             [("'_' undeclared on line N".to_string(), 2)]
         );
+    }
+
+    #[test]
+    fn the_prepare_step_compiles_to_assembly_and_counts() {
+        let log = r#"{"started":1,"argv":["gk-cc","-S","-o","scripts/mod/devicetable-offsets.s","/src/scripts/mod/devicetable-offsets.c"],"compiler":"/g","cwd":"/out","inputs":[{"path":"/src/scripts/mod/devicetable-offsets.c","sha256":"a"}],"wall-seconds":0.1,"exit":1,"stderr":"/src/include/linux/compiler.h:187:1: error: '-mindirect-branch' and '-fcf-protection' are not compatible\n"}
+{"started":1,"argv":["gk-cc","-E","-o","x.lds","/src/x.lds.S"],"compiler":"/g","cwd":"/out","inputs":[{"path":"/src/x.lds.S","sha256":"a"}],"wall-seconds":0.1,"exit":0}
+"#;
+        let (records, _) = parse_log(log);
+        let failed = failing_units(&records, Path::new("/src"));
+        assert_eq!(failed.len(), 1);
+        assert_eq!(failed[0].unit, "scripts/mod/devicetable-offsets.c");
+        assert_eq!(count(&records, 0).units, 1);
     }
 
     #[test]

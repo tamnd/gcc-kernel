@@ -170,13 +170,16 @@ fn stopped(dir: &Path) -> Option<String> {
     (!text.is_empty()).then(|| text.join("\n"))
 }
 
-/// The first failing unit and its command line, from `errors.jsonl` and `compile.jsonl`.
+/// The first failing unit and its command line, from `errors.jsonl` and `compile.jsonl`. A cell run before the prepare step's `-S` units counted has an empty `errors.jsonl` when one of them failed, so `compile.jsonl` is asked again then.
 fn failing_unit(dir: &Path) -> Option<(build::FailedUnit, String)> {
-    let errors = std::fs::read_to_string(dir.join("errors.jsonl")).ok()?;
-    let first: build::FailedUnit = errors.lines().find_map(|l| serde_json::from_str(l).ok())?;
-    let command = gk_cc::record::read_log(&dir.join("compile.jsonl"))
-        .ok()
-        .and_then(|(records, _)| {
+    let records = gk_cc::record::read_log(&dir.join("compile.jsonl")).ok().map(|(r, _)| r);
+    let errors = std::fs::read_to_string(dir.join("errors.jsonl")).unwrap_or_default();
+    let first: build::FailedUnit = errors
+        .lines()
+        .find_map(|l| serde_json::from_str(l).ok())
+        .or_else(|| build::failing_units(records.as_deref()?, Path::new("/src")).into_iter().next())?;
+    let command = records
+        .and_then(|records| {
             records
                 .into_iter()
                 .filter(|r| build::is_unit(r) && !r.succeeded())
