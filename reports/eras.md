@@ -4,28 +4,238 @@ Whether the era GCC of each era works for every kernel in it (spec 11.2), for ru
 
 | Era | Plan eras | From | Era GCC | Rows | Era GCC works | Era GCC does not | Era GCC not run |
 |---|---|---|---|--:|--:|--:|--:|
-| M13 | E10 | 5.18 | gcc-12.2.0 | 1 | 1 | 0 | 0 |
-| M14 | E11 | 6.15 | gcc-14.2.0 | 5 | 2 | 2 | 1 |
+| M0 | E0 | 1.0 | gcc-2.5.8 | 2 | 1 | 1 | 0 |
+| M1 | E0, E1 | 1.3 | gcc-2.7.2.3 | 1 | 1 | 0 | 0 |
+| M2 | E1 | 2.1 | gcc-2.7.2.3 | 1 | 1 | 0 | 0 |
+| M3 | E2 | 2.3 | gcc-2.95.3 | 1 | 1 | 0 | 0 |
+| M4 | E3 | 2.5 | gcc-3.3.6 | 32 | 0 | 32 | 0 |
+| M5 | E4 | 2.6.16 | gcc-4.1.2 | 20 | 11 | 9 | 0 |
+| M6 | E4 | 2.6.26 | gcc-4.3.5 | 5 | 4 | 1 | 0 |
+| M9 | E7 | 4.2 | gcc-6.3.0 | 5 | 0 | 0 | 5 |
+| M10 | E8 | 4.18 | gcc-8.3.0 | 4 | 0 | 0 | 4 |
+| M11 | E8 | 5.5 | debian-bullseye-gcc-10 | 2 | 0 | 2 | 0 |
+| M12 | E9 | 5.12 | debian-bullseye-gcc-10 | 2 | 0 | 2 | 0 |
+| M13 | E10 | 5.18 | gcc-12.2.0 | 10 | 3 | 4 | 3 |
+| M14 | E11 | 6.15 | gcc-14.2.0 | 10 | 2 | 6 | 2 |
 
 ## Proposed changes to personas.toml
 
 Each line is a row where the era GCC does not work. One such row is evidence that the era should split or change its persona (spec 03.3), and the cell says why.
 
-- 6.18.54 on x86_64 (defconfig+gk): gcc-14.2.0 runs at L6, and the nearest working column is gcc-10.5.0.
+- 1.0 on i386 (defconfig+gk): gcc-2.5.8 fails at L2, and no column works.
+- 2.6.0 on i386 (defconfig+gk): gcc-3.3.6 builds at L5, and no column works.
+- 2.6.1 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.2 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.3 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.4 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.5 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.6 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.7 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.8 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.9 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.10 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.11 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.12 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.13 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.14 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.15 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.0 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.1 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.2 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.3 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.4 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.5 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.6 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.7 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.8 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.9 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.10 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.11 on x86_64 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.12 on x86_64 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.13 on x86_64 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.14 on x86_64 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.15 on x86_64 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.16 on i386 (defconfig+gk): gcc-4.1.2 fails at L0, and no column works.
+- 2.6.17 on i386 (defconfig+gk): gcc-4.1.2 builds at L4, and no column works.
+- 2.6.18 on i386 (defconfig+gk): gcc-4.1.2 builds at L4, and no column works.
+- 2.6.19 on i386 (defconfig+gk): gcc-4.1.2 builds at L4, and no column works.
+- 2.6.20 on i386 (defconfig+gk): gcc-4.1.2 builds at L4, and no column works.
+- 2.6.21 on i386 (defconfig+gk): gcc-4.1.2 builds at L4, and no column works.
+- 2.6.22 on i386 (defconfig+gk): gcc-4.1.2 builds at L4, and no column works.
+- 2.6.16 on x86_64 (defconfig+gk): gcc-4.1.2 fails at L0, and the nearest working column is gcc-4.5.4.
+- 2.6.19 on x86_64 (defconfig+gk): gcc-4.1.2 builds at L4, and the nearest working column is gcc-4.0.4.
+- 2.6.27 on i386 (defconfig+gk): gcc-4.3.5 fails at L2, and the nearest working column is gcc-4.0.4.
+- 5.10.270 on x86_64 (defconfig+gk): gcc-10.5.0 runs at L7, and no column works.
+- 5.10.270 on x86_64 (tinyconfig+gk): gcc-10.5.0 builds at L4, and no column works.
+- 5.15.221 on x86_64 (defconfig+gk): gcc-10.5.0 runs at L7, and no column works.
+- 5.15.221 on x86_64 (tinyconfig+gk): gcc-10.5.0 builds at L4, and no column works.
+- 6.1.188 on x86_64 (defconfig+gk): gcc-12.2.0 builds at L4, and no column works.
+- 6.1.188 on x86_64 (tinyconfig+gk): gcc-12.2.0 builds at L4, and no column works.
+- 6.6.157 on x86_64 (tinyconfig+gk): gcc-12.2.0 builds at L4, and no column works.
+- 6.12.111 on x86_64 (tinyconfig+gk): gcc-12.2.0 builds at L4, and no column works.
+- 6.18.54 on arm64 (defconfig+gk): gcc-14.2.0 fails at L2, and no column works.
+- 7.2.8 on arm64 (defconfig+gk): gcc-14.2.0 fails at L2, and no column works.
+- 6.18.54 on x86_64 (defconfig+gk): gcc-14.2.0 runs at L7, and the nearest working column is gcc-14.4.0.
 - 7.2.8 on x86_64 (defconfig+gk): gcc-14.2.0 runs at L7, and the nearest working column is gcc-14.4.0.
+- 6.18.54 on x86_64 (tinyconfig+gk): gcc-14.2.0 builds at L4, and no column works.
+- 7.2.8 on x86_64 (tinyconfig+gk): gcc-14.2.0 builds at L4, and no column works.
+
+## M0, from 1.0, era GCC gcc-2.5.8
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 1.0 | i386 | defconfig+gk | gcc-2.5.8 | 🟥 | empty |  |
+| 1.2.13 | i386 | defconfig+gk | gcc-2.5.8 | 🟩 | gcc-2.5.8 |  |
+
+## M1, from 1.3, era GCC gcc-2.7.2.3
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 2.0.40 | i386 | defconfig+gk | gcc-2.7.2.3 | 🟩 | gcc-2.7.2.3 |  |
+
+## M2, from 2.1, era GCC gcc-2.7.2.3
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 2.2.26 | i386 | defconfig+gk | gcc-2.7.2.3 | 🟩 | gcc-2.7.2.3 to gcc-2.95.3 |  |
+
+## M3, from 2.3, era GCC gcc-2.95.3
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 2.4.37.11 | i386 | defconfig+gk | gcc-2.95.3 | 🟩 | gcc-2.95.3 to gcc-3.1.1 |  |
+
+## M4, from 2.5, era GCC gcc-3.3.6
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 2.6.0 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.1 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.2 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.3 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.4 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.5 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.6 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.7 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.8 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.9 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.10 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.11 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.12 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.13 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.14 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.15 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.0 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.1 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.2 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.3 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.4 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.5 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.6 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.7 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.8 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.9 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.10 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.11 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.12 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.13 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.14 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.15 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+
+## M5, from 2.6.16, era GCC gcc-4.1.2
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 2.6.16 | i386 | defconfig+gk | gcc-4.1.2 | 🟥 | empty |  |
+| 2.6.17 | i386 | defconfig+gk | gcc-4.1.2 | 🟧 | empty |  |
+| 2.6.18 | i386 | defconfig+gk | gcc-4.1.2 | 🟧 | empty |  |
+| 2.6.19 | i386 | defconfig+gk | gcc-4.1.2 | 🟧 | empty |  |
+| 2.6.20 | i386 | defconfig+gk | gcc-4.1.2 | 🟧 | empty |  |
+| 2.6.21 | i386 | defconfig+gk | gcc-4.1.2 | 🟧 | empty |  |
+| 2.6.22 | i386 | defconfig+gk | gcc-4.1.2 | 🟧 | empty |  |
+| 2.6.23 | i386 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.3.6 to gcc-4.3.6 |  |
+| 2.6.24 | i386 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.3.6 to gcc-4.3.6 |  |
+| 2.6.25 | i386 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
+| 2.6.16 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟥 | gcc-3.2.3 to gcc-4.5.4 | gcc-4.5.4 |
+| 2.6.17 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-4.1.2 to gcc-4.2.4 |  |
+| 2.6.18 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
+| 2.6.19 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟧 | gcc-3.3.6 to gcc-4.0.4 | gcc-4.0.4 |
+| 2.6.20 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.2.3 to gcc-4.3.5 |  |
+| 2.6.21 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.2.3 to gcc-4.3.5 |  |
+| 2.6.22 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.3.6 to gcc-4.3.5 |  |
+| 2.6.23 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.4.6 to gcc-4.3.5 |  |
+| 2.6.24 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.2.3 to gcc-4.3.5 |  |
+| 2.6.25 | x86_64 | defconfig+gk | gcc-4.1.2 | 🟩 | gcc-3.3.6 to gcc-4.3.5 |  |
+
+## M6, from 2.6.26, era GCC gcc-4.3.5
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 2.6.26 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.3.6 |  |
+| 2.6.27 | i386 | defconfig+gk | gcc-4.3.5 | 🟥 | gcc-3.3.6 to gcc-4.0.4 | gcc-4.0.4 |
+| 2.6.28 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.4.6 to gcc-4.3.5 |  |
+| 2.6.26 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.3.5 |  |
+| 2.6.32 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.3.5 |  |
+
+## M9, from 4.2, era GCC gcc-6.3.0
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 4.4.302 | x86_64 | defconfig+gk | gcc-6.3.0 |  | empty |  |
+| 4.7.10 | x86_64 | defconfig+gk | gcc-6.3.0 |  | empty |  |
+| 4.8 | x86_64 | defconfig+gk | gcc-6.3.0 |  | empty |  |
+| 4.8.17 | x86_64 | defconfig+gk | gcc-6.3.0 |  | debian-stretch-gcc-6 |  |
+| 4.9 | x86_64 | defconfig+gk | gcc-6.3.0 |  | empty |  |
+
+## M10, from 4.18, era GCC gcc-8.3.0
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 4.19 | x86_64 | defconfig+gk | gcc-8.3.0 |  | empty |  |
+| 4.19.325 | x86_64 | defconfig+gk | gcc-8.3.0 |  | ubuntu-eoan-gcc-9 |  |
+| 5.3 | x86_64 | defconfig+gk | gcc-8.3.0 |  | ubuntu-eoan-gcc-9 |  |
+| 5.3.18 | x86_64 | defconfig+gk | gcc-8.3.0 |  | ubuntu-eoan-gcc-9 |  |
+
+## M11, from 5.5, era GCC debian-bullseye-gcc-10
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 5.10.270 | x86_64 | defconfig+gk | gcc-10.5.0 | 🟨 | empty |  |
+| 5.10.270 | x86_64 | tinyconfig+gk | gcc-10.5.0 | 🟧 | empty |  |
+
+## M12, from 5.12, era GCC debian-bullseye-gcc-10
+
+| Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
+|---|---|---|---|:-:|---|---|
+| 5.15.221 | x86_64 | defconfig+gk | gcc-10.5.0 | 🟨 | empty |  |
+| 5.15.221 | x86_64 | tinyconfig+gk | gcc-10.5.0 | 🟧 | empty |  |
 
 ## M13, from 5.18, era GCC gcc-12.2.0
 
 | Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
 |---|---|---|---|:-:|---|---|
-| 6.12.111 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-12.2.0 |  |
+| 6.12.111 | i386 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-10.5.0 to gcc-12.2.0 |  |
+| 6.1.188 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟧 | empty |  |
+| 6.1.189 | x86_64 | defconfig+gk | gcc-12.2.0 |  | empty |  |
+| 6.6.157 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-11.5.0 to gcc-16.2.0 |  |
+| 6.6.158 | x86_64 | defconfig+gk | gcc-12.2.0 |  | empty |  |
+| 6.12.111 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-11.5.0 to gcc-14.4.0 |  |
+| 6.12.112 | x86_64 | defconfig+gk | gcc-12.2.0 |  | empty |  |
+| 6.1.188 | x86_64 | tinyconfig+gk | gcc-12.2.0 | 🟧 | empty |  |
+| 6.6.157 | x86_64 | tinyconfig+gk | gcc-12.2.0 | 🟧 | empty |  |
+| 6.12.111 | x86_64 | tinyconfig+gk | gcc-12.2.0 | 🟧 | empty |  |
 
 ## M14, from 6.15, era GCC gcc-14.2.0
 
 | Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
 |---|---|---|---|:-:|---|---|
-| 7.2.8 | arm64 | defconfig+gk | gcc-14.2.0 | 🟩 | gcc-14.2.0 |  |
+| 6.18.54 | arm64 | defconfig+gk | gcc-14.2.0 | 🟥 | empty |  |
+| 7.2.8 | arm64 | defconfig+gk | gcc-14.2.0 | 🟥 | empty |  |
 | 7.2.8 | arm64 | tinyconfig+gk | gcc-14.2.0 |  | empty |  |
-| 7.2.8 | i386 | defconfig+gk | gcc-14.2.0 | 🟩 | gcc-8.5.0 to gcc-16.1.0 |  |
-| 6.18.54 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | gcc-10.5.0 | gcc-10.5.0 |
+| 6.18.54 | i386 | defconfig+gk | gcc-14.2.0 | 🟩 | gcc-8.5.0 to gcc-16.2.0 |  |
+| 7.2.8 | i386 | defconfig+gk | gcc-14.2.0 | 🟩 | gcc-8.5.0 to gcc-16.2.0 |  |
+| 6.18.54 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | gcc-10.5.0 to gcc-16.2.0 | gcc-14.4.0 |
+| 6.18.55 | x86_64 | defconfig+gk | gcc-14.2.0 |  | empty |  |
 | 7.2.8 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | gcc-8.5.0 to gcc-16.2.0 | gcc-14.4.0 |
+| 6.18.54 | x86_64 | tinyconfig+gk | gcc-14.2.0 | 🟧 | empty |  |
+| 7.2.8 | x86_64 | tinyconfig+gk | gcc-14.2.0 | 🟧 | empty |  |

@@ -6,16 +6,16 @@ The release report for gcc-16.2.0 (spec 10.8), over the 7 kernels of the Current
 
 ### x86_64
 
-Kernels with a cell: 0 of 7. Of those, 0 run.
+Kernels with a cell: 4 of 7. Of those, 4 run.
 
 | Kernel | Line | Verdict | Rung | Warnings | First error |
 |---|---|---|---|--:|---|
 | 5.10.271 | longterm | not run | | | |
 | 5.15.222 | longterm | not run | | | |
-| 6.1.189 | longterm | not run | | | |
-| 6.6.158 | longterm | not run | | | |
-| 6.12.112 | longterm | not run | | | |
-| 6.18.55 | longterm | not run | | | |
+| 6.1.189 | longterm | runs | L6 | 0 |  |
+| 6.6.158 | longterm | runs | L6 | 0 |  |
+| 6.12.112 | longterm | runs | L6 | 0 |  |
+| 6.18.55 | longterm | runs | L6 | 0 |  |
 | 7.2.9 | stable | not run | | | |
 
 ### i386
