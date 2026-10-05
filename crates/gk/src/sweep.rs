@@ -4,7 +4,6 @@
 //!
 //! A cell of the sweep carries the binutils bundle's digest in its binutils coordinate, where a matrix cell carries the tarball's, which is how the matrix and the reports about the GCC axis leave the sweep's cells out.
 
-use crate::cell::Setup;
 use crate::forge;
 use crate::publish::{self, Entry};
 use crate::search::{self, Column, Options};
@@ -105,55 +104,99 @@ struct Run {
     entry: Entry,
 }
 
-/// The report, `reports/binutils.md`: for each kernel the binutils range that works with its era GCC, the edges and why they fail, and a strip of every column.
-pub fn report(repo: &Repo, ungraded: bool) -> Result<String, String> {
+/// The rows the sweep has run, by platform, configuration, kernel and GCC, each with its runs oldest binutils first.
+type Rows = BTreeMap<(String, String, Version, String), Vec<Run>>;
+
+/// Every row of the store with more cells than the matrix one, where the GCC is the kernel's era GCC.
+fn rows(repo: &Repo, ungraded: bool) -> Result<Rows, String> {
     let catalog = crate::classify::compile(repo);
-    // (platform, config, kernel, gcc) to the runs on it.
-    let mut rows: BTreeMap<(String, String, Version, String), Vec<Run>> = BTreeMap::new();
-    for (dir, r) in store::cells()? {
-        if !(ungraded || r.graded) || r.coordinates.kernel.digest.starts_with("git:") {
+    let mut rows: Rows = BTreeMap::new();
+    for (dir, record) in store::cells()? {
+        if !(ungraded || record.graded) || record.coordinates.kernel.digest.starts_with("git:") {
             continue;
         }
-        let c = &r.coordinates;
-        let (Some(b), Ok(k)) = (
-            repo.binutils.get(&c.binutils.name),
-            c.kernel.name.trim_start_matches("linux-").parse::<Version>(),
+        let coords = &record.coordinates;
+        let (Some(binutils), Ok(kernel)) = (
+            repo.binutils.get(&coords.binutils.name),
+            coords
+                .kernel
+                .name
+                .trim_start_matches("linux-")
+                .parse::<Version>(),
         ) else {
             continue;
         };
-        let Some(p) = repo.platforms.get(&c.platform) else {
+        let Some(platform) = repo.platforms.get(&coords.platform) else {
             continue;
         };
         let era = repo
             .eras
-            .of(&k)
-            .and_then(|e| search::era_column(repo, &e.gcc, &p.triple));
-        if era.as_deref() != Some(c.gcc.name.as_str()) {
+            .of(&kernel)
+            .and_then(|e| search::era_column(repo, &e.gcc, &platform.triple));
+        if era.as_deref() != Some(coords.gcc.name.as_str()) {
             continue;
         }
         let key = (
-            c.platform.clone(),
-            c.config.name.clone(),
-            k,
-            c.gcc.name.clone(),
+            coords.platform.clone(),
+            coords.config.name.clone(),
+            kernel,
+            coords.gcc.name.clone(),
         );
         let runs = rows.entry(key).or_default();
-        let entry = publish::entry(repo, &catalog, &dir, &r);
+        let entry = publish::entry(repo, &catalog, &dir, &record);
         // The newest run of each binutils stands.
-        match runs.iter_mut().find(|x| x.binutils == b.version) {
-            Some(x) if x.entry.started < entry.started => x.entry = entry,
+        match runs.iter_mut().find(|run| run.binutils == binutils.version) {
+            Some(run) if run.entry.started < entry.started => run.entry = entry,
             Some(_) => {}
             None => runs.push(Run {
-                binutils: b.version.clone(),
+                binutils: binutils.version.clone(),
                 entry,
             }),
         }
     }
-    // Only the rows the sweep has been run on: more than the matrix cell.
     rows.retain(|_, runs| runs.len() > 1);
     for runs in rows.values_mut() {
         runs.sort_by(|a, b| a.binutils.cmp(&b.binutils));
     }
+    Ok(rows)
+}
+
+/// One edge of a row in words: the run just beyond the oldest or the newest that works, and why it does not.
+fn edge(runs: &[Run], older: bool) -> String {
+    let ok: Vec<&Run> = runs.iter().filter(|r| r.entry.verdict == "works").collect();
+    let Some(bound) = (if older { ok.first() } else { ok.last() }) else {
+        return String::new();
+    };
+    let beyond = if older {
+        runs.iter().rev().find(|r| r.binutils < bound.binutils)
+    } else {
+        runs.iter().find(|r| r.binutils > bound.binutils)
+    };
+    let Some(r) = beyond else {
+        return "none run".into();
+    };
+    let why = if r.entry.class.is_empty() {
+        r.entry.first_error.clone()
+    } else {
+        r.entry.class.clone()
+    };
+    let why = why.replace('|', "\\|");
+    format!(
+        "{} {} at {}{}",
+        r.binutils,
+        r.entry.verdict,
+        r.entry.rung,
+        if why.is_empty() {
+            String::new()
+        } else {
+            format!(": `{}`", why.chars().take(80).collect::<String>())
+        }
+    )
+}
+
+/// The report, `reports/binutils.md`: for each kernel the binutils range that works with its era GCC, the edges and why they fail, and a strip of every column.
+pub fn report(repo: &Repo, ungraded: bool) -> Result<String, String> {
+    let rows = rows(repo, ungraded)?;
     let all = columns(repo, "");
     let mut out = String::new();
     out.push_str("# The binutils sweep\n\n");
@@ -177,43 +220,11 @@ pub fn report(repo: &Repo, ungraded: bool) -> Result<String, String> {
             (Some(a), Some(b)) => (a.binutils.to_string(), b.binutils.to_string()),
             _ => ("none".into(), "none".into()),
         };
-        let edge = |older: bool| -> String {
-            let Some(bound) = (if older { ok.first() } else { ok.last() }) else {
-                return String::new();
-            };
-            let beyond = if older {
-                runs.iter().rev().find(|r| r.binutils < bound.binutils)
-            } else {
-                runs.iter().find(|r| r.binutils > bound.binutils)
-            };
-            match beyond {
-                None => "none run".into(),
-                Some(r) => {
-                    let why = if r.entry.class.is_empty() {
-                        r.entry.first_error.clone()
-                    } else {
-                        r.entry.class.clone()
-                    };
-                    let why = why.replace('|', "\\|");
-                    format!(
-                        "{} {} at {}{}",
-                        r.binutils,
-                        r.entry.verdict,
-                        r.entry.rung,
-                        if why.is_empty() {
-                            String::new()
-                        } else {
-                            format!(": `{}`", why.chars().take(80).collect::<String>())
-                        }
-                    )
-                }
-            }
-        };
         let _ = writeln!(
             out,
             "| {kernel} | {gcc} | {from} | {to} | {} | {} |",
-            edge(true),
-            edge(false)
+            edge(runs, true),
+            edge(runs, false)
         );
     }
     out.push_str("\n## Every column\n\nOne character for each binutils series, oldest first: `#` works, `+` builds or runs but does not pass every rung, `x` fails, and a dot is not run.\n\n```\n");
