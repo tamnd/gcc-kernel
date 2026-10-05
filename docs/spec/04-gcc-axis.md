@@ -55,6 +55,8 @@ Distributions ship GCC with changed defaults, and several of those changes broke
 | Ubuntu 19.10 and later `gcc` | `-fstack-clash-protection` | **(unverified whether any kernel noticed)** | |
 | Debian and Ubuntu, `--enable-default-pie` everywhere | PIE on every architecture | tier 2 kernels of the same period | |
 | Fedora and RHEL `gcc` | `_FORTIFY_SOURCE` and annobin via spec files | only with the distribution's `redhat-rpm-config`, which a kernel build does not pick up. Not a column unless a finding shows otherwise | |
+| Arch `gcc` | PIE and `-fstack-protector-strong` | the same kernels as the Debian and Ubuntu columns, which already carry both. Not a column (13, question 6) | |
+| openSUSE `gcc` | PIE, only with the optional `gcc-PIE` package | as for Arch. Not a column (13, question 6) | |
 
 A distribution column is run only on the kernels around each change: the row range from two years before the fix to the fix, on x86_64 and one tier 2 platform. That is enough to reproduce the break and the fix. It is not searched over the whole axis.
 
