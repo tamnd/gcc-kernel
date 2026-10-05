@@ -100,10 +100,11 @@ mkdir b-binutils
       make MAKEINFO=true -j"$jobs" configure-host
     fi &&
     make MAKEINFO=true -j"$jobs" LDFLAGS=-all-static &&
+    # The install is told to link statically as well, because where make -n install-strip fails, as on 2.38, the plain install goes back through all and links anything it thinks is stale with the LDFLAGS it was given.
     if make -n install-strip > /dev/null 2>&1; then
-      make MAKEINFO=true install-strip
+      make MAKEINFO=true LDFLAGS=-all-static install-strip
     else
-      make MAKEINFO=true install && { strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true; }
+      make MAKEINFO=true LDFLAGS=-all-static install && { strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true; }
     fi &&
     test -x "$prefix/bin/$GK_TARGET-as"
 ) > binutils.log 2>&1 || failed binutils.log 60
