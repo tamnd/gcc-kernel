@@ -164,8 +164,8 @@ mkdir b-gcc
     if [ "$gcc_series" -ge 403 ]; then
       make MAKEINFO=true -j"$jobs" all-target-libgcc
     fi &&
-    # install-strip-gcc came in 4.4. Before that the tools are installed as they are and stripped here.
-    if make -n install-strip-gcc > /dev/null 2>&1; then
+    # install-strip-gcc came in 4.4. Before that the tools are installed as they are and stripped here. This goes by the version and not by `make -n`, since a dry run still carries out every recipe line that names $(MAKE), and in the gcc directory one of those runs fixincludes over the headers the build already made.
+    if [ "$gcc_series" -ge 404 ]; then
       make MAKEINFO=true install-strip-gcc
     else
       # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there, before it gets to the driver, which it installs last. 2.95 stops without an error and EGCS with one, so before 3.0 a failed install-gcc is let through, and the check for the driver below still catches one that did not get installed.
