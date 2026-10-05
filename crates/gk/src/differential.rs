@@ -30,7 +30,11 @@ fn columns(
             .name
             .trim_start_matches("linux-")
             .parse::<Version>();
-        if c.platform != platform || c.config.name != config || k.as_ref() != Ok(kernel) {
+        if c.platform != platform
+            || c.config.name != config
+            || k.as_ref() != Ok(kernel)
+            || crate::sweep::swept(repo, c)
+        {
             continue;
         }
         if config_of(&dir).is_none() {

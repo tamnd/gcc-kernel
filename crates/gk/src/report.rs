@@ -65,6 +65,7 @@ pub fn cells(repo: &Repo, ungraded: bool) -> Result<Vec<Cell>, String> {
     Ok(store::cells()?
         .into_iter()
         .filter(|(_, r)| ungraded || r.graded)
+        .filter(|(_, r)| !crate::sweep::swept(repo, &r.coordinates))
         .map(|(dir, r)| {
             let warnings = std::fs::read_to_string(dir.join("warnings.jsonl"))
                 .unwrap_or_default()
@@ -338,7 +339,7 @@ fn latest(repo: &Repo) -> Option<&Gcc> {
 
 /// `gk report new-gcc G|latest [--config C] [--ungraded] [--stdout]`. Writes the report and returns its path, or returns the report itself with `--stdout`.
 pub fn command(repo: &Repo, args: &[String]) -> Result<String, String> {
-    let usage = "usage: gk report new-gcc G|latest [--config C] [--ungraded] [--stdout], gk report persona-surface [--ungraded] [--stdout], or gk report distributions [--ungraded] [--stdout]";
+    let usage = "usage: gk report new-gcc G|latest [--config C] [--ungraded] [--stdout], or gk report persona-surface|distributions|binutils [--ungraded] [--stdout]";
     let (mut words, mut config) = (Vec::new(), crate::cell::CONFIG.to_owned());
     let (mut ungraded, mut stdout) = (false, false);
     let mut it = args.iter();
@@ -350,6 +351,15 @@ pub fn command(repo: &Repo, args: &[String]) -> Result<String, String> {
             other if !other.starts_with('-') => words.push(other.to_owned()),
             other => return Err(format!("gk report: unexpected {other:?}")),
         }
+    }
+    if words == ["binutils"] {
+        let text = crate::sweep::report(repo, ungraded)?;
+        if stdout {
+            return Ok(text);
+        }
+        let name = "reports/binutils.md";
+        std::fs::write(repo.root.join(name), text).map_err(|e| format!("writing {name}: {e}"))?;
+        return Ok(format!("{name}\n"));
     }
     if words == ["persona-surface"] {
         let text = crate::surface::report(repo, &cells(repo, ungraded)?)?;

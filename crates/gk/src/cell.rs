@@ -301,6 +301,32 @@ impl Setup {
         })
     }
 
+    /// The same cell with another binutils laid over the bundle's own, for the binutils sweep (spec 04.6). The binutils coordinate names the release and the digest of its bundle. With the paired release the cell is left as it is, so the sweep's baseline is the matrix cell itself.
+    pub fn with_binutils(mut self, repo: &Repo, binutils: &str) -> Result<Self, String> {
+        let b = repo
+            .binutils
+            .releases
+            .iter()
+            .find(|b| b.id == binutils || b.version.as_str() == binutils)
+            .ok_or_else(|| format!("binutils {binutils} is not in binutils.toml"))?;
+        if b.version.as_str() == self.bundle.binutils {
+            return Ok(self);
+        }
+        if !self.bundle.package.is_empty() {
+            return Err(format!(
+                "{} is a distribution column, whose binutils is its own",
+                self.bundle.id
+            ));
+        }
+        let m = forge::manifest(&b.id, &self.bundle.target)?;
+        self.bundle_dir = forge::combined(&self.bundle, &m)?;
+        self.coordinates.binutils = Named {
+            name: b.id.clone(),
+            digest: m.digest,
+        };
+        Ok(self)
+    }
+
     /// The compiler `build.json` names. A distribution column's driver is read from its manifest, since its links do not resolve on the machine running gk.
     fn compiler(&self) -> build::Compiler {
         let mut c = build::Compiler::of(&self.bundle_dir, &self.bundle.target, &self.real_cc());

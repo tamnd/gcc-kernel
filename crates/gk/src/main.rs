@@ -31,6 +31,7 @@ mod search;
 mod status;
 mod store;
 mod surface;
+mod sweep;
 mod tap;
 
 use gk_model::repo::Repo;
@@ -49,7 +50,7 @@ commands:
              or with --sweep the incremental runs of spec 09.7 as gk command lines
   fetch      download and check pinned tarballs into the cache:
              --kernel K, --gcc G, --binutils B (each can repeat), or --all
-  forge      build a static toolchain bundle: forge G [--target T] [--jobs N]
+  forge      build a static toolchain bundle: forge G [--target T] [--jobs N], or binutils alone: forge B --target T
   forge verify [G...]
              check every bundle in the cache, in every host
   hosts check
@@ -60,9 +61,11 @@ commands:
              boot IMAGE --platform P --kernel K [--suite S] [--dir D], writing boot.log and boot.json
   probe      the accept probe: probe K G --platform P
   cell       run one cell and write its directory, booting it to L6 where gk-init covers the kernel:
-             cell K G --platform P [--config C] [--jobs N] [--keep] [--ungraded] [--no-boot],
+             cell K G --platform P [--config C] [--binutils B] [--jobs N] [--keep] [--ungraded] [--no-boot],
              where C is defconfig+gk (the default), tinyconfig+gk, allnoconfig+gk or allmodconfig,
              which is built and never booted
+  binutils-sweep
+             sweep the binutils of one row with its era GCC: binutils-sweep K --platform P [--config C] [--jobs N] [--rerun]
   search     search one row for the edges of its working set, or run every cell with --dense: search K --platform P [--dense] [--seed N] [--config C] [--jobs N] [--rerun]
              [--keep] [--ungraded] [--no-boot]. Cells already in the store are not run again.
   publish    write matrix/matrix.json, the heat maps, warning census and config differential in reports/
@@ -117,7 +120,7 @@ fn main() -> ExitCode {
         Some("init") => init(&args[1..]),
         Some("boot") => boot_command(&args[1..]),
         Some("store") => store_command(&args[1..]),
-        Some("search") => search_command(&args[1..]),
+        Some(c @ ("search" | "binutils-sweep")) => search_command(c, &args[1..]),
         Some("publish") => publish_command(&args[1..]),
         Some("config-diff") => config_diff(&args[1..]),
         Some("report") => report_command(&args[1..]),
@@ -275,7 +278,7 @@ fn bisect_command(args: &[String]) -> ExitCode {
 }
 
 /// `gk search K --platform P [--dense]`.
-fn search_command(args: &[String]) -> ExitCode {
+fn search_command(command: &str, args: &[String]) -> ExitCode {
     let mut opts = search::Options {
         dense: false,
         seed: None,
@@ -293,17 +296,17 @@ fn search_command(args: &[String]) -> ExitCode {
             "--config" => match it.next().map(|c| cell::config_named(c)) {
                 Some(Ok(c)) => opts.config = c.0,
                 Some(Err(e)) => {
-                    eprintln!("gk search: {e}");
+                    eprintln!("gk {command}: {e}");
                     return ExitCode::from(2);
                 }
                 None => {
-                    eprintln!("gk search: --config needs a value");
+                    eprintln!("gk {command}: --config needs a value");
                     return ExitCode::from(2);
                 }
             },
             "--jobs" => {
                 let Some(n) = it.next().and_then(|v| v.parse().ok()) else {
-                    eprintln!("gk search: --jobs takes a number");
+                    eprintln!("gk {command}: --jobs takes a number");
                     return ExitCode::from(2);
                 };
                 opts.jobs = n;
@@ -311,7 +314,7 @@ fn search_command(args: &[String]) -> ExitCode {
             "--dense" => opts.dense = true,
             "--seed" => {
                 let Some(n) = it.next().and_then(|v| v.parse().ok()) else {
-                    eprintln!("gk search: --seed takes a number");
+                    eprintln!("gk {command}: --seed takes a number");
                     return ExitCode::from(2);
                 };
                 opts.seed = Some(n);
@@ -322,13 +325,13 @@ fn search_command(args: &[String]) -> ExitCode {
             "--ungraded" => ungraded = true,
             other if !other.starts_with('-') && kernel.is_none() => kernel = Some(other.to_owned()),
             other => {
-                eprintln!("gk search: unknown argument {other:?}");
+                eprintln!("gk {command}: unknown argument {other:?}");
                 return ExitCode::from(2);
             }
         }
     }
     let (Some(kernel), Some(platform)) = (kernel, platform) else {
-        eprintln!("gk search: as in gk search 7.2.8 --platform x86_64 [--dense]");
+        eprintln!("gk {command}: as in gk {command} 7.2.8 --platform x86_64");
         return ExitCode::from(2);
     };
     let result = Repo::find().and_then(|repo| {
@@ -337,7 +340,11 @@ fn search_command(args: &[String]) -> ExitCode {
                 "the checkout has uncommitted changes; commit them or pass --ungraded".into(),
             );
         }
-        let row = search::run(&repo, &kernel, &platform, opts)?;
+        let row = if command == "binutils-sweep" {
+            sweep::run(&repo, &kernel, &platform, opts)?
+        } else {
+            search::run(&repo, &kernel, &platform, opts)?
+        };
         let broken = row
             .iter()
             .filter(|(_, c)| matches!(c, search::Column::Broken(_)))
@@ -505,13 +512,14 @@ fn store_command(args: &[String]) -> ExitCode {
 fn cell(command: &str, args: &[String]) -> ExitCode {
     let mut positional = Vec::new();
     let mut platform = None;
+    let mut binutils: Option<String> = None;
     let mut config = cell::CONFIG.to_owned();
     let mut jobs = std::thread::available_parallelism().map_or(8, std::num::NonZero::get);
     let (mut keep, mut ungraded, mut no_boot) = (false, false, false);
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
-            "--platform" | "--jobs" | "--config" => {
+            "--platform" | "--jobs" | "--config" | "--binutils" => {
                 let Some(v) = it.next() else {
                     eprintln!("gk {command}: {a} needs a value");
                     return ExitCode::from(2);
@@ -520,6 +528,8 @@ fn cell(command: &str, args: &[String]) -> ExitCode {
                     platform = Some(v.clone());
                 } else if a == "--config" {
                     config.clone_from(v);
+                } else if a == "--binutils" {
+                    binutils = Some(v.clone());
                 } else if let Ok(n) = v.parse() {
                     jobs = n;
                 } else {
@@ -542,7 +552,10 @@ fn cell(command: &str, args: &[String]) -> ExitCode {
         return ExitCode::from(2);
     };
     let result = Repo::find().and_then(|repo| {
-        let setup = cell::Setup::new(&repo, kernel, gcc, &platform, &config)?;
+        let mut setup = cell::Setup::new(&repo, kernel, gcc, &platform, &config)?;
+        if let Some(b) = &binutils {
+            setup = setup.with_binutils(&repo, b)?;
+        }
         if command == "probe" {
             let dir = fetch::cache_dir()
                 .join("scratch")

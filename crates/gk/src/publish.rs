@@ -153,6 +153,7 @@ pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
         .iter()
         .filter(|(_, r)| ungraded || r.graded)
         .filter(|(_, r)| !r.coordinates.kernel.digest.starts_with("git:"))
+        .filter(|(_, r)| !crate::sweep::swept(repo, &r.coordinates))
         .map(|(dir, r)| entry(repo, &catalog, dir, r))
         .collect();
     let gcc_version = |id: &str| {
