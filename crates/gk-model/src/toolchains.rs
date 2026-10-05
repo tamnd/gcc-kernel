@@ -33,9 +33,12 @@ pub struct Gcc {
     /// Why the mirror has no detached signature for the tarball, when it has none. A tarball with a reason here is held to its SHA-256 pin alone, and every other one has to carry a good signature from `keys/gnu.asc` as well.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub unsigned: String,
-    /// The forge container that builds it.
+    /// The forge container that builds it, or for a distribution column the host image whose own GCC it is.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub forge: String,
+    /// The distribution package whose driver a distribution column is, as `gcc-6`, which installs `/usr/bin/gcc-6` (spec 04.3).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub package: String,
     /// The GNU triples its bundle is built for.
     #[serde(default)]
     pub targets: Vec<String>,
@@ -174,6 +177,7 @@ mod tests {
             sha256: String::new(),
             unsigned: String::new(),
             forge: String::new(),
+            package: String::new(),
             targets: vec![],
             tools: String::new(),
             binutils: "auto".into(),

@@ -534,3 +534,15 @@ forge = "gk-forge-modern"
 targets = ["x86_64-linux-gnu", "aarch64-linux-gnu", "i686-linux-gnu", "arm-linux-gnueabi", "riscv64-linux-gnu", "powerpc64le-linux-gnu", "s390x-linux-gnu", "loongarch64-linux-gnu", "mips-linux-gnu", "powerpc-linux-gnu", "powerpc64-linux-gnu", "sparc64-linux-gnu", "m68k-linux-gnu", "alpha-linux-gnu", "hppa-linux-gnu", "sh4-linux-gnu", "or1k-linux-gnu", "xtensa-linux-gnu", "microblaze-linux-gnu"]
 binutils = "auto"
 columns = ["last-point"]
+
+[[gcc]]
+id = "debian-stretch-gcc-6"
+version = "6.3.0"
+flavor = "debian"
+released = "2017-06-17"
+forge = "gk-host-stretch"
+package = "gcc-6"
+targets = ["x86_64-linux-gnu"]
+binutils = "auto"
+columns = ["distribution"]
+why = "Debian stretch's own gcc-6, built with --enable-default-pie. Kernels before 8ae94224c9d7 and c6a385539175 (v4.9-rc6) fail to build with it, and upstream 6.3.0 does not show that. Run in gk-host-stretch with stretch's binutils 2.28, on the rows around the fix (spec 04.3)."

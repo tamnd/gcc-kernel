@@ -60,7 +60,7 @@ Distributions ship GCC with changed defaults, and several of those changes broke
 
 A distribution column is run only on the kernels around each change: the row range from two years before the fix to the fix, on x86_64 and one tier 2 platform. That is enough to reproduce the break and the fix. It is not searched over the whole axis.
 
-Distribution columns cannot be static bundles: their binaries come from the distribution. They run only in their own distribution's host image, so they only get cells where the kernel's era host is that image or where the binary runs in the era host (checked by `gk forge verify --host`). Everything else is **not run** with that reason.
+Distribution columns cannot be static bundles: their binaries come from the distribution. A column names the host image it comes from and the package, as `gk-host-stretch` and `gcc-6`. `gk forge` makes its bundle in that image with `provision/forge/distribution.sh`: a `bin` directory of links from the target's tool names to the package's driver and the image's binutils, and a `.gk-distribution` file that records the package versions and the SHA-256 of the driver, `cc1`, `as` and `ld`, so the bundle's digest changes when the image's compiler does. The manifest carries the driver's version line, since the links resolve nowhere but in the image. Its cells run in that image whatever the kernel's era, and their binutils coordinate is the distribution's package, named for its version and held to the bundle's digest. `gk forge verify` checks the bundle in that image alone. A kernel the image cannot build for reasons of its own, such as a make too new for it, is **not run** with that reason.
 
 ## 4.4 The forge
 
