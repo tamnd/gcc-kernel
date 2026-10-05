@@ -236,6 +236,16 @@ gcc = ">=6"
 flavor = ["debian", "ubuntu"]
 
 [[signature]]
+class = "distro-cf-protection"
+rung = "L3"
+match = { first-error = 'mindirect-branch\W+ and \W+fcf-protection\W+ are not compatible' }
+kind = "default-change"
+summary = "Ubuntu GCC 9 and later build with -fcf-protection by default, which GCC refuses next to the retpoline flags"
+fixed-by = [ { commit = "29be86d7f9cb", first-tag = "v5.3" } ]
+gcc = ">=9"
+flavor = ["ubuntu"]
+
+[[signature]]
 class = "fno-common"
 rung = "L3"
 match = { first-error = 'multiple definition of `' }
