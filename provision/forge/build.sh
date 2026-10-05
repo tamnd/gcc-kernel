@@ -87,10 +87,6 @@ fi
 
 log "binutils for $GK_TARGET"
 mkdir b-binutils
-# The install of 2.38 relinks every program without the LDFLAGS make was given, so a binutils bundle of its own tells the compiler itself to link statically, as the oldest GCCs are. The bundles of a GCC keep the flags they were forged with.
-if [ -z "$GK_GCC" ]; then
-  export CC="${CC:-gcc} -static"
-fi
 # set -e does not reach into a subshell on the left of ||, so each step is chained, here and in both GCC builds below. Without that a make that fails goes on to the next step, and the log ends on an install that cannot find what the failed step should have made.
 (
   cd b-binutils &&
@@ -104,10 +100,11 @@ fi
       make MAKEINFO=true -j"$jobs" configure-host
     fi &&
     make MAKEINFO=true -j"$jobs" LDFLAGS=-all-static &&
-    if make -n install-strip > /dev/null 2>&1; then
-      make MAKEINFO=true install-strip
+    # make -n still runs every recipe line that names $(MAKE), and on 2.38 that relinks the programs without the LDFLAGS below, so the probe reads the Makefile here too, and the install is told to link statically in case it finds anything stale.
+    if grep -q '^install-strip:' Makefile; then
+      make MAKEINFO=true LDFLAGS=-all-static install-strip
     else
-      make MAKEINFO=true install && { strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true; }
+      make MAKEINFO=true LDFLAGS=-all-static install && { strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true; }
     fi &&
     test -x "$prefix/bin/$GK_TARGET-as"
 ) > binutils.log 2>&1 || failed binutils.log 60
