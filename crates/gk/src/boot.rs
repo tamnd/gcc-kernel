@@ -91,6 +91,9 @@ pub struct Outcome {
     /// Every check, in the order they ran.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub checks: Vec<Check>,
+    /// The checks the kernel has nothing for, whose failure does not count, from [`excused`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub excused: Vec<String>,
     /// The status `GK-END` reported, `pass` or `fail`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
@@ -121,6 +124,7 @@ impl Outcome {
             booted: None,
             suite: None,
             checks: Vec::new(),
+            excused: Vec::new(),
             status: None,
             panic: None,
             splats: Vec::new(),
@@ -137,13 +141,20 @@ impl Outcome {
         self.booted.is_some()
     }
 
-    /// Whether the suite ended with every check passed and the kernel never died, which is L6 for `smoke`.
+    /// Whether the suite ended with every check passed but the excused ones and the kernel never died, which is L6 for `smoke`.
     #[must_use]
     pub fn passed(&self) -> bool {
-        self.status.as_deref() == Some("pass")
+        let counts = |c: &Check| !self.excused.contains(&c.name);
+        let status_ok = match self.status.as_deref() {
+            Some("pass") => true,
+            // init says fail when any check failed, so a fail is a pass when every check that failed is excused.
+            Some("fail") => self.checks.iter().any(|c| !c.pass),
+            _ => false,
+        };
+        status_ok
             && self.panic.is_none()
             && !self.checks.is_empty()
-            && self.checks.iter().all(|c| c.pass)
+            && self.checks.iter().all(|c| c.pass || !counts(c))
     }
 
     /// Whether the end marker has been read.
@@ -251,6 +262,16 @@ pub fn strip_timestamp(line: &str) -> &str {
     }
 }
 
+/// The smoke checks a kernel has nothing for. `sysfs` opens `/sys/kernel`, which 2.6.10 added, so before it the check fails on every column alike.
+#[must_use]
+pub fn excused(version: &Version) -> Vec<String> {
+    if !initramfs::museum(version) && version.series(3) < [2, 6, 10].to_vec() {
+        vec!["sysfs".into()]
+    } else {
+        Vec::new()
+    }
+}
+
 /// The kernel command line for a boot.
 ///
 /// The fragments build every KUnit suite in, and they run before init, which under TCG takes longer than the whole boot budget. So every suite but `kunit` turns them off: `kunit.enable=0` from 6.2, and a filter that matches no suite from 5.10 to 6.1. A kernel ignores the one it does not know.
@@ -269,10 +290,10 @@ pub fn append(console: &str, suite: &str, version: &Version) -> String {
 /// The memory of a museum boot, in MB. Kernels before 2.2 size memory with a BIOS call that stops at 64 MB, and 1.x tests every page at boot.
 pub const MUSEUM_MEMORY: u32 = 32;
 
-/// Where the container mounts what the kernel boots from: the initramfs from 2.6 on, and the museum root image before.
+/// Where the container mounts what the kernel boots from: the initramfs from 2.6.6 on, and a root image before.
 #[must_use]
 pub fn root_path(version: &Version) -> &'static str {
-    if initramfs::museum(version) {
+    if initramfs::museum(version) || initramfs::mounts_root(version) {
         "/boot/root.img"
     } else {
         "/boot/initramfs.cpio"
@@ -393,6 +414,20 @@ pub fn qemu_command(
         rest.extend(["-nic", "none", "-no-reboot"].map(String::from));
         rest
     } else {
+        let mut append = append(console, suite, version);
+        let root: [String; 2] = if initramfs::mounts_root(version) {
+            // The root disk is mounted read only and the kernel writes to it, so the writes go to a scratch overlay.
+            append.push_str(" root=/dev/hda rw init=/init");
+            [
+                "-drive".into(),
+                format!(
+                    "file={},format=raw,if=ide,index=0,snapshot=on",
+                    root_path(version)
+                ),
+            ]
+        } else {
+            ["-initrd".into(), root_path(version).into()]
+        };
         [
             "-smp",
             &CPUS.to_string(),
@@ -400,10 +435,10 @@ pub fn qemu_command(
             &MEMORY.to_string(),
             "-kernel",
             "/boot/kernel",
-            "-initrd",
-            "/boot/initramfs.cpio",
+            &root[0],
+            &root[1],
             "-append",
-            &append(console, suite, version),
+            &append,
             "-nographic",
             "-monitor",
             "none",
@@ -516,6 +551,7 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
             .map_or(0, |d| d.as_nanos())
     );
     let mut outcome = Outcome::new(command.clone(), qemu, init.digest);
+    outcome.excused = excused(b.version);
     let clock = Instant::now();
     let budget = Duration::from_secs(u64::from(if b.suite == "kunit" {
         b.platform.budget.kunit_seconds()
@@ -925,6 +961,49 @@ mod tests {
             museum_append("ttyS0", "smoke", &v),
             "console=ttyS0 root=/dev/ram0 rw panic=-1 noapic gk.suite=smoke gk.kernel=2.2.26"
         );
+    }
+
+    #[test]
+    fn an_excused_check_does_not_fail_the_suite() {
+        let lines = [
+            "GK-BOOTED 2.6.0",
+            "GK-BEGIN smoke",
+            "GK-CHECK pid-1 pass",
+            "GK-CHECK sysfs fail",
+            "GK-END smoke fail 1",
+        ];
+        let mut o = read(&lines);
+        assert!(!o.passed());
+        o.excused = excused(&"2.6.0".parse().unwrap());
+        assert!(o.passed());
+        assert!(excused(&"2.6.10".parse().unwrap()).is_empty());
+        let mut other = read(&[
+            "GK-BOOTED 2.6.0",
+            "GK-BEGIN smoke",
+            "GK-CHECK pid-1 fail",
+            "GK-CHECK sysfs fail",
+            "GK-END smoke fail 2",
+        ]);
+        other.excused = vec!["sysfs".into()];
+        assert!(!other.passed());
+    }
+
+    #[test]
+    fn the_first_2_6_kernels_boot_from_a_disk() {
+        let repo = gk_model::repo::Repo::load(std::path::Path::new("../..")).unwrap();
+        let p = repo.platforms.get("i386").unwrap();
+        let joined = |v: &str| {
+            qemu_command(p, &v.parse().unwrap(), "smoke", 0x206)
+                .unwrap()
+                .join(" ")
+        };
+        let early = joined("2.6.5");
+        assert!(early.contains("-drive file=/boot/root.img,format=raw,if=ide,index=0,snapshot=on"));
+        assert!(early.contains(" root=/dev/hda rw init=/init"));
+        assert!(!early.contains("-initrd"));
+        let later = joined("2.6.6");
+        assert!(later.contains("-initrd /boot/initramfs.cpio"));
+        assert!(!later.contains("root="));
     }
 
     #[test]
