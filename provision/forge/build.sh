@@ -31,7 +31,8 @@ log() { echo "gk-forge: $*" >&2; }
 # A failed step shows the first errors in its log as well as the end of it, since a make that keeps going buries the cause under the install that fails after it.
 failed() {
   log "first errors in $1:"
-  grep -n -B3 -E 'error|Error [0-9]' "$1" | head -n 40 >&2
+  # Configure checks for strerror and ferror_unlocked, which are not errors. With pipefail a grep that head stops early fails the pipeline, so its status is dropped, or the end of the log below would never be printed.
+  { grep -n -B3 -E '(^|[^a-z_])error|Error [0-9]' "$1" || true; } | head -n 40 >&2
   log "end of $1:"
   tail -n "$2" "$1" >&2
   exit 1
