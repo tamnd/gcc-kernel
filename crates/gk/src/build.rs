@@ -300,6 +300,19 @@ pub fn failure_lines(log: &str, n: usize) -> Vec<String> {
         .collect()
 }
 
+/// What `stopped` says of a build that ran out of its budget.
+const OVER_BUDGET: &str = "the build went over its budget";
+
+/// Whether the cell in `dir` stopped because its build went over the budget, from its `build.json`. On a loaded machine that says more about the machine than the cell, so a search runs such a cell again.
+#[must_use]
+pub fn over_budget(dir: &Path) -> bool {
+    std::fs::read_to_string(dir.join("build.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|v| v.get("stopped")?.get(1)?.as_array().cloned())
+        .is_some_and(|lines| lines.iter().any(|l| l.as_str() == Some(OVER_BUDGET)))
+}
+
 /// Why a build stopped, when no failed unit explains it.
 #[must_use]
 pub fn stopped(
@@ -310,10 +323,7 @@ pub fn stopped(
     timed_out: bool,
 ) -> Option<(String, Vec<String>)> {
     if timed_out {
-        return Some((
-            "make.log".into(),
-            vec!["the build went over its budget".into()],
-        ));
+        return Some(("make.log".into(), vec![OVER_BUDGET.into()]));
     }
     let log = if !configured {
         "config.log"
@@ -411,6 +421,22 @@ mod tests {
 {"started":1,"argv":["gk-cc","-c","-o","kernel/exit.o","../src/kernel/exit.c"],"compiler":"/g","cwd":"/out","inputs":[{"path":"../src/kernel/exit.c","sha256":"a"}],"wall-seconds":0.1,"exit":1,"stderr":"/src/kernel/exit.c:12:3: error: 'x' undeclared on line 40\n"}
 {"started":1,"argv":["gk-cc","-c","-o","mm/slub.o","/src/mm/slub.c"],"compiler":"/g","cwd":"/out","inputs":[{"path":"/src/mm/slub.c","sha256":"a"}],"wall-seconds":0.1,"exit":1,"stderr":"/src/mm/slub.c:99:1: error: 'y' undeclared on line 7\n"}
 "#;
+
+    #[test]
+    fn a_build_over_its_budget_is_told_from_build_json() {
+        let dir = std::env::temp_dir().join(format!("gk-over-budget-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(!over_budget(&dir));
+        let (log, lines) = stopped(&dir, true, false, 0, true).unwrap();
+        let json = serde_json::json!({ "stopped": [log, lines] });
+        std::fs::write(dir.join("build.json"), json.to_string()).unwrap();
+        assert!(over_budget(&dir));
+        let json =
+            serde_json::json!({ "stopped": ["make.log", ["make: *** [Makefile:1] Error 2"]] });
+        std::fs::write(dir.join("build.json"), json.to_string()).unwrap();
+        assert!(!over_budget(&dir));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn the_log_is_counted_by_kind() {
