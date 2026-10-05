@@ -1007,6 +1007,19 @@ mod tests {
     }
 
     #[test]
+    fn x86_64_before_2_6_16_runs_without_the_hypertransport_hole() {
+        let repo = gk_model::repo::Repo::load(std::path::Path::new("../..")).unwrap();
+        let p = repo.platforms.get("x86_64").unwrap();
+        let cpu = |v: &str| {
+            let cmd = qemu_command(p, &v.parse().unwrap(), "smoke", 0x206).unwrap();
+            let at = cmd.iter().position(|a| a == "-cpu").unwrap();
+            cmd[at + 1].clone()
+        };
+        assert_eq!(cpu("2.6.15"), "qemu64,vendor=GenuineIntel");
+        assert_eq!(cpu("2.6.16"), "qemu64");
+    }
+
+    #[test]
     fn the_setup_header_gives_the_protocol() {
         let mut image = vec![0u8; 0x400];
         assert_eq!(protocol(&image), 0);
