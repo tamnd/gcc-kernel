@@ -49,9 +49,9 @@ hosts = [{ from = "2.3", value = "gk-host-woody" }]
 name = "M4"
 from = "2.5"
 plan-eras = ["E3"]
-gcc = "gcc-3.4.6"
+gcc = "gcc-3.3.6"
 hosts = [{ from = "2.5", value = "gk-host-sarge" }]
-notes = "Whether 2.95.3 is the era GCC before 2.6.12 is decided at G3."
+notes = "3.3.6 rather than the kernel plan's 3.4.6: it builds every i386 release from 2.6.0 to 2.6.15, while 3.4.6 fails 2.6.0 to 2.6.3 and 2.95.3 needs a binutils with .incbin."
 
 [[era]]
 name = "M5"
