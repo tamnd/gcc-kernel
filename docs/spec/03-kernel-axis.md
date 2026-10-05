@@ -53,7 +53,7 @@ The era GCC is the kernel plan's persona version where one exists, and the era h
 | M1 | 1.3.x, 2.0.x | E0, E1 | 2.7.2.3 | `gk-host-hamm` |
 | M2 | 2.1.x, 2.2.x | E1 | 2.7.2.3 | `gk-host-slink` |
 | M3 | 2.3.x, 2.4.x | E2 | 2.95.3 | `gk-host-woody` |
-| M4 | 2.5.x, 2.6.0 to 2.6.15 | E3 | 3.4.6 (2.95.3 before 2.6.12, **decided at G3**) | `gk-host-sarge` |
+| M4 | 2.5.x, 2.6.0 to 2.6.15 | E3 | 3.3.6 (decided at G3, see below) | `gk-host-sarge` |
 | M5 | 2.6.16 to 2.6.25 | E4 | 4.1.2 | `gk-host-etch` |
 | M6 | 2.6.26 to 2.6.39 | E4 | 4.3.5 | `gk-host-lenny`, `gk-host-squeeze` |
 | M7 | 3.0 to 3.17 | E5 | 4.7.2 | `gk-host-squeeze`, `gk-host-wheezy`, `gk-host-jessie` |
@@ -65,7 +65,9 @@ The era GCC is the kernel plan's persona version where one exists, and the era h
 | M13 | 5.18 to 6.14 | E10 | 12.2.0 | `gk-host-bullseye`, `gk-host-bookworm`, `gk-host-trixie` |
 | M14 | 6.15 to current | E11 | 14.2.0, and 16.2 as a second reference | `gk-host-trixie` |
 
-Two numberings exist on purpose. The M eras are finer than the E eras because they follow host boundaries (05.2), and a host boundary can fall inside a GCC era. Where an M era spans two hosts, the host split follows the table of 05.2, and `eras.toml` records it per kernel range. The era GCC is not the host's GCC in every case: in M4 the host is sarge with GCC 3.3.5, and the era GCC is the kernel plan's 3.4.6. That does not matter, because the era GCC is a column run through `CROSS_COMPILE` like any other (05.3).
+Two numberings exist on purpose. The M eras are finer than the E eras because they follow host boundaries (05.2), and a host boundary can fall inside a GCC era. Where an M era spans two hosts, the host split follows the table of 05.2, and `eras.toml` records it per kernel range. The era GCC is not the host's GCC in every case: in M4 the host is sarge with GCC 3.3.5, and the era GCC is 3.3.6. That does not matter, because the era GCC is a column run through `CROSS_COMPILE` like any other (05.3).
+
+**The M4 era GCC** was left open until G3, between the kernel plan's 3.4.6 and 2.95.3 for the releases before 2.6.12. The forge settled it. On i386, 3.3.6 builds every release from 2.6.0 to 2.6.15, while 3.4.6 fails 2.6.0 to 2.6.3 on conflicting types for `smp_send_reschedule`, and 2.95.3 and 3.0.4 stop on `.incbin`, which their binutils do not have. On x86_64 both 3.3.6 and 3.4.6 fail 2.6.0 to 2.6.10 on a macro redefinition in `entry.S` with the binutils they pair with, and 3.2.3 builds most of them, so the x86_64 rows of that span get 3.2.3 as their best GCC through the frontier search rather than through the era. 2.6.6 on x86_64 fails with every GCC, on `PCI_PROBE_MMCONF` in `mmconfig.c`, which is a kernel bug. M4 uses 3.3.6.
 
 **The era diagonal** is the set of cells (K, e(K), P) for every K. It is run first in every sweep (09.6), because it tests three things at once: that the host works for the kernel, that the configuration fragment is right, and that the kernel plan's persona builds and boots the kernel. An era diagonal cell that fails is investigated before its row is searched. The failure is either a host or fragment bug in gcc-kernel, or a real finding that the persona is wrong.
 
