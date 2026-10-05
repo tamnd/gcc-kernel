@@ -139,6 +139,16 @@ impl Repo {
                         g.id, g.forge
                     ));
                 }
+            } else {
+                if self.hosts.get(&g.forge).is_none_or(|h| h.kind != "host") {
+                    problems.push(format!(
+                        "gccs.toml: {} names host {:?}, which hosts.toml does not have",
+                        g.id, g.forge
+                    ));
+                }
+                if g.package.is_empty() {
+                    problems.push(format!("gccs.toml: {} names no package", g.id));
+                }
             }
             if crate::toolchains::add_days(&g.released, 0).is_none() {
                 problems.push(format!("gccs.toml: {} has no release date", g.id));

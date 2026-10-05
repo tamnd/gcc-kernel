@@ -74,7 +74,7 @@ fn platform_page(repo: &Repo, m: &Matrix, platform: &str) -> Option<String> {
         .gccs
         .gccs
         .iter()
-        .filter(|g| g.targets.contains(&p.triple))
+        .filter(|g| g.flavor == "upstream" && g.targets.contains(&p.triple))
         .map(|g| (g.id.as_str(), &g.version))
         .collect();
     gccs.sort_by(|a, b| a.1.cmp(b.1));

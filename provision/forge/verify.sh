@@ -9,20 +9,25 @@ set -euo pipefail
 t="/bundle/bin/$GK_TARGET-"
 fail() { echo "FAIL $*"; exit 1; }
 
-dynamic=0
-while IFS= read -r f; do
-  head -c 4 "$f" | grep -q $'\x7fELF' || continue
-  if "${t}readelf" -lW "$f" 2>/dev/null | grep -q "Requesting program interpreter"; then
-    echo "dynamic: ${f#/bundle/}"
-    dynamic=1
-  fi
-  if "${t}readelf" -dW "$f" 2>/dev/null | grep -q "(NEEDED)"; then
-    echo "needs libraries: ${f#/bundle/}"
-    dynamic=1
-  fi
-done < <(find /bundle/bin /bundle/libexec -type f)
-[ "$dynamic" = 0 ] || fail "the bundle has dynamic binaries"
-echo "ok static"
+if [ -f /bundle/bin/.gk-distribution ]; then
+  # A distribution column links to its image's own GCC, which is dynamic by design (spec 04.3).
+  echo "ok distribution $(grep '^package=' /bundle/bin/.gk-distribution | cut -d= -f2)"
+else
+  dynamic=0
+  while IFS= read -r f; do
+    head -c 4 "$f" | grep -q $'\x7fELF' || continue
+    if "${t}readelf" -lW "$f" 2>/dev/null | grep -q "Requesting program interpreter"; then
+      echo "dynamic: ${f#/bundle/}"
+      dynamic=1
+    fi
+    if "${t}readelf" -dW "$f" 2>/dev/null | grep -q "(NEEDED)"; then
+      echo "needs libraries: ${f#/bundle/}"
+      dynamic=1
+    fi
+  done < <(find /bundle/bin /bundle/libexec -type f)
+  [ "$dynamic" = 0 ] || fail "the bundle has dynamic binaries"
+  echo "ok static"
+fi
 
 v="$("${t}gcc" -dumpfullversion 2>/dev/null || "${t}gcc" -dumpversion)"
 [ "$v" = "$GK_GCC" ] || fail "gcc says $v, the pin says $GK_GCC"

@@ -8,6 +8,7 @@ use crate::fetch::{self, Request};
 use crate::net;
 use gk_model::Version;
 use gk_model::repo::Repo;
+use gk_model::toolchains::Gcc;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -41,6 +42,15 @@ pub struct Manifest {
     pub seconds: u64,
     /// The gk version that built it.
     pub gk: String,
+    /// For a distribution column, the package and its version, as `gcc-6 6.3.0-18+deb9u1`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub package: String,
+    /// For a distribution column, the first line of the driver's `--version`, read in its image, since the bundle's links do not resolve outside it.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub driver: String,
+    /// For a distribution column, the SHA-256 of the driver the links lead to.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub driver_sha256: String,
 }
 
 /// The bundle directory of the cache.
@@ -103,6 +113,9 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
         .iter()
         .find(|g| g.id == gcc_id || g.version.as_str() == gcc_id)
         .ok_or_else(|| format!("gcc {gcc_id} is not in gccs.toml"))?;
+    if gcc.flavor != "upstream" {
+        return distribution(repo, gcc);
+    }
     let binutils = repo
         .binutils
         .pair(gcc, None)
@@ -210,12 +223,97 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
             digest: digest.clone(),
             seconds: started.elapsed().as_secs(),
             gk: env!("CARGO_PKG_VERSION").to_owned(),
+            package: String::new(),
+            driver: String::new(),
+            driver_sha256: String::new(),
         };
         let json = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
         let path = out.join(format!("{}-{target}.json", gcc.id));
         std::fs::write(&path, json + "\n")
             .map_err(|e| format!("writing {}: {e}", path.display()))?;
         println!("{}: {target} {digest} in {}s", gcc.id, manifest.seconds);
+    }
+    Ok(())
+}
+
+/// Forge the bundle of a distribution column: links to the GCC and binutils of its host image, made by `provision/forge/distribution.sh` in that image, with what the image's packages say recorded in the manifest.
+fn distribution(repo: &Repo, gcc: &Gcc) -> Result<(), String> {
+    let image = image_for(repo, &gcc.forge)?;
+    let out = bundles_dir();
+    std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
+    let script = repo.root.join("provision/forge/distribution.sh");
+    for target in &gcc.targets {
+        println!(
+            "{}: linking {} for {target} in {}",
+            gcc.id, gcc.package, gcc.forge
+        );
+        let started = Instant::now();
+        let status = Command::new("docker")
+            .args(["run", "--rm", "--network", "none"])
+            .arg("-v")
+            .arg(format!("{}:/out", out.display()))
+            .arg("-v")
+            .arg(format!("{}:/gk/distribution.sh:ro", script.display()))
+            .args(["-e", &format!("GK_ID={}", gcc.id)])
+            .args(["-e", &format!("GK_TARGET={target}")])
+            .args(["-e", &format!("GK_PACKAGE={}", gcc.package)])
+            .arg(&image)
+            .args(["bash", "/gk/distribution.sh"])
+            .status()
+            .map_err(|e| format!("running docker: {e}"))?;
+        if !status.success() {
+            return Err(format!("{} for {target}: the forge failed", gcc.id));
+        }
+        let tree = out.join(format!("{}-{target}.tree", gcc.id));
+        let recorded = tree.join("bin/.gk-distribution");
+        let text = std::fs::read_to_string(&recorded)
+            .map_err(|e| format!("reading {}: {e}", recorded.display()))?;
+        let field = |k: &str| {
+            text.lines()
+                .find_map(|l| l.strip_prefix(k)?.strip_prefix('='))
+                .unwrap_or_default()
+                .to_owned()
+        };
+        let plain = out.join(format!("{}-{target}.tar", gcc.id));
+        pack(&tree, &plain)?;
+        let status = Command::new("zstd")
+            .args(["-q", "-f", "-19", "--rm"])
+            .arg(&plain)
+            .status()
+            .map_err(|e| format!("running zstd: {e}"))?;
+        if !status.success() {
+            return Err(format!("compressing {} failed", plain.display()));
+        }
+        let file = format!("{}-{target}.tar.zst", gcc.id);
+        let digest = format!("sha256:{}", net::sha256_file(&out.join(&file))?);
+        let manifest = Manifest {
+            id: gcc.id.clone(),
+            gcc: gcc.version.as_str().to_owned(),
+            binutils: field("binutils"),
+            target: target.clone(),
+            forge: gcc.forge.clone(),
+            image: image.clone(),
+            prerequisites: Vec::new(),
+            file,
+            digest: digest.clone(),
+            seconds: started.elapsed().as_secs(),
+            gk: env!("CARGO_PKG_VERSION").to_owned(),
+            package: field("package"),
+            driver: field("driver"),
+            driver_sha256: field("driver-sha256"),
+        };
+        if manifest.binutils.is_empty() || manifest.driver.is_empty() {
+            return Err(format!(
+                "{} for {target}: {} is incomplete",
+                gcc.id,
+                recorded.display()
+            ));
+        }
+        let json = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
+        let path = out.join(format!("{}-{target}.json", gcc.id));
+        std::fs::write(&path, json + "\n")
+            .map_err(|e| format!("writing {}: {e}", path.display()))?;
+        println!("{}: {target} {} {digest}", gcc.id, manifest.driver);
     }
     Ok(())
 }
@@ -443,7 +541,14 @@ pub fn verify(repo: &Repo, only: &[String]) -> Result<bool, String> {
             continue;
         }
         let unpacked = unpacked(m)?;
-        for host in &hosts {
+        // A distribution column's links only resolve in its own image.
+        let own = [m.forge.as_str()];
+        let hosts = if m.package.is_empty() {
+            &hosts[..]
+        } else {
+            &own[..]
+        };
+        for host in hosts {
             let image = image_for(repo, host)?;
             let out = Command::new("docker")
                 .args(["run", "--rm", "--network", "none"])

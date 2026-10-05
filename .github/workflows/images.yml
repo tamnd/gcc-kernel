@@ -62,6 +62,10 @@ jobs:
             dir: provision/hosts/gk-host-bookworm
           - name: gk-host-trixie
             dir: provision/hosts/gk-host-trixie
+          - name: gk-host-xenial
+            dir: provision/hosts/gk-host-xenial
+          - name: gk-host-eoan
+            dir: provision/hosts/gk-host-eoan
           - name: gk-forge-modern
             dir: provision/forge/gk-forge-modern
           - name: gk-forge-bullseye

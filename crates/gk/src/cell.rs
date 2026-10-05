@@ -211,23 +211,39 @@ impl Setup {
             .eras
             .of(&version)
             .ok_or_else(|| format!("{version} is in no era"))?;
-        let host = repo
-            .eras
-            .host_for(&version)
-            .ok_or_else(|| format!("{version} has no host in eras.toml"))?
-            .to_owned();
+        // A distribution column runs in its own image whatever the era, since its links resolve nowhere else (spec 04.3).
+        let host = if g.flavor == "upstream" {
+            repo.eras
+                .host_for(&version)
+                .ok_or_else(|| format!("{version} has no host in eras.toml"))?
+                .to_owned()
+        } else {
+            g.forge.clone()
+        };
         let arch = p.arch_for(&version).unwrap_or_default().to_owned();
         let defconfig = p.defconfig_for(&version).unwrap_or_default().to_owned();
         let target = config_target(target, &defconfig, &version)?;
         let extra = extra.map(|f| repo.root.join(f));
         let image_name = p.image_for(&version).unwrap_or_default().to_owned();
         let bundle = forge::manifest(&g.id, &p.triple)?;
-        let binutils = repo
-            .binutils
-            .releases
-            .iter()
-            .find(|b| b.version.as_str() == bundle.binutils)
-            .ok_or_else(|| format!("binutils {} is not in binutils.toml", bundle.binutils))?;
+        // A distribution's binutils is its package, which the bundle's digest covers through the hashes it records.
+        let binutils = if g.flavor == "upstream" {
+            let b = repo
+                .binutils
+                .releases
+                .iter()
+                .find(|b| b.version.as_str() == bundle.binutils)
+                .ok_or_else(|| format!("binutils {} is not in binutils.toml", bundle.binutils))?;
+            Named {
+                name: b.id.clone(),
+                digest: format!("sha256:{}", b.sha256),
+            }
+        } else {
+            Named {
+                name: format!("{}-binutils-{}", g.flavor, bundle.binutils),
+                digest: bundle.digest.clone(),
+            }
+        };
         let bundle_dir = forge::unpacked(&bundle)?;
         let image = forge::image_for(repo, &host)?;
         let fragment = repo.root.join(era.fragment());
@@ -249,10 +265,7 @@ impl Setup {
                 name: g.id.clone(),
                 digest: bundle.digest.clone(),
             },
-            binutils: Named {
-                name: binutils.id.clone(),
-                digest: format!("sha256:{}", binutils.sha256),
-            },
+            binutils,
             platform: p.name.clone(),
             config: Named {
                 name: config.to_owned(),
@@ -286,6 +299,16 @@ impl Setup {
             kunit_skip: kunit_skip(&String::from_utf8_lossy(&fragment_text)),
             keep_going: false,
         })
+    }
+
+    /// The compiler `build.json` names. A distribution column's driver is read from its manifest, since its links do not resolve on the machine running gk.
+    fn compiler(&self) -> build::Compiler {
+        let mut c = build::Compiler::of(&self.bundle_dir, &self.bundle.target, &self.real_cc());
+        if !self.bundle.driver.is_empty() {
+            c.version.clone_from(&self.bundle.driver);
+            c.sha256.clone_from(&self.bundle.driver_sha256);
+        }
+        c
     }
 
     /// Whether this cell can boot: the platform has an init pin, and the kernel is 2.6 or later, or 1.0 or later on i386, which `gk-init-museum` covers. The floppy boot of the kernels before 0.99.10 is not done yet.
@@ -1299,7 +1322,7 @@ pub fn run(
         gnuc: String::new(),
         std: String::new(),
         source: PathBuf::from("/src"),
-        compiler: build::Compiler::of(&s.bundle_dir, &s.bundle.target, &s.real_cc()),
+        compiler: s.compiler(),
         persona: Vec::new(),
         targets: targets.iter().map(|t| (*t).to_owned()).collect(),
         kcflags: Vec::new(),
