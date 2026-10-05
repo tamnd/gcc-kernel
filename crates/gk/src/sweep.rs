@@ -230,7 +230,14 @@ pub fn report(repo: &Repo, ungraded: bool) -> Result<String, String> {
     out.push_str("\n## Every column\n\nOne character for each binutils series, oldest first: `#` works, `+` builds or runs but does not pass every rung, `x` fails, and a dot is not run.\n\n```\n");
     let series: Vec<String> = all
         .iter()
-        .map(|b| b.version.series(2).iter().map(u32::to_string).collect::<Vec<_>>().join("."))
+        .map(|b| {
+            b.version
+                .series(2)
+                .iter()
+                .map(u32::to_string)
+                .collect::<Vec<_>>()
+                .join(".")
+        })
         .collect();
     let width = rows
         .keys()
@@ -260,7 +267,11 @@ pub fn report(repo: &Repo, ungraded: bool) -> Result<String, String> {
                 }
             })
             .collect();
-        let _ = writeln!(out, "{:width$}  {strip}  {config}", format!("{platform} {kernel}"));
+        let _ = writeln!(
+            out,
+            "{:width$}  {strip}  {config}",
+            format!("{platform} {kernel}")
+        );
     }
     out.push_str("```\n");
     Ok(out)

@@ -252,7 +252,10 @@ impl Build {
             .args(["-e", &format!("GK_BINUTILS={}", self.binutils)])
             .args(["-e", &format!("GK_BINUTILS_TAR={}", self.binutils_file)])
             .args(["-e", &format!("GK_TARGET={tools}")])
-            .args(["-e", &format!("GK_PREREQS={}", self.prerequisites.join(" "))]);
+            .args([
+                "-e",
+                &format!("GK_PREREQS={}", self.prerequisites.join(" ")),
+            ]);
         if !self.gcc_file.is_empty() {
             cmd.args(["-e", &format!("GK_GCC_TAR={}", self.gcc_file)]);
         }
@@ -313,9 +316,30 @@ impl Build {
 
 /// The names binutils installs under `bin/`, after the target prefix, and under `<target>/bin/`. Every one of them is taken out of a GCC bundle before another binutils is laid over it, so none of the paired release's tools is left behind.
 const BINUTILS_TOOLS: &[&str] = &[
-    "addr2line", "ar", "as", "c++filt", "dlltool", "dllwrap", "dwp", "elfedit", "gprof",
-    "gprofng", "ld", "ld.bfd", "ld.gold", "nm", "nlmconv", "objcopy", "objdump", "ranlib",
-    "readelf", "size", "strings", "strip", "windmc", "windres",
+    "addr2line",
+    "ar",
+    "as",
+    "c++filt",
+    "dlltool",
+    "dllwrap",
+    "dwp",
+    "elfedit",
+    "gprof",
+    "gprofng",
+    "ld",
+    "ld.bfd",
+    "ld.gold",
+    "nm",
+    "nlmconv",
+    "objcopy",
+    "objdump",
+    "ranlib",
+    "readelf",
+    "size",
+    "strings",
+    "strip",
+    "windmc",
+    "windres",
 ];
 
 /// A GCC bundle with the tools of a binutils bundle in place of its own, for a cell of the binutils sweep (spec 04.6). The GCC tree is linked rather than copied, and the result is kept in the cache under both digests. The GCC driver finds `as` and `ld` in `<prefix>/<target>/bin`, so both places are replaced.
@@ -357,7 +381,11 @@ pub fn combined(gcc: &Manifest, binutils: &Manifest) -> Result<PathBuf, String> 
         let _ = std::fs::remove_file(partial.join(t).join("bin").join(tool));
     }
     let _ = std::fs::remove_dir_all(partial.join(t).join("lib/ldscripts"));
-    for sub in ["bin".to_owned(), format!("{t}/bin"), format!("{t}/lib/ldscripts")] {
+    for sub in [
+        "bin".to_owned(),
+        format!("{t}/bin"),
+        format!("{t}/lib/ldscripts"),
+    ] {
         let from = from_binutils.join(&sub);
         if !from.is_dir() {
             continue;

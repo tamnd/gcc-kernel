@@ -149,12 +149,13 @@ pub(crate) fn one_with(
     keep_going: bool,
     binutils: Option<&str>,
 ) -> Column {
-    let setup = Setup::new(repo, version.as_str(), gcc, platform, opts.config).and_then(|s| {
-        match binutils {
-            Some(b) => s.with_binutils(repo, b),
-            None => Ok(s),
-        }
-    });
+    let setup =
+        Setup::new(repo, version.as_str(), gcc, platform, opts.config).and_then(
+            |s| match binutils {
+                Some(b) => s.with_binutils(repo, b),
+                None => Ok(s),
+            },
+        );
     let setup = match setup {
         Ok(s) if opts.boot => match s.booting(repo) {
             Ok(s) => s,
