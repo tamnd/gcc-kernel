@@ -1,6 +1,6 @@
 # Regenerate matrix/ and reports/ from the newest store mirror and commit them, then publish the static site to GitHub Pages (spec 10.7 and 10.9).
 #
-# The store mirror is the newest `sweep-<date>` release that sweep.yml attached a store pack to. sweep.yml starts this workflow once its upload is done. A release event would come too early, since the release exists before its asset does. The new GCC report is written for the upstream column released last, and for GCC 16.2, which rucc claims to match.
+# The store mirror is the newest `sweep-<date>` release that sweep.yml attached a store pack to. sweep.yml starts this workflow once its upload is done. A release event would come too early, since the release exists before its asset does. The new GCC report is written for the upstream column released last, and for GCC 16.2, which rucc claims to match. A mirror with fewer cells than the matrix on main leaves the matrix alone, since a publish by hand can be ahead of it.
 
 name: publish
 
@@ -56,9 +56,17 @@ jobs:
           TAG: ${{ steps.store.outputs.tag }}
         run: |
           if [ -n "$TAG" ]; then
+            before=$(jq '.cells | length' matrix/matrix.json)
             ./target/release/gk publish
             ./target/release/gk report new-gcc latest
             ./target/release/gk report new-gcc gcc-16.2.0
+            # A matrix published by hand from the machines can be ahead of the newest mirror, and a smaller one would undo it.
+            after=$(jq '.cells | length' matrix/matrix.json)
+            if [ "$after" -lt "$before" ]; then
+              echo "$TAG has $after cells and main has $before, so the matrix stays as it is"
+              git checkout -- README.md matrix reports
+              git clean -fdq -- matrix reports
+            fi
           fi
           ./target/release/gk publish --html site --site-only
       - name: commit
