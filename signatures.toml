@@ -241,7 +241,7 @@ rung = "L3"
 match = { first-error = 'mindirect-branch\W+ and \W+fcf-protection\W+ are not compatible' }
 kind = "default-change"
 summary = "Ubuntu GCC 9 and later build with -fcf-protection by default, which GCC refuses next to the retpoline flags"
-fixed-by = [ { commit = "29be86d7f9cb", first-tag = "v5.3" } ]
+fixed-by = [ { commit = "29be86d7f9cb", first-tag = "v5.3", stable = ["4.19"], note = "4.19.325 builds with Ubuntu eoan GCC 9 where 4.19 does not" } ]
 gcc = ">=9"
 flavor = ["ubuntu"]
 
