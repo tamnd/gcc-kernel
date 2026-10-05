@@ -323,10 +323,7 @@ pub fn stopped(
     timed_out: bool,
 ) -> Option<(String, Vec<String>)> {
     if timed_out {
-        return Some((
-            "make.log".into(),
-            vec![OVER_BUDGET.into()],
-        ));
+        return Some(("make.log".into(), vec![OVER_BUDGET.into()]));
     }
     let log = if !configured {
         "config.log"
@@ -434,7 +431,8 @@ mod tests {
         let json = serde_json::json!({ "stopped": [log, lines] });
         std::fs::write(dir.join("build.json"), json.to_string()).unwrap();
         assert!(over_budget(&dir));
-        let json = serde_json::json!({ "stopped": ["make.log", ["make: *** [Makefile:1] Error 2"]] });
+        let json =
+            serde_json::json!({ "stopped": ["make.log", ["make: *** [Makefile:1] Error 2"]] });
         std::fs::write(dir.join("build.json"), json.to_string()).unwrap();
         assert!(!over_budget(&dir));
         std::fs::remove_dir_all(&dir).unwrap();
