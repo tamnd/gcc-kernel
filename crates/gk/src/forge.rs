@@ -303,7 +303,11 @@ fn distribution(repo: &Repo, gcc: &Gcc) -> Result<(), String> {
             driver_sha256: field("driver-sha256"),
         };
         if manifest.binutils.is_empty() || manifest.driver.is_empty() {
-            return Err(format!("{} for {target}: {} is incomplete", gcc.id, recorded.display()));
+            return Err(format!(
+                "{} for {target}: {} is incomplete",
+                gcc.id,
+                recorded.display()
+            ));
         }
         let json = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
         let path = out.join(format!("{}-{target}.json", gcc.id));
@@ -539,7 +543,11 @@ pub fn verify(repo: &Repo, only: &[String]) -> Result<bool, String> {
         let unpacked = unpacked(m)?;
         // A distribution column's links only resolve in its own image.
         let own = [m.forge.as_str()];
-        let hosts = if m.package.is_empty() { &hosts[..] } else { &own[..] };
+        let hosts = if m.package.is_empty() {
+            &hosts[..]
+        } else {
+            &own[..]
+        };
         for host in hosts {
             let image = image_for(repo, host)?;
             let out = Command::new("docker")
