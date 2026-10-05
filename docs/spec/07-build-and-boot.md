@@ -88,7 +88,8 @@ qemu-system-<arch> -machine <machine> -cpu <cpu> -accel tcg -smp 2 -m 1024 \
 
 | Kernels | Boot path | Root | Results through |
 |---|---|---|---|
-| 2.6.0 on | `-kernel` and `-initrd` with a cpio initramfs | initramfs | serial console, framed as `GK-BEGIN <suite>` and `GK-END <suite> <status>` |
+| 2.6.6 on | `-kernel` and `-initrd` with a cpio initramfs | initramfs | serial console, framed as `GK-BEGIN <suite>` and `GK-END <suite> <status>` |
+| 2.6.0 to 2.6.5 | `-kernel` with an ext2 image of the same files on the first IDE drive, `root=/dev/hda init=/init` | ext2 root disk | serial console |
 | 2.3 to 2.4, boot protocol 2.03 | `-kernel` and `-initrd` with a Minix initrd image, `root=/dev/ram0` | initrd | serial console |
 | 1.3.73 to 2.2, boot protocol 2.00 to 2.02 | a SYSLINUX disk on the first IDE drive that loads the kernel and the Minix initrd image, `root=/dev/ram0` | initrd | serial console from 2.1.25, VGA text capture before (7.6) |
 | 0.99.10 to 1.3.72 | the same SYSLINUX disk with no initrd, since these zImages have no setup header | a Minix image on the second IDE drive, `root=/dev/hdb` | VGA text capture |
@@ -99,6 +100,8 @@ The last row is never used by a cell. The museum set in `kernels.toml` starts at
 QEMU's own loader cannot start a kernel older than boot protocol 2.03. Whatever the protocol, `-kernel` writes `initrd_addr_max` at offset 0x22c of the setup code, a field that 2.03 added, and in older kernels that offset holds the first instructions of setup, so they die on an invalid opcode before printing anything. The `gk-boot` container carries SYSLINUX for them, and `gk-syslinux` writes a small FAT disk with the kernel, the initrd and the command line at the start of each boot. The rig picks the loader from the protocol in the image's setup header, not from the version.
 
 Museum boots get one CPU, 32 MB and a CPU model that matches the era's default configuration: a 486 before 2.0, a Pentium for 2.0, and a Pentium III from 2.1, whose defaults are 686 and Pentium III kernels. From 2.1 the SMP kernels read the IO-APIC from the MP table that SeaBIOS writes and route the timer and the disks through it, which QEMU does not wire the way they expect, so the command line carries `noapic`.
+
+Before 2.6.6 a kernel unpacks an initramfs and then mounts `root=` anyway, since running `/init` from the archive is what 2.6.6 added. Their defconfigs build IDE disks and ext2 in, so `gk` writes the init program, `/dev/console` and `/dev/null` into a small ext2 image of its own, byte by byte like the Minix one, and they boot from it. From 2.5 to 2.6.23 the i386 defaults are Pentium 4 or Pentium III kernels, so those boots run on a Core Duo, the oldest QEMU model with everything a Pentium 4 kernel uses. A Pentium there resets on the first `cmov` without a line on the console.
 
 The initramfs and initrd images are built once per platform and era by the era GCC in the era host, pinned by hash, and are identical for every column of a row. The kernel is the only thing that changes along a row. For 2.6 on, `gk init` builds `init.c` with the bundle and host that `platforms.toml` names under `init` for each platform, which is GCC 8.5 in the trixie host until the older columns are forged, and i386 borrows the x86_64 bundle with `-m32`. It writes the newc archive itself, with every owner, time and inode fixed, so the digest depends on the program alone and two machines get the same one.
 

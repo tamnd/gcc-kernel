@@ -4,7 +4,7 @@
 //!
 //! The result lives in `<cache>/init/<platform>`, with an `init.json` that says what it was built from. It is built again only when the source, the bundle or the image change.
 
-use crate::{fetch, forge, minix, net};
+use crate::{ext2, fetch, forge, minix, net};
 use gk_model::Version;
 use gk_model::platforms::Platform;
 use gk_model::repo::Repo;
@@ -217,7 +217,13 @@ pub fn static_dev(version: &Version) -> bool {
     version.series(3) < [2, 6, 32].to_vec()
 }
 
-/// The initramfs a kernel boots from: the museum root image before 2.6, the platform's, or for a kernel with no devtmpfs the same program in an archive that also has `/dev/null`. The manifest's digest is the digest of the archive returned, so a 3.x or later cell keeps the identity it had.
+/// Whether a 2.6 kernel mounts `root=` whatever the initramfs holds, which every one before 2.6.6 does. 2.6.6 is where the kernel learned to run `/init` from the archive, so the ones before it boot from an ext2 root disk with the same files.
+#[must_use]
+pub fn mounts_root(version: &Version) -> bool {
+    !museum(version) && version.series(3) < [2, 6, 6].to_vec()
+}
+
+/// The initramfs a kernel boots from: the museum root image before 2.6, an ext2 root disk before 2.6.6, the platform's, or for a kernel with no devtmpfs the same program in an archive that also has `/dev/null`. The manifest's digest is the digest of the archive returned, so a 3.x or later cell keeps the identity it had.
 pub fn for_kernel(
     repo: &Repo,
     p: &Platform,
@@ -240,8 +246,14 @@ pub fn for_kernel(
             p.name
         ));
     }
-    let bytes = archive_of(&init, true);
-    let path = dir(&p.name).join("initramfs-static-dev.cpio");
+    let (bytes, path) = if mounts_root(version) {
+        (ext2::image(&init), dir(&p.name).join("root-ext2.img"))
+    } else {
+        (
+            archive_of(&init, true),
+            dir(&p.name).join("initramfs-static-dev.cpio"),
+        )
+    };
     let partial = path.with_extension("part");
     std::fs::write(&partial, &bytes).map_err(|e| format!("writing {}: {e}", partial.display()))?;
     std::fs::rename(&partial, &path).map_err(|e| format!("renaming {}: {e}", partial.display()))?;
@@ -511,6 +523,15 @@ mod tests {
         assert!(static_dev(&"2.6.31.14".parse().unwrap()));
         assert!(!static_dev(&"2.6.32".parse().unwrap()));
         assert!(!static_dev(&"3.0".parse().unwrap()));
+    }
+
+    #[test]
+    fn only_2_6_0_to_2_6_5_mount_their_root() {
+        assert!(!mounts_root(&"2.4.37.11".parse().unwrap()));
+        assert!(mounts_root(&"2.6.0".parse().unwrap()));
+        assert!(mounts_root(&"2.6.5".parse().unwrap()));
+        assert!(!mounts_root(&"2.6.6".parse().unwrap()));
+        assert!(!mounts_root(&"6.18".parse().unwrap()));
     }
 
     fn elf64(kind: u16, interp: bool) -> Vec<u8> {

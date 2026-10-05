@@ -10,6 +10,7 @@ mod census;
 mod changed;
 mod classify;
 mod differential;
+mod ext2;
 mod fetch;
 mod forge;
 mod gnu;
