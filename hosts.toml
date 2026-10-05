@@ -166,6 +166,26 @@ binutils = "2.44"
 make = "4.4.1"
 
 [[host]]
+name = "gk-host-xenial"
+image = ""
+kind = "host"
+base = "ubuntu:16.04"
+arches = ["amd64"]
+gcc = "5.4.0"
+binutils = "2.26.1"
+make = "4.1"
+
+[[host]]
+name = "gk-host-eoan"
+image = ""
+kind = "host"
+base = "ubuntu:19.10"
+arches = ["amd64"]
+gcc = "9.2.1"
+binutils = "2.33"
+make = "4.2.1"
+
+[[host]]
 name = "gk-forge-modern"
 image = "ghcr.io/tamnd/gcc-kernel/gk-forge-modern@sha256:e1c53feb6e777151dee788e4016bb0930530ba2fa501fbb0492a1b0407ece47e"
 kind = "forge"

@@ -546,3 +546,27 @@ targets = ["x86_64-linux-gnu"]
 binutils = "auto"
 columns = ["distribution"]
 why = "Debian stretch's own gcc-6, built with --enable-default-pie. Kernels before 8ae94224c9d7 and c6a385539175 (v4.9-rc6) fail to build with it, and upstream 6.3.0 does not show that. Run in gk-host-stretch with stretch's binutils 2.28, on the rows around the fix (spec 04.3)."
+
+[[gcc]]
+id = "ubuntu-xenial-gcc-5"
+version = "5.4.0"
+flavor = "ubuntu"
+released = "2016-04-21"
+forge = "gk-host-xenial"
+package = "gcc-5"
+targets = ["x86_64-linux-gnu"]
+binutils = "auto"
+columns = ["distribution"]
+why = "Ubuntu 16.04's own gcc-5, which builds with -fstack-protector-strong by default and, unlike Ubuntu 16.10 and Debian stretch, without PIE. It shows which kernels notice the stronger stack protector alone (spec 04.3)."
+
+[[gcc]]
+id = "ubuntu-eoan-gcc-9"
+version = "9.2.1"
+flavor = "ubuntu"
+released = "2019-10-17"
+forge = "gk-host-eoan"
+package = "gcc-9"
+targets = ["x86_64-linux-gnu"]
+binutils = "auto"
+columns = ["distribution"]
+why = "Ubuntu 19.10's own gcc-9, which builds with -fcf-protection and -fstack-clash-protection by default. The first rejects the -mindirect-branch flags of a retpoline kernel, so x86 kernels with CONFIG_RETPOLINE fail until kbuild passes -fcf-protection=none (spec 04.3)."
