@@ -18,7 +18,7 @@ Tier 1 is where rucc's targets are: x86-64 now, i386 because x86-64 needs it and
 | Platform | kbuild `ARCH` | First kernel | First GCC | QEMU | Machine | CPU | Console | Image | Config |
 |---|---|---|---|---|---|---|---|---|---|
 | i386 | `i386`, `x86` from 2.6.24 | 0.01 | any | `qemu-system-i386` | `isapc` to 2.0, `pc` after | `486` to 2.2, `pentium` to 2.6.23, `pentium3` after (6.4) | VGA capture to 2.1.24, `ttyS0` from 2.1.25 | `Image`/`zImage`, `bzImage` from 1.3.73 | `i386_defconfig` from 2.6.24, `defconfig` or the era's default before |
-| x86_64 | `x86_64`, `x86` from 2.6.24 | 2.4.20 and 2.5.5; graded from 2.6.0 | 3.1 | `qemu-system-x86_64` | `pc` to 2.6.x, `q35` from 3.0 | `qemu64` to 3.x, `max` with `la57=off` after (6.4) | `ttyS0` | `bzImage` | `x86_64_defconfig` |
+| x86_64 | `x86_64`, `x86` from 2.6.24 | 2.4.20 and 2.5.5; graded from 2.6.0 | 3.1 | `qemu-system-x86_64` | `pc` to 2.6.x, `q35` from 3.0 | `qemu64` to 3.x with an Intel vendor before 2.6.16, `max` with `la57=off` after (6.4) | `ttyS0` | `bzImage` | `x86_64_defconfig` |
 | arm64 | `arm64` | 3.7 | 4.8 | `qemu-system-aarch64` | `virt,gic-version=max` | `cortex-a57` below 4.16, `max,lpa2=off` below 5.12, `max,pauth-impdef=on` after | `ttyAMA0` | `Image` | `defconfig` |
 | arm | `arm` | 2.1.x; graded from 3.2 on `virt` | 2.95 (in the tree); columns from 4.8.5 on kernel.org | `qemu-system-arm` | `vexpress-a9` below 3.14, `virt` after (unverified boundary) | `cortex-a9` or `cortex-a15` | `ttyAMA0` | `zImage` | `vexpress_defconfig` then `multi_v7_defconfig` |
 | riscv64 | `riscv` | 4.15; boots `virt` to user space from 4.19 | 7.1 | `qemu-system-riscv64` | `virt` with OpenSBI from QEMU | `rv64` | `ttyS0` | `Image` | `defconfig` |
