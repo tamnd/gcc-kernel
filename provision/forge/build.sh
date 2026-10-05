@@ -3,13 +3,15 @@
 #
 # The sources come from /src, read only, already checked by `gk fetch`: the binutils and GCC tarballs named by GK_BINUTILS_TAR and GK_GCC_TAR, and GMP, MPFR, MPC and ISL under /src/infrastructure. The bundle is written to /out as a tarball whose members are relative to the bundle root, so it can be unpacked at /opt/gk/t/<id> in any host. Nothing here reaches the network.
 #
+# With GK_GCC empty only binutils is built, which is a bundle of the binutils sweep (spec 04.6): a cell lays its tools over a GCC bundle.
+#
 # The build triple has a vendor of its own so that configure treats even an x86_64 target as a cross build. The tools then carry the target prefix, as in x86_64-linux-gnu-gcc, and nothing of the forge's own libc or headers leaks into the target side. Only C is built, with libgcc and no libc, which is what a kernel needs.
 
 set -eu
 # Woody's bash 2.05 has no pipefail.
 set -o pipefail 2> /dev/null || true
 
-: "${GK_ID:?}" "${GK_GCC:?}" "${GK_BINUTILS:?}" "${GK_TARGET:?}" "${GK_PREREQS?}"
+: "${GK_ID:?}" "${GK_GCC?}" "${GK_BINUTILS:?}" "${GK_TARGET:?}" "${GK_PREREQS?}"
 : "${GK_GCC_TAR:=gcc-$GK_GCC.tar.xz}" "${GK_BINUTILS_TAR:=binutils-$GK_BINUTILS.tar.xz}"
 jobs="${GK_JOBS:-$(nproc)}"
 prefix="/opt/gk/t/$GK_ID"
@@ -47,9 +49,11 @@ unpack() {
   esac
 }
 
-# The release as a number, 304 for 3.4.6, for the few steps that differ between old and new releases.
-gcc_major="${GK_GCC%%.*}"
-gcc_minor="${GK_GCC#*.}"
+# The release as a number, 304 for 3.4.6, for the few steps that differ between old and new releases. A binutils bundle has none, and counts as new.
+gcc_major="${GK_GCC:-99}"
+gcc_major="${gcc_major%%.*}"
+gcc_minor="${GK_GCC:-99.0}"
+gcc_minor="${gcc_minor#*.}"
 gcc_minor="${gcc_minor%%.*}"
 gcc_series=$((gcc_major * 100 + gcc_minor))
 
@@ -64,20 +68,22 @@ fi
 
 # Nothing reads the info pages, and the texinfo of the forge that builds the 4.x releases rejects their sources, so every make is told that makeinfo is `true`.
 
-log "unpacking binutils $GK_BINUTILS and gcc $GK_GCC"
+log "unpacking binutils $GK_BINUTILS and gcc ${GK_GCC:-(none)}"
 unpack "/src/$GK_BINUTILS_TAR"
-unpack "/src/$GK_GCC_TAR"
-# EGCS unpacks to egcs-<release>, while the version it gives itself, and so the one the forge is handed, is the GCC one, so its directory takes the name the rest of the script looks for.
-for d in egcs-*; do
-  if [ -d "$d" ] && [ ! -d "gcc-$GK_GCC" ]; then
-    mv "$d" "gcc-$GK_GCC"
-  fi
-done
-for p in $GK_PREREQS; do
-  (cd "gcc-$GK_GCC" && unpack "/src/infrastructure/$p")
-  dir="${p%.tar.*}"
-  ln -s "$dir" "gcc-$GK_GCC/${dir%%-*}"
-done
+if [ -n "$GK_GCC" ]; then
+  unpack "/src/$GK_GCC_TAR"
+  # EGCS unpacks to egcs-<release>, while the version it gives itself, and so the one the forge is handed, is the GCC one, so its directory takes the name the rest of the script looks for.
+  for d in egcs-*; do
+    if [ -d "$d" ] && [ ! -d "gcc-$GK_GCC" ]; then
+      mv "$d" "gcc-$GK_GCC"
+    fi
+  done
+  for p in $GK_PREREQS; do
+    (cd "gcc-$GK_GCC" && unpack "/src/infrastructure/$p")
+    dir="${p%.tar.*}"
+    ln -s "$dir" "gcc-$GK_GCC/${dir%%-*}"
+  done
+fi
 
 log "binutils for $GK_TARGET"
 mkdir b-binutils
@@ -89,100 +95,103 @@ mkdir b-binutils
       --disable-nls --disable-werror --disable-multilib --disable-shared --enable-static \
       --disable-gdb --disable-gdbserver --disable-sim --disable-gprofng --disable-readline \
       --disable-libdecnumber --enable-deterministic-archives &&
-    # Releases older than about 2.17 have neither the configure-host target nor install-strip at the top level.
-    if make -n configure-host > /dev/null 2>&1; then
+    # Releases older than about 2.17 have neither the configure-host target nor install-strip at the top level. The Makefile is read rather than asked with make -n, which recurses into directories not yet configured and so fails on 2.38 even though the target is there.
+    if grep -q '^configure-host:' Makefile; then
       make MAKEINFO=true -j"$jobs" configure-host
     fi &&
     make MAKEINFO=true -j"$jobs" LDFLAGS=-all-static &&
-    if make -n install-strip > /dev/null 2>&1; then
-      make MAKEINFO=true install-strip
+    # make -n still runs every recipe line that names $(MAKE), and on 2.38 that relinks the programs without the LDFLAGS below, so the probe reads the Makefile here too, and the install is told to link statically in case it finds anything stale.
+    if grep -q '^install-strip:' Makefile; then
+      make MAKEINFO=true LDFLAGS=-all-static install-strip
     else
-      make MAKEINFO=true install && { strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true; }
+      make MAKEINFO=true LDFLAGS=-all-static install && { strip "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* 2> /dev/null || true; }
     fi &&
     test -x "$prefix/bin/$GK_TARGET-as"
 ) > binutils.log 2>&1 || failed binutils.log 60
 
 export PATH="$prefix/bin:$PATH"
 
-# Before 4.3 libgcc is built inside the gcc directory by all-gcc, there is no all-target-libgcc and no install-strip-gcc, and --with-newlib is what keeps libgcc from looking for the target's C headers.
-# It is a plain word rather than an array, because the bash of etch fails on an empty array under set -u.
-old_gcc=
-if [ "$gcc_series" -lt 403 ]; then
-  old_gcc=--with-newlib
-fi
-# Variables on make's command line are handed down to the gcc directory, which is how the two releases below are kept away from the target's headers. EGCS has no --enable-languages, and builds every front end it ships, the Objective C runtime among them, which wants the target's stdio.h, so LANGUAGES keeps both its build and its install to C.
-make_vars=
-if [ "$gcc_series" -lt 295 ]; then
-  make_vars=LANGUAGES=c
-fi
-# The 3.3 Linux headers of i386 and a few others leave the signal frame unwinder out of libgcc only for libc5, where 3.2 and 3.4 leave it out whenever there is no libc. Without it libgcc wants signal.h, so libgcc is built as if for libc5. LIBGCC2_INCLUDES is empty otherwise and only reaches libgcc.
-if [ "$gcc_series" -ge 303 ] && [ "$gcc_series" -lt 304 ]; then
-  make_vars=LIBGCC2_INCLUDES=-DUSE_GNULIBC_1
-fi
+if [ -n "$GK_GCC" ]; then
+  # Before 4.3 libgcc is built inside the gcc directory by all-gcc, there is no all-target-libgcc and no install-strip-gcc, and --with-newlib is what keeps libgcc from looking for the target's C headers.
+  # It is a plain word rather than an array, because the bash of etch fails on an empty array under set -u.
+  old_gcc=
+  if [ "$gcc_series" -lt 403 ]; then
+    old_gcc=--with-newlib
+  fi
+  # Variables on make's command line are handed down to the gcc directory, which is how the two releases below are kept away from the target's headers. EGCS has no --enable-languages, and builds every front end it ships, the Objective C runtime among them, which wants the target's stdio.h, so LANGUAGES keeps both its build and its install to C.
+  make_vars=
+  if [ "$gcc_series" -lt 295 ]; then
+    make_vars=LANGUAGES=c
+  fi
+  # The 3.3 Linux headers of i386 and a few others leave the signal frame unwinder out of libgcc only for libc5, where 3.2 and 3.4 leave it out whenever there is no libc. Without it libgcc wants signal.h, so libgcc is built as if for libc5. LIBGCC2_INCLUDES is empty otherwise and only reaches libgcc.
+  if [ "$gcc_series" -ge 303 ] && [ "$gcc_series" -lt 304 ]; then
+    make_vars=LIBGCC2_INCLUDES=-DUSE_GNULIBC_1
+  fi
 
-# Before egcs GCC is a single directory, with no top level to build it from and no way to build libgcc without the target's headers. A kernel of that age needs only the driver, cc1, cpp and the headers GCC brings with it, so those are built in the tree and put in place by hand.
-if [ ! -d "gcc-$GK_GCC/gcc" ]; then
-  log "gcc for $GK_TARGET, without libgcc"
-  # The Makefile of these releases calls the compiler cc unless told otherwise. The config.sub of 2.5 does not know a vendor of our own, nor i686, so there the forge calls itself plain i386-linux. Before 2.7 gcc.c and cccp.c declare sys_errlist without the const glibc gives it, unless bsd4_4 is defined, and the compile stops on the conflict. In those two files bsd4_4 decides nothing else, so it is defined on the command line, which leaves the sources as they were released.
-  lib="$prefix/lib/gcc-lib/$GK_TARGET/$GK_GCC"
-  host="$build"
-  if ! sh "gcc-$GK_GCC/config.sub" "$host" > /dev/null 2>&1; then
-    host=i386-linux
-  fi
-  cc="${CC:-gcc}"
-  if [ "$gcc_series" -lt 207 ]; then
-    cc="$cc -Dbsd4_4"
-  fi
-  (
-    cd "gcc-$GK_GCC" &&
-      ./configure --host="$host" --target="$GK_TARGET" --prefix="$prefix" --with-gnu-as --with-gnu-ld &&
-      make CC="$cc" MAKEINFO=true LANGUAGES=c -j"$jobs" xgcc cc1 cpp specs stmp-int-hdrs &&
-      mkdir -p "$lib/include" "$prefix/bin" &&
-      cp xgcc "$prefix/bin/$GK_TARGET-gcc" &&
-      cp cc1 cpp specs "$lib/" &&
-      cp -R include/. "$lib/include/" &&
-      strip "$prefix/bin/$GK_TARGET-gcc" "$lib/cc1" "$lib/cpp"
-  ) > gcc.log 2>&1 || failed gcc.log 80
-else
-log "gcc for $GK_TARGET"
-mkdir b-gcc
-(
-  cd b-gcc &&
-    LDFLAGS=-static "../gcc-$GK_GCC/configure" $old_gcc \
-      --build="$build" --host="$build" --target="$GK_TARGET" --prefix="$prefix" \
-      --enable-languages=c --without-headers --disable-bootstrap --disable-nls \
-      --disable-multilib --disable-shared --disable-threads --disable-libssp --disable-libgomp \
-      --disable-libquadmath --disable-libatomic --disable-libsanitizer --disable-libvtv \
-      --disable-libstdcxx --disable-libcc1 --disable-decimal-float --disable-libmudflap \
-      --disable-libmpx --disable-werror &&
-    # Before 4.3 the top level does not hand the LDFLAGS seen by configure down to the gcc directory, so the driver and cc1 come out dynamic unless make is told as well.
-    if [ "$gcc_series" -lt 403 ]; then
-      make MAKEINFO=true $make_vars -j"$jobs" LDFLAGS=-static all-gcc
-    else
-      make MAKEINFO=true -j"$jobs" all-gcc
-    fi &&
-    if [ "$gcc_series" -ge 403 ]; then
-      make MAKEINFO=true -j"$jobs" all-target-libgcc
-    fi &&
-    # install-strip-gcc came in 4.4. Before that the tools are installed as they are and stripped here. This goes by the version and not by `make -n`, since a dry run still carries out every recipe line that names $(MAKE), and in the gcc directory one of those runs fixincludes over the headers the build already made.
-    if [ "$gcc_series" -ge 404 ]; then
-      make MAKEINFO=true install-strip-gcc
-    else
-      # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there, before it gets to the driver, which it installs last. 2.95 stops without an error and EGCS with one, so before 3.0 a failed install-gcc is let through, and the check for the driver below still catches one that did not get installed.
-      { make MAKEINFO=true $make_vars install-gcc || [ "$gcc_series" -lt 300 ]; } &&
-        if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
-          (cd gcc && make MAKEINFO=true $make_vars install-driver)
-        fi &&
-        for f in "$prefix"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do
-          if [ -f "$f" ] && file "$f" | grep -q 'ELF.*executable'; then
-            strip "$f"
-          fi
-        done
-    fi &&
-    if [ "$gcc_series" -ge 403 ]; then
-      make MAKEINFO=true install-target-libgcc
+  # Before egcs GCC is a single directory, with no top level to build it from and no way to build libgcc without the target's headers. A kernel of that age needs only the driver, cc1, cpp and the headers GCC brings with it, so those are built in the tree and put in place by hand.
+  if [ ! -d "gcc-$GK_GCC/gcc" ]; then
+    log "gcc for $GK_TARGET, without libgcc"
+    # The Makefile of these releases calls the compiler cc unless told otherwise. The config.sub of 2.5 does not know a vendor of our own, nor i686, so there the forge calls itself plain i386-linux. Before 2.7 gcc.c and cccp.c declare sys_errlist without the const glibc gives it, unless bsd4_4 is defined, and the compile stops on the conflict. In those two files bsd4_4 decides nothing else, so it is defined on the command line, which leaves the sources as they were released.
+    lib="$prefix/lib/gcc-lib/$GK_TARGET/$GK_GCC"
+    host="$build"
+    if ! sh "gcc-$GK_GCC/config.sub" "$host" > /dev/null 2>&1; then
+      host=i386-linux
     fi
-) > gcc.log 2>&1 || failed gcc.log 80
+    cc="${CC:-gcc}"
+    if [ "$gcc_series" -lt 207 ]; then
+      cc="$cc -Dbsd4_4"
+    fi
+    (
+      cd "gcc-$GK_GCC" &&
+        ./configure --host="$host" --target="$GK_TARGET" --prefix="$prefix" --with-gnu-as --with-gnu-ld &&
+        make CC="$cc" MAKEINFO=true LANGUAGES=c -j"$jobs" xgcc cc1 cpp specs stmp-int-hdrs &&
+        mkdir -p "$lib/include" "$prefix/bin" &&
+        cp xgcc "$prefix/bin/$GK_TARGET-gcc" &&
+        cp cc1 cpp specs "$lib/" &&
+        cp -R include/. "$lib/include/" &&
+        strip "$prefix/bin/$GK_TARGET-gcc" "$lib/cc1" "$lib/cpp"
+    ) > gcc.log 2>&1 || failed gcc.log 80
+  else
+  log "gcc for $GK_TARGET"
+  mkdir b-gcc
+  (
+    cd b-gcc &&
+      LDFLAGS=-static "../gcc-$GK_GCC/configure" $old_gcc \
+        --build="$build" --host="$build" --target="$GK_TARGET" --prefix="$prefix" \
+        --enable-languages=c --without-headers --disable-bootstrap --disable-nls \
+        --disable-multilib --disable-shared --disable-threads --disable-libssp --disable-libgomp \
+        --disable-libquadmath --disable-libatomic --disable-libsanitizer --disable-libvtv \
+        --disable-libstdcxx --disable-libcc1 --disable-decimal-float --disable-libmudflap \
+        --disable-libmpx --disable-werror &&
+      # Before 4.3 the top level does not hand the LDFLAGS seen by configure down to the gcc directory, so the driver and cc1 come out dynamic unless make is told as well.
+      if [ "$gcc_series" -lt 403 ]; then
+        make MAKEINFO=true $make_vars -j"$jobs" LDFLAGS=-static all-gcc
+      else
+        make MAKEINFO=true -j"$jobs" all-gcc
+      fi &&
+      if [ "$gcc_series" -ge 403 ]; then
+        make MAKEINFO=true -j"$jobs" all-target-libgcc
+      fi &&
+      # install-strip-gcc came in 4.4. Before that the tools are installed as they are and stripped here. This goes by the version and not by `make -n`, since a dry run still carries out every recipe line that names $(MAKE), and in the gcc directory one of those runs fixincludes over the headers the build already made.
+      if [ "$gcc_series" -ge 404 ]; then
+        make MAKEINFO=true install-strip-gcc
+      else
+        # Before 3.0 install-info has no pages to copy when makeinfo is `true`, and the install stops there, before it gets to the driver, which it installs last. 2.95 stops without an error and EGCS with one, so before 3.0 a failed install-gcc is let through, and the check for the driver below still catches one that did not get installed.
+        { make MAKEINFO=true $make_vars install-gcc || [ "$gcc_series" -lt 300 ]; } &&
+          if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
+            (cd gcc && make MAKEINFO=true $make_vars install-driver)
+          fi &&
+          for f in "$prefix"/bin/* "$prefix"/libexec/gcc/"$GK_TARGET"/*/* "$prefix"/lib/gcc-lib/"$GK_TARGET"/*/*; do
+            if [ -f "$f" ] && file "$f" | grep -q 'ELF.*executable'; then
+              strip "$f"
+            fi
+          done
+      fi &&
+      if [ "$gcc_series" -ge 403 ]; then
+        make MAKEINFO=true install-target-libgcc
+      fi
+  ) > gcc.log 2>&1 || failed gcc.log 80
+  fi
 fi
 
 # A bundle runs in hosts as old as sarge, which have neither the forge's libc nor a 64 bit loader, so every program in it has to be static. Plugins such as liblto_plugin.so are shared objects and are left alone. Before 3.4 cc1 and collect2 live under lib/gcc-lib rather than libexec/gcc.
@@ -194,7 +203,7 @@ for f in "$prefix"/bin/* "$prefix/$GK_TARGET"/bin/* "$prefix"/libexec/gcc/"$GK_T
 done
 
 # GCC's own install of the driver ignores its errors, so a make that passes can still leave no driver, and the log is the only place that says why.
-if [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
+if [ -n "$GK_GCC" ] && [ ! -f "$prefix/bin/$GK_TARGET-gcc" ]; then
   log "no $GK_TARGET-gcc was installed"
   log "what was installed under bin: $(cd "$prefix/bin" && echo *)"
   grep -n -B2 -A4 -E 'install-driver|xgcc' gcc.log | tail -n 60 >&2 || true

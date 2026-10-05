@@ -136,19 +136,27 @@ fn era_first<'a>(mut cols: Vec<&'a Gcc>, era: Option<&str>) -> Vec<&'a Gcc> {
 }
 
 fn one(repo: &Repo, version: &Version, gcc: &str, platform: &str, opts: Options) -> Column {
-    one_with(repo, version, gcc, platform, opts, false)
+    one_with(repo, version, gcc, platform, opts, false, None)
 }
 
-/// One cell, with `keep_going` asking for the `make -k` run when its build fails. A stored cell without that run is run again when it is asked for.
-fn one_with(
+/// One cell, with `keep_going` asking for the `make -k` run when its build fails, and `binutils` laid over the bundle's own when it is given. A stored cell without the `make -k` run is run again when it is asked for.
+pub(crate) fn one_with(
     repo: &Repo,
     version: &Version,
     gcc: &str,
     platform: &str,
     opts: Options,
     keep_going: bool,
+    binutils: Option<&str>,
 ) -> Column {
-    let setup = match Setup::new(repo, version.as_str(), gcc, platform, opts.config) {
+    let setup =
+        Setup::new(repo, version.as_str(), gcc, platform, opts.config).and_then(
+            |s| match binutils {
+                Some(b) => s.with_binutils(repo, b),
+                None => Ok(s),
+            },
+        );
+    let setup = match setup {
         Ok(s) if opts.boot => match s.booting(repo) {
             Ok(s) => s,
             Err(e) => return Column::Broken(e),
@@ -300,7 +308,7 @@ fn frontier_row(
             if !keep_going && let Some(c) = ran.get(&g.id) {
                 return works(c);
             }
-            let c = one_with(repo, &version, &g.id, platform, opts, keep_going);
+            let c = one_with(repo, &version, &g.id, platform, opts, keep_going, None);
             print_column(&g.id, &c);
             let ok = works(&c);
             ran.insert(g.id.clone(), c);
@@ -375,12 +383,12 @@ fn frontier_row(
 }
 
 /// Whether a column's cell works.
-fn works(c: &Column) -> bool {
+pub(crate) fn works(c: &Column) -> bool {
     matches!(c, Column::Ran { record, .. } if record.verdict == "works")
 }
 
 /// The edges of a searched row, in words.
-fn print_edges(row: &[(String, Column)]) {
+pub(crate) fn print_edges(row: &[(String, Column)]) {
     let ok: Vec<usize> = (0..row.len()).filter(|i| works(&row[*i].1)).collect();
     let (Some(&first), Some(&last)) = (ok.first(), ok.last()) else {
         println!("no column works");
@@ -406,7 +414,7 @@ fn print_edges(row: &[(String, Column)]) {
     }
 }
 
-fn print_column(gcc: &str, column: &Column) {
+pub(crate) fn print_column(gcc: &str, column: &Column) {
     match column {
         Column::Ran { cached, record } => println!(
             "{gcc:<12} {:<3} {:<7} {:>6.0}s{}",

@@ -8,7 +8,7 @@ use crate::fetch::{self, Request};
 use crate::net;
 use gk_model::Version;
 use gk_model::repo::Repo;
-use gk_model::toolchains::Gcc;
+use gk_model::toolchains::{Binutils, Gcc};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -104,15 +104,17 @@ pub fn unpacked(m: &Manifest) -> Result<PathBuf, String> {
     Ok(unpacked)
 }
 
-/// Run `gk forge`.
-#[allow(clippy::too_many_lines)]
+/// Run `gk forge`. A binutils id in place of a GCC one forges binutils alone, for the binutils sweep (spec 04.6).
 pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> Result<(), String> {
+    if let Some(b) = repo.binutils.get(gcc_id) {
+        return binutils_only(repo, b, targets, jobs);
+    }
     let gcc = repo
         .gccs
         .gccs
         .iter()
         .find(|g| g.id == gcc_id || g.version.as_str() == gcc_id)
-        .ok_or_else(|| format!("gcc {gcc_id} is not in gccs.toml"))?;
+        .ok_or_else(|| format!("gcc {gcc_id} is not in gccs.toml or binutils.toml"))?;
     if gcc.flavor != "upstream" {
         return distribution(repo, gcc);
     }
@@ -140,30 +142,101 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
     )?;
     let src = fetch::cache_dir().join("toolchains");
     let gcc_file = file_of(&gcc.url, &format!("gcc-{}.tar.xz", gcc.version));
-    let binutils_file = file_of(
-        &binutils.url,
-        &format!("binutils-{}.tar.xz", binutils.version),
-    );
     let gcc_tar = src.join(&gcc_file);
-    let prereqs = prerequisites(
+    let prerequisites = prerequisites(
         &gcc_tar,
         &format!("gcc-{}", gcc.version),
         &gcc.version,
         &src,
     )?;
-    let image = image_for(repo, &gcc.forge)?;
-    let out = bundles_dir();
-    std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
-    let script = repo.root.join("provision/forge/build.sh");
+    let build = Build {
+        id: gcc.id.clone(),
+        gcc: gcc.version.as_str().to_owned(),
+        gcc_file,
+        binutils: binutils.version.as_str().to_owned(),
+        binutils_file: file_of(
+            &binutils.url,
+            &format!("binutils-{}.tar.xz", binutils.version),
+        ),
+        forge: gcc.forge.clone(),
+        image: image_for(repo, &gcc.forge)?,
+        prerequisites,
+    };
     for target in &targets {
         let tools = if gcc.tools.is_empty() {
             target
         } else {
             &gcc.tools
         };
+        build.run(repo, target, tools, jobs)?;
+    }
+    Ok(())
+}
+
+/// Forge a binutils release alone, in the forge of the newest upstream GCC released on or before it, which is a forge that already builds binutils of that age. A cell lays it over a GCC bundle with [`combined`].
+fn binutils_only(
+    repo: &Repo,
+    b: &Binutils,
+    targets: &[String],
+    jobs: Option<u32>,
+) -> Result<(), String> {
+    if targets.is_empty() {
+        return Err(format!("name the targets of {} with --target", b.id));
+    }
+    let gcc = repo
+        .gccs
+        .gccs
+        .iter()
+        .filter(|g| g.flavor == "upstream" && !g.forge.is_empty())
+        .filter(|g| !g.released.is_empty() && g.released <= b.released)
+        .max_by(|x, y| x.released.cmp(&y.released))
+        .ok_or_else(|| format!("no GCC column is older than {}", b.id))?;
+    fetch::run(
+        repo,
+        &Request {
+            binutils: vec![b.id.clone()],
+            ..Request::default()
+        },
+    )?;
+    let build = Build {
+        id: b.id.clone(),
+        gcc: String::new(),
+        gcc_file: String::new(),
+        binutils: b.version.as_str().to_owned(),
+        binutils_file: file_of(&b.url, &format!("binutils-{}.tar.xz", b.version)),
+        forge: gcc.forge.clone(),
+        image: image_for(repo, &gcc.forge)?,
+        prerequisites: Vec::new(),
+    };
+    for target in targets {
+        build.run(repo, target, target, jobs)?;
+    }
+    Ok(())
+}
+
+/// One run of `provision/forge/build.sh`, for every target of a bundle.
+struct Build {
+    id: String,
+    /// Empty for binutils alone.
+    gcc: String,
+    gcc_file: String,
+    binutils: String,
+    binutils_file: String,
+    forge: String,
+    image: String,
+    prerequisites: Vec<String>,
+}
+
+impl Build {
+    /// Build for one target, whose tools are named for `tools`, and write the manifest.
+    fn run(&self, repo: &Repo, target: &str, tools: &str, jobs: Option<u32>) -> Result<(), String> {
+        let src = fetch::cache_dir().join("toolchains");
+        let out = bundles_dir();
+        std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
+        let script = repo.root.join("provision/forge/build.sh");
         println!(
             "{}: building for {target} with binutils {} in {}, as {tools}",
-            gcc.id, binutils.version, gcc.forge
+            self.id, self.binutils, self.forge
         );
         let started = Instant::now();
         let mut cmd = Command::new("docker");
@@ -174,27 +247,32 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
             .arg(format!("{}:/out", out.display()))
             .arg("-v")
             .arg(format!("{}:/gk/build.sh:ro", script.display()))
-            .args(["-e", &format!("GK_ID={}", gcc.id)])
-            .args(["-e", &format!("GK_GCC={}", gcc.version)])
-            .args(["-e", &format!("GK_BINUTILS={}", binutils.version)])
-            .args(["-e", &format!("GK_GCC_TAR={gcc_file}")])
-            .args(["-e", &format!("GK_BINUTILS_TAR={binutils_file}")])
+            .args(["-e", &format!("GK_ID={}", self.id)])
+            .args(["-e", &format!("GK_GCC={}", self.gcc)])
+            .args(["-e", &format!("GK_BINUTILS={}", self.binutils)])
+            .args(["-e", &format!("GK_BINUTILS_TAR={}", self.binutils_file)])
             .args(["-e", &format!("GK_TARGET={tools}")])
-            .args(["-e", &format!("GK_PREREQS={}", prereqs.join(" "))]);
+            .args([
+                "-e",
+                &format!("GK_PREREQS={}", self.prerequisites.join(" ")),
+            ]);
+        if !self.gcc_file.is_empty() {
+            cmd.args(["-e", &format!("GK_GCC_TAR={}", self.gcc_file)]);
+        }
         if let Some(j) = jobs {
             cmd.args(["-e", &format!("GK_JOBS={j}")]);
         }
         let status = cmd
-            .arg(&image)
+            .arg(&self.image)
             .args(["bash", "/gk/build.sh"])
             .status()
             .map_err(|e| format!("running docker: {e}"))?;
         if !status.success() {
-            return Err(format!("{} for {target}: the forge build failed", gcc.id));
+            return Err(format!("{} for {target}: the forge build failed", self.id));
         }
-        let file = format!("{}-{tools}.tar.zst", gcc.id);
-        let plain = out.join(format!("{}-{tools}.tar", gcc.id));
-        let tree = out.join(format!("{}-{tools}.tree", gcc.id));
+        let file = format!("{}-{tools}.tar.zst", self.id);
+        let plain = out.join(format!("{}-{tools}.tar", self.id));
+        let tree = out.join(format!("{}-{tools}.tree", self.id));
         if tree.is_dir() {
             // A forge whose tar cannot set member times leaves the installed tree.
             pack(&tree, &plain)?;
@@ -212,14 +290,14 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
         }
         let digest = format!("sha256:{}", net::sha256_file(&out.join(&file))?);
         let manifest = Manifest {
-            id: gcc.id.clone(),
-            gcc: gcc.version.as_str().to_owned(),
-            binutils: binutils.version.as_str().to_owned(),
-            target: tools.clone(),
-            forge: gcc.forge.clone(),
-            image: image.clone(),
-            prerequisites: prereqs.clone(),
-            file: file.clone(),
+            id: self.id.clone(),
+            gcc: self.gcc.clone(),
+            binutils: self.binutils.clone(),
+            target: tools.to_owned(),
+            forge: self.forge.clone(),
+            image: self.image.clone(),
+            prerequisites: self.prerequisites.clone(),
+            file,
             digest: digest.clone(),
             seconds: started.elapsed().as_secs(),
             gk: env!("CARGO_PKG_VERSION").to_owned(),
@@ -228,12 +306,102 @@ pub fn run(repo: &Repo, gcc_id: &str, targets: &[String], jobs: Option<u32>) -> 
             driver_sha256: String::new(),
         };
         let json = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
-        let path = out.join(format!("{}-{target}.json", gcc.id));
+        let path = out.join(format!("{}-{target}.json", self.id));
         std::fs::write(&path, json + "\n")
             .map_err(|e| format!("writing {}: {e}", path.display()))?;
-        println!("{}: {target} {digest} in {}s", gcc.id, manifest.seconds);
+        println!("{}: {target} {digest} in {}s", self.id, manifest.seconds);
+        Ok(())
     }
-    Ok(())
+}
+
+/// The names binutils installs under `bin/`, after the target prefix, and under `<target>/bin/`. Every one of them is taken out of a GCC bundle before another binutils is laid over it, so none of the paired release's tools is left behind.
+const BINUTILS_TOOLS: &[&str] = &[
+    "addr2line",
+    "ar",
+    "as",
+    "c++filt",
+    "dlltool",
+    "dllwrap",
+    "dwp",
+    "elfedit",
+    "gprof",
+    "gprofng",
+    "ld",
+    "ld.bfd",
+    "ld.gold",
+    "nm",
+    "nlmconv",
+    "objcopy",
+    "objdump",
+    "ranlib",
+    "readelf",
+    "size",
+    "strings",
+    "strip",
+    "windmc",
+    "windres",
+];
+
+/// A GCC bundle with the tools of a binutils bundle in place of its own, for a cell of the binutils sweep (spec 04.6). The GCC tree is linked rather than copied, and the result is kept in the cache under both digests. The GCC driver finds `as` and `ld` in `<prefix>/<target>/bin`, so both places are replaced.
+pub fn combined(gcc: &Manifest, binutils: &Manifest) -> Result<PathBuf, String> {
+    let short = |m: &Manifest| {
+        m.digest
+            .trim_start_matches("sha256:")
+            .get(..12)
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let dir = bundles_dir().join("unpacked").join(format!(
+        "{}-{}-{}+{}-{}",
+        gcc.id,
+        gcc.target,
+        short(gcc),
+        binutils.id,
+        short(binutils)
+    ));
+    if dir.is_dir() {
+        return Ok(dir);
+    }
+    let from_gcc = unpacked(gcc)?;
+    let from_binutils = unpacked(binutils)?;
+    let partial = dir.with_extension("part");
+    let _ = std::fs::remove_dir_all(&partial);
+    let status = Command::new("cp")
+        .arg("-al")
+        .arg(&from_gcc)
+        .arg(&partial)
+        .status()
+        .map_err(|e| format!("running cp: {e}"))?;
+    if !status.success() {
+        return Err(format!("linking {} failed", from_gcc.display()));
+    }
+    let t = &gcc.target;
+    for tool in BINUTILS_TOOLS {
+        let _ = std::fs::remove_file(partial.join("bin").join(format!("{t}-{tool}")));
+        let _ = std::fs::remove_file(partial.join(t).join("bin").join(tool));
+    }
+    let _ = std::fs::remove_dir_all(partial.join(t).join("lib/ldscripts"));
+    for sub in [
+        "bin".to_owned(),
+        format!("{t}/bin"),
+        format!("{t}/lib/ldscripts"),
+    ] {
+        let from = from_binutils.join(&sub);
+        if !from.is_dir() {
+            continue;
+        }
+        let to = partial.join(&sub);
+        std::fs::create_dir_all(&to).map_err(|e| format!("creating {}: {e}", to.display()))?;
+        for entry in std::fs::read_dir(&from).map_err(|e| format!("{}: {e}", from.display()))? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let target = to.join(entry.file_name());
+            let _ = std::fs::remove_file(&target);
+            std::fs::hard_link(entry.path(), &target)
+                .map_err(|e| format!("linking {}: {e}", target.display()))?;
+        }
+    }
+    std::fs::rename(&partial, &dir).map_err(|e| format!("renaming {}: {e}", partial.display()))?;
+    Ok(dir)
 }
 
 /// Forge the bundle of a distribution column: links to the GCC and binutils of its host image, made by `provision/forge/distribution.sh` in that image, with what the image's packages say recorded in the manifest.
@@ -511,6 +679,10 @@ pub fn verify(repo: &Repo, only: &[String]) -> Result<bool, String> {
                 .map_err(|e| format!("reading {}: {e}", path.display()))?;
             let m: Manifest =
                 serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+            // A binutils bundle of the sweep has no compiler to try, and the cells that lay it over a GCC are its check.
+            if m.gcc.is_empty() {
+                continue;
+            }
             if only.is_empty() || only.iter().any(|o| *o == m.id || *o == m.gcc) {
                 manifests.push(m);
             }
