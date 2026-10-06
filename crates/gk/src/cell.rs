@@ -1499,8 +1499,16 @@ fn interpreted(elf: &[u8]) -> bool {
         return false;
     }
     let u16_at = |o: usize| elf.get(o..o + 2).map(|b| u16::from_le_bytes([b[0], b[1]]));
-    let u32_at = |o: usize| elf.get(o..o + 4).and_then(|b| b.try_into().ok()).map(u32::from_le_bytes);
-    let u64_at = |o: usize| elf.get(o..o + 8).and_then(|b| b.try_into().ok()).map(u64::from_le_bytes);
+    let u32_at = |o: usize| {
+        elf.get(o..o + 4)
+            .and_then(|b| b.try_into().ok())
+            .map(u32::from_le_bytes)
+    };
+    let u64_at = |o: usize| {
+        elf.get(o..o + 8)
+            .and_then(|b| b.try_into().ok())
+            .map(u64::from_le_bytes)
+    };
     let (Some(phoff), Some(size), Some(count)) = (u64_at(32), u16_at(54), u16_at(56)) else {
         return false;
     };
