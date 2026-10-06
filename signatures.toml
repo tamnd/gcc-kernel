@@ -268,11 +268,11 @@ match = { first-error = 'multiple definition of `intel_gmbus_is_(?:forced_bit|po
 kind = "default-change"
 summary = "GCC 5 defaults to -std=gnu11, where extern inline emits the function in every unit, and the extern inline helpers in i915_drv.h stop linking"
 fixed-by = [
-  { commit = "8f375e10ee47", first-tag = "v3.10-rc1", note = "makes the i915 helpers static inline" },
-  { commit = "51b97e354ba9", first-tag = "v3.18-rc2", note = "builds the kernel with -std=gnu89" },
+  { commit = "8f375e10ee47", first-tag = "v3.11-rc1", note = "makes the i915 helpers static inline, and 3.10.108 builds with GCC 5 too" },
+  { commit = "51b97e354ba9", first-tag = "v3.18-rc5", note = "builds the kernel with -std=gnu89" },
 ]
 gcc = ">=5"
-kernel = "<3.10"
+kernel = "<3.11"
 
 [[signature]]
 class = "gnu23-bool"
