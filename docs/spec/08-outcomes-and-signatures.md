@@ -122,6 +122,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `binutils-plt32` | binutils-* | binutils 2.31 and later, x86_64 | L4 to L5 | b21ebf2fb4cd |
 | `binutils-separate-code` | binutils-* | binutils 2.31 and later, x86_64 | L5 | e3d03598e8ae |
 | `binutils-got32x` | binutils-* | binutils 2.26 and later, i386 | L5 | 6d92bc9d483a |
+| `binutils-objtool-symtab` | binutils-* | binutils 2.36 and later, x86, kernels before 5.11 | L3 | 1d489151e9f9 |
 | `binutils-riscv-zicsr` | binutils-* | binutils 2.38 and later, riscv | L3 | 6df2a016c0c8 |
 | `binutils-rwx-warning` | binutils-* | binutils 2.39 and later | L4, fatal with `CONFIG_WERROR` from 6.18 | 0d362be5b142, ffcf9c5700e4 |
 | `binutils-loongarch-relax` | binutils-* | binutils 2.41 and later, loongarch | L5 to L7 (module load) | 03c53eb90c0c |

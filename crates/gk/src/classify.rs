@@ -46,22 +46,37 @@ impl Failure {
 
 /// The lines of a build log that say something went wrong, in the order they came.
 fn error_lines(log: &str) -> Vec<&str> {
-    log.lines()
-        .filter(|l| {
-            !l.starts_with("make:")
-                && !l.starts_with("make[")
-                && !l.starts_with('#')
-                && !l.starts_with("  ")
-                && (l.contains("error:")
-                    || l.contains("Error:")
-                    || l.contains("ERROR:")
-                    || l.contains("objtool:")
-                    || l.contains("modpost:")
-                    || l.contains("undefined reference")
-                    || l.contains("multiple definition")
-                    || l.contains("LOAD segment with RWX"))
-        })
-        .collect()
+    log.lines().filter(|l| is_error_line(l)).collect()
+}
+
+fn is_error_line(l: &str) -> bool {
+    !l.starts_with("make:")
+        && !l.starts_with("make[")
+        && !l.starts_with('#')
+        && !l.starts_with("  ")
+        && (l.contains("error:")
+            || l.contains("Error:")
+            || l.contains("ERROR:")
+            || l.contains("objtool:")
+            || l.contains("modpost:")
+            || l.contains("undefined reference")
+            || l.contains("multiple definition")
+            || l.contains("LOAD segment with RWX"))
+}
+
+/// The error line that names the target make first gave up on, as `arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table` before `*** [arch/x86/entry/thunk_64.o] Error 1`. Under `-j` that says more than the lines kbuild stopped on, which are whatever the other jobs printed last.
+fn gave_up_on(make: &str) -> Option<String> {
+    let lines: Vec<&str> = make.lines().collect();
+    let at = lines
+        .iter()
+        .position(|l| (l.starts_with("make:") || l.starts_with("make[")) && l.contains("*** ["))?;
+    let target = lines[at].split("*** [").nth(1)?.split(']').next()?;
+    let target = target.rsplit(": ").next()?;
+    lines[..at]
+        .iter()
+        .rev()
+        .find(|l| is_error_line(l) && l.contains(target))
+        .map(|l| l.trim().to_owned())
 }
 
 /// A log of a cell directory, decompressed when only the `.zst` is left.
@@ -172,6 +187,9 @@ fn stopped(dir: &Path) -> Option<String> {
 
 /// The first error of a build that failed with no failing unit, as when a link fails. The lines kbuild stopped on come first when they say what went wrong, but under `-j` they are often just the last commands of other jobs, and then the log's first error line is the one to go by.
 fn no_unit(stopped: Option<String>, make: &str) -> String {
+    if let Some(line) = gave_up_on(make) {
+        return line;
+    }
     match stopped {
         Some(s) if !error_lines(&s).is_empty() || error_lines(make).is_empty() => s,
         _ => first_of(make),
@@ -742,6 +760,19 @@ platform = ["x86_64"]
         assert_eq!(no_unit(Some(quiet.to_owned()), "nothing\n"), quiet);
         let loud = "ld: final link failed: error: bad value";
         assert_eq!(no_unit(Some(loud.to_owned()), make), loud);
+    }
+
+    #[test]
+    fn the_line_naming_the_target_make_gave_up_on_wins() {
+        let stopped = "kernel/tsacct.o: warning: objtool: missing symbol for section .text";
+        let new = "   ./tools/objtool/objtool orc generate  --no-fp --retpoline --uaccess arch/x86/entry/thunk_64.o\narch/x86/entry/thunk_64.o: warning: objtool: missing symbol table\nmake[3]: *** [/src/scripts/Makefile.build:369: arch/x86/entry/thunk_64.o] Error 1\n";
+        let old = "arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table\n/src/scripts/Makefile.build:405: recipe for target 'arch/x86/entry/thunk_64.o' failed\nmake[3]: *** [arch/x86/entry/thunk_64.o] Error 1\n";
+        for make in [new, old] {
+            assert_eq!(
+                no_unit(Some(stopped.to_owned()), make),
+                "arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table"
+            );
+        }
     }
 
     #[test]
