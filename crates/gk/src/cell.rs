@@ -627,16 +627,7 @@ pub fn probe(s: &Setup, dir: &Path, jobs: usize) -> Result<Probe, String> {
     let (result, why) = if code == 0 {
         ("accepted", Vec::new())
     } else {
-        let text = std::fs::read_to_string(&main_log).unwrap_or_default();
-        let errors: Vec<String> = text
-            .lines()
-            .filter(|l| {
-                l.contains("error: #error")
-                    || (l.contains("linux/compiler-gcc") && l.contains("No such file"))
-            })
-            .take(6)
-            .map(str::to_owned)
-            .collect();
+        let errors = refusals(&std::fs::read_to_string(&main_log).unwrap_or_default());
         if errors.is_empty() {
             ("inconclusive", tail_of(&main_log))
         } else {
@@ -649,6 +640,23 @@ pub fn probe(s: &Setup, dir: &Path, jobs: usize) -> Result<Probe, String> {
         why,
         seconds: clock.elapsed().as_secs_f64(),
     })
+}
+
+/// The lines of a failed `init/main.i` that say the compiler was refused.
+///
+/// Before 2.6.17 or so, `init/main.i` with `O=` does not make the `asm` link, so every `asm/` header is missing. GCC 3.x and 4.5 on stop at the first missing header, but 4.0 to 4.4 go on, and the headers that needed `asm/` fire their `#error`s, such as "Please fix asm/byteorder.h". So when some other header is missing, only an `#error` in the compiler headers counts.
+fn refusals(log: &str) -> Vec<String> {
+    let missing = log
+        .lines()
+        .any(|l| l.contains("No such file") && !l.contains("linux/compiler-gcc"));
+    log.lines()
+        .filter(|l| {
+            (l.contains("error: #error") && (!missing || l.contains("linux/compiler")))
+                || (l.contains("linux/compiler-gcc") && l.contains("No such file"))
+        })
+        .take(6)
+        .map(str::to_owned)
+        .collect()
 }
 
 fn tail_of(log: &Path) -> Vec<String> {
@@ -1520,6 +1528,25 @@ mod tests {
             ["DRM_SCHED_KUNIT_TEST", "RATELIMIT_KUNIT_TEST"]
         );
         assert!(kunit_skip("CONFIG_KUNIT=y\n").is_empty());
+    }
+
+    #[test]
+    fn an_error_that_needs_a_missing_asm_header_is_no_refusal() {
+        // 2.6.16 on x86_64 with GCC 4.1.2, which goes on past the missing headers.
+        let knock_on = "/src/init/main.c:51:20: error: asm/io.h: No such file or directory\n/src/include/linux/kernel.h:243:2: error: #error \"Please fix asm/byteorder.h\"\n/src/include/linux/jiffies.h:33:3: error: #error You lose.\n";
+        assert!(refusals(knock_on).is_empty());
+        // The same kernel with GCC 12, which its compiler.h refuses.
+        let refused = "/src/include/linux/compiler.h:40:2: error: #error no compiler-gcc.h file for this gcc version\n/src/include/linux/posix_types.h:47:10: fatal error: asm/posix_types.h: No such file or directory\n";
+        assert_eq!(refusals(refused).len(), 1);
+        // With every header there, any #error is a refusal, and so is a missing compiler-gccN.h.
+        assert_eq!(
+            refusals("/src/include/linux/compiler-gcc4.h:9:3: error: #error Your compiler is too buggy\n").len(),
+            1
+        );
+        assert_eq!(
+            refusals("/src/include/linux/compiler-gcc.h:120:30: fatal error: linux/compiler-gcc9.h: No such file or directory\n").len(),
+            1
+        );
     }
 
     #[test]
