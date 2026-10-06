@@ -1201,15 +1201,7 @@ pub fn regrade(repo: &Repo, dir: &Path, record: &mut CellRecord) -> Result<bool,
         .find(|st| st.rung == tested)
         .map_or(0.0, |st| st.seconds);
     let mut rungs = vec![Rung::Smoke; kunit.runs];
-    let (step, allowed) = grade(
-        repo,
-        &s,
-        dir,
-        &mut rungs,
-        &suites,
-        &kunit_splats,
-        seconds,
-    )?;
+    let (step, allowed) = grade(repo, &s, dir, &mut rungs, &suites, &kunit_splats, seconds)?;
     record
         .steps
         .retain(|st| st.rung != tested && st.rung != clean_rung);
