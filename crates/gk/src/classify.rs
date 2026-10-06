@@ -734,14 +734,14 @@ platform = ["x86_64"]
     #[test]
     fn a_link_error_beats_stop_lines_that_say_nothing() {
         let make = "  LD      drivers/gpu/drm/i915/i915.o\ni915_irq.c:(.text+0x20f0): multiple definition of `intel_gmbus_is_forced_bit'\nmake[4]: *** [i915.o] Error 1\n";
-        let quiet = Some("make -f /src/scripts/Makefile.build obj=net/sunrpc/auth_gss".to_owned());
+        let quiet = "make -f /src/scripts/Makefile.build obj=net/sunrpc/auth_gss";
         assert_eq!(
-            no_unit(quiet.clone(), make),
+            no_unit(Some(quiet.to_owned()), make),
             "i915_irq.c:(.text+0x20f0): multiple definition of `intel_gmbus_is_forced_bit'"
         );
-        assert_eq!(no_unit(quiet.clone(), "nothing\n"), quiet.unwrap());
-        let loud = Some("ld: final link failed: error: bad value".to_owned());
-        assert_eq!(no_unit(loud.clone(), make), loud.unwrap());
+        assert_eq!(no_unit(Some(quiet.to_owned()), "nothing\n"), quiet);
+        let loud = "ld: final link failed: error: bad value";
+        assert_eq!(no_unit(Some(loud.to_owned()), make), loud);
     }
 
     #[test]
