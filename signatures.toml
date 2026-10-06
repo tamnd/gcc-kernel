@@ -519,6 +519,17 @@ binutils = ">=2.26"
 platform = ["i386"]
 
 [[signature]]
+class = "binutils-objtool-symtab"
+rung = "L3"
+match = { first-error = 'objtool: missing symbol table' }
+kind = "binutils-objtool"
+summary = "binutils 2.36 writes no symbol table for an empty object, which thunk_64.o is without CONFIG_PREEMPTION, and objtool before 5.11 gives up on it"
+fixed-by = [ { commit = "1d489151e9f9", first-tag = "v5.11-rc5" } ]
+binutils = ">=2.36"
+kernel = "<5.11"
+platform = ["x86_64", "i386"]
+
+[[signature]]
 class = "binutils-riscv-zicsr"
 rung = "L3"
 match = { first-error = 'unrecognized opcode `(?:csr|fence\.i)' }
