@@ -481,10 +481,12 @@ pub fn classify(repo: &Repo, write: bool) -> Result<String, String> {
     let mut out = String::new();
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
     let mut failed = 0;
-    for (dir, mut r) in store::cells()? {
+    let cells = store::cells()?;
+    for (dir, r) in &cells {
+        let (dir, mut r) = (dir.clone(), r.clone());
         if write {
             repair_errors(&dir)?;
-            if crate::cell::regrade(repo, &dir, &mut r)? {
+            if crate::cell::regrade(repo, &dir, &mut r, &cells)? {
                 let c = &r.coordinates;
                 let _ = writeln!(
                     out,

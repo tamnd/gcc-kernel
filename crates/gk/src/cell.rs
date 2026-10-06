@@ -946,8 +946,7 @@ fn boots(
             return Ok(Booted { rungs, steps });
         }
         let (step, allowed) = grade(
-            repo,
-            s,
+            kunit_reference(repo, s)?,
             cell_dir,
             &mut rungs,
             &suites,
@@ -1047,8 +1046,7 @@ fn objtool_warnings(cell_dir: &Path) -> Vec<String> {
 
 /// Grade the KUnit runs of a cell that passed smoke in every run against the era GCC's cell, raising each run that passed every graded suite to L7, and write `kunit.json`. Returns the L7 step.
 fn grade(
-    repo: &Repo,
-    s: &Setup,
+    reference: Reference,
     cell_dir: &Path,
     rungs: &mut [Rung],
     suites: &[Option<Vec<tap::Suite>>],
@@ -1063,7 +1061,7 @@ fn grade(
         .map(|s| s.clone().unwrap_or_default())
         .collect();
     let mine = tap::tally(&ran);
-    let (reference, theirs, allowed) = match kunit_reference(repo, s)? {
+    let (reference, theirs, allowed) = match reference {
         Reference::Itself => ("self".to_owned(), mine.clone(), None),
         Reference::Cell(id, tally, allowed) => (id, tally, Some(allowed)),
         Reference::None => (String::new(), Vec::new(), Some(Vec::new())),
@@ -1141,6 +1139,40 @@ fn kunit_reference(repo: &Repo, s: &Setup) -> Result<Reference, String> {
     Ok(Reference::Cell(id, record.suites, record.splats))
 }
 
+/// A cell's `kunit.json`, when it has one.
+fn read_kunit(dir: &Path) -> Option<KunitRecord> {
+    serde_json::from_str(&std::fs::read_to_string(dir.join("kunit.json")).ok()?).ok()
+}
+
+/// The era GCC's cell for a cell's kernel, platform, configuration and boot rig among `cells`, the newest when there are several, with its `kunit.json`. This is what [`kunit_reference`] finds by identity, found by coordinates instead, so that nothing has to be unpacked to name it.
+fn era_cell(
+    repo: &Repo,
+    record: &CellRecord,
+    cells: &[(PathBuf, CellRecord)],
+) -> Option<(String, KunitRecord)> {
+    let c = &record.coordinates;
+    let version: Version = c.kernel.name.trim_start_matches("linux-").parse().ok()?;
+    let triple = &repo.platforms.get(&c.platform)?.triple;
+    let column = crate::search::era_column(repo, &repo.eras.of(&version)?.gcc, triple)?;
+    if column == c.gcc.name {
+        return None;
+    }
+    cells
+        .iter()
+        .filter(|(_, r)| {
+            let o = &r.coordinates;
+            o.gcc.name == column
+                && o.kernel == c.kernel
+                && o.platform == c.platform
+                && o.config == c.config
+                && o.qemu == c.qemu
+                && o.initramfs == c.initramfs
+        })
+        .filter_map(|(dir, r)| Some((r.started, r.cell.clone(), read_kunit(dir)?)))
+        .max_by_key(|(started, _, _)| *started)
+        .map(|(_, id, k)| (id, k))
+}
+
 /// Whether a cell's KUnit runs are waiting for the era GCC's cell: every run passed smoke and was booted for KUnit, and there was nothing to grade them against when the cell ran.
 fn waits_for_reference(record: &CellRecord, kunit: &KunitRecord) -> bool {
     kunit.reference.is_empty()
@@ -1149,12 +1181,14 @@ fn waits_for_reference(record: &CellRecord, kunit: &KunitRecord) -> bool {
         && record.boots.iter().all(|b| *b == Rung::Smoke.to_string())
 }
 
-/// Grade a cell's KUnit runs again once the era GCC's cell is in the store, when they had nothing to be graded against as the cell ran. A cell run on its own, or before its row's era cell, stops at L6 that way. The runs are read back from `boot-N.json` and `kunit-N.json`, so nothing boots again, and the cell is raised to L7 and L8 as the first grading would have raised it. Returns whether the record changed.
-pub fn regrade(repo: &Repo, dir: &Path, record: &mut CellRecord) -> Result<bool, String> {
-    let Some(kunit) = std::fs::read_to_string(dir.join("kunit.json"))
-        .ok()
-        .and_then(|t| serde_json::from_str::<KunitRecord>(&t).ok())
-    else {
+/// Grade a cell's KUnit runs again once the era GCC's cell is in the store, when they had nothing to be graded against as the cell ran. A cell run on its own, or before its row's era cell, stops at L6 that way. The runs are read back from `boot-N.json` and `kunit-N.json`, so nothing boots again, and the cell is raised to L7 and L8 as the first grading would have raised it. `cells` is the store, where the era cell is looked for. Returns whether the record changed.
+pub fn regrade(
+    repo: &Repo,
+    dir: &Path,
+    record: &mut CellRecord,
+    cells: &[(PathBuf, CellRecord)],
+) -> Result<bool, String> {
+    let Some(kunit) = read_kunit(dir) else {
         return Ok(false);
     };
     // The objtool warnings come from the build log, which a cell copied without it no longer has.
@@ -1165,19 +1199,10 @@ pub fn regrade(repo: &Repo, dir: &Path, record: &mut CellRecord) -> Result<bool,
     {
         return Ok(false);
     }
-    let c = &record.coordinates;
-    let Ok(s) = Setup::new(
-        repo,
-        &c.kernel.name,
-        &c.gcc.name,
-        &c.platform,
-        &c.config.name,
-    ) else {
+    let Some((id, theirs)) = era_cell(repo, record, cells) else {
         return Ok(false);
     };
-    if matches!(kunit_reference(repo, &s)?, Reference::None) {
-        return Ok(false);
-    }
+    let reference = Reference::Cell(id, theirs.suites, theirs.splats);
     let outcome = |name: String| -> Result<boot::Outcome, String> {
         let path = dir.join(&name);
         let text = std::fs::read_to_string(&path)
@@ -1201,7 +1226,7 @@ pub fn regrade(repo: &Repo, dir: &Path, record: &mut CellRecord) -> Result<bool,
         .find(|st| st.rung == tested)
         .map_or(0.0, |st| st.seconds);
     let mut rungs = vec![Rung::Smoke; kunit.runs];
-    let (step, allowed) = grade(repo, &s, dir, &mut rungs, &suites, &kunit_splats, seconds)?;
+    let (step, allowed) = grade(reference, dir, &mut rungs, &suites, &kunit_splats, seconds)?;
     record
         .steps
         .retain(|st| st.rung != tested && st.rung != clean_rung);
