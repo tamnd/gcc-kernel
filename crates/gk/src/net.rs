@@ -7,29 +7,45 @@ use std::io::Read;
 use std::path::Path;
 use std::process::Command;
 
+/// The GNU master site, and the mirror that is tried when it cannot be reached.
+const GNU: &str = "https://ftp.gnu.org/gnu/";
+const GNU_MIRROR: &str = "https://mirrors.kernel.org/gnu/";
+
+/// The URLs to try for `url`, in order: itself, and for a file on the GNU master site the same path on the mirror. A file from the mirror is checked against its signature or its pin like any other, so the mirror is trusted no more than the master site.
+fn sources(url: &str) -> Vec<String> {
+    let mut out = vec![url.to_owned()];
+    if let Some(path) = url.strip_prefix(GNU) {
+        out.push(format!("{GNU_MIRROR}{path}"));
+    }
+    out
+}
+
 /// Download a URL to a file, failing on any HTTP error. The file appears only when the download is complete.
 pub fn download(url: &str, to: &Path) -> Result<(), String> {
     if let Some(dir) = to.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
     }
     let partial = to.with_extension("part");
-    let status = Command::new("curl")
-        .args(["-fsSL", "--retry", "3", "-o"])
-        .arg(&partial)
-        .arg(url)
-        .status()
-        .map_err(|e| format!("running curl: {e}"))?;
-    if !status.success() {
+    for source in sources(url) {
+        let status = Command::new("curl")
+            .args(["-fsSL", "--retry", "3", "--connect-timeout", "30", "-o"])
+            .arg(&partial)
+            .arg(&source)
+            .status()
+            .map_err(|e| format!("running curl: {e}"))?;
+        if status.success() {
+            return std::fs::rename(&partial, to)
+                .map_err(|e| format!("moving {}: {e}", partial.display()));
+        }
         let _ = std::fs::remove_file(&partial);
-        return Err(format!("downloading {url} failed"));
     }
-    std::fs::rename(&partial, to).map_err(|e| format!("moving {}: {e}", partial.display()))
+    Err(format!("downloading {url} failed"))
 }
 
-/// Download a URL and return its text.
+/// Download a URL and return its text. Only the URL itself is tried, since the directory listings `gk pins` reads are in the master site's format, which the mirror does not keep.
 pub fn fetch_text(url: &str) -> Result<String, String> {
     let out = Command::new("curl")
-        .args(["-fsSL", "--retry", "3", url])
+        .args(["-fsSL", "--retry", "3", "--connect-timeout", "30", url])
         .output()
         .map_err(|e| format!("running curl: {e}"))?;
     if !out.status.success() {
@@ -77,4 +93,24 @@ fn hex(bytes: &[u8]) -> String {
         let _ = write!(s, "{b:02x}");
         s
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_gnu_file_falls_back_to_the_mirror() {
+        assert_eq!(
+            sources("https://ftp.gnu.org/gnu/binutils/binutils-2.37.tar.xz.sig"),
+            [
+                "https://ftp.gnu.org/gnu/binutils/binutils-2.37.tar.xz.sig",
+                "https://mirrors.kernel.org/gnu/binutils/binutils-2.37.tar.xz.sig"
+            ]
+        );
+        assert_eq!(
+            sources("https://cdn.kernel.org/pub/linux/kernel/v6.x/sha256sums.asc"),
+            ["https://cdn.kernel.org/pub/linux/kernel/v6.x/sha256sums.asc"]
+        );
+    }
 }
