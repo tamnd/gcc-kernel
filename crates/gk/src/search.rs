@@ -4,7 +4,7 @@
 //!
 //! The last-point columns are ordered by version, not by release date as 09.3 has it: the series overlap in time, and 13.5 came out after 16.2, so date order would put it at the newer edge.
 //!
-//! A cell already in the store with the same identity is not run again unless `--rerun` is given, so a search that dies halfway picks up where it stopped. The one exception is a cell whose build went over its budget, which is run again, since on a loaded machine a timeout says more about the machine than the cell.
+//! A cell already in the store with the same identity is not run again unless `--rerun` is given, so a search that dies halfway picks up where it stopped. The exceptions are a cell whose build went over its budget and a cell that found the disk full, which are run again, since a timeout on a loaded machine and a full disk say more about the machine than the cell.
 
 use crate::cell::{self, CellRecord, Setup};
 use crate::{build, store};
@@ -172,7 +172,7 @@ pub(crate) fn one_with(
         && let Ok(record) = serde_json::from_str::<CellRecord>(&text)
         && record.graded
         && !(keep_going && record.rung == "L3" && record.units_failed.is_none())
-        && !build::over_budget(&store::cell_dir(&identity))
+        && !build::rig_failed(&store::cell_dir(&identity))
     {
         return Column::Ran {
             cached: true,

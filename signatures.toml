@@ -220,6 +220,13 @@ match = { first-error = 'went over its budget|^timed out after' }
 kind = "timeout"
 summary = "The step ran out of its time budget with no other sign of failure, which on a loaded machine says more about the machine than the cell"
 
+[[signature]]
+class = "disk-full"
+rung = "L1..L5"
+match = { first-error = 'No space left on device' }
+kind = "host-tool"
+summary = "The build machine ran out of disk, so the cell says nothing about the kernel or the compiler, and a search runs it again"
+
 # Changed defaults.
 
 [[signature]]
