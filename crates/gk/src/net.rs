@@ -42,10 +42,12 @@ pub fn download(url: &str, to: &Path) -> Result<(), String> {
     Err(format!("downloading {url} failed"))
 }
 
-/// Download a URL and return its text. Only the URL itself is tried, since the directory listings `gk pins` reads are in the master site's format, which the mirror does not keep.
+/// Download a URL and return its text. Only the URL itself is tried, since the directory listings `gk pins` reads are in the master site's format, which the mirror does not keep. A listing is small, so a server that is up answers well inside the time limit, and one that stalls is given up on and tried again rather than waited on for an hour.
 pub fn fetch_text(url: &str) -> Result<String, String> {
     let out = Command::new("curl")
-        .args(["-fsSL", "--retry", "3", "--connect-timeout", "30", url])
+        .args(["-fsSL", "--retry", "5", "--retry-all-errors"])
+        .args(["--retry-delay", "30", "--connect-timeout", "30"])
+        .args(["--max-time", "300", url])
         .output()
         .map_err(|e| format!("running curl: {e}"))?;
     if !out.status.success() {
