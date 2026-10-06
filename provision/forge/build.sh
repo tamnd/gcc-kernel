@@ -213,7 +213,7 @@ fi
 log "packing"
 # The man and info pages are all there is under share, or under man and info before 3.0, and pod2man stamps the day it ran into every binutils man page, so two forges of the same bundle on different days would differ. Nothing in a cell reads them.
 rm -rf "${prefix:?}/share" "${prefix:?}/man" "${prefix:?}/info"
-# Jessie's tar has no --sort and jessie has no zstd. There the member list is sorted by hand, and the tarball is left uncompressed for gk to compress outside the container. Woody's tar cannot set member times either, so there the installed tree itself is left for gk to pack.
+# Jessie's tar has no --sort and jessie has no zstd, and stretch's zstd 1.1.2 has no -T. There the member list is sorted by hand, and the tarball is left uncompressed for gk to compress outside the container. Woody's tar cannot set member times either, so there the installed tree itself is left for gk to pack.
 cd "$prefix"
 if ! tar --mtime=@0 -cf /dev/null --files-from /dev/null 2> /dev/null; then
   tree="/out/$GK_ID-$GK_TARGET.tree"
@@ -229,7 +229,7 @@ else
   list=(--no-recursion -T "$work/members")
 fi
 out="/out/$GK_ID-$GK_TARGET.tar"
-if command -v zstd > /dev/null; then
+if command -v zstd > /dev/null && zstd -q -T0 -c < /dev/null > /dev/null 2>&1; then
   tar --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - "${list[@]}" | zstd -q -19 -T0 > "$out.zst.part"
   mv "$out.zst.part" "$out.zst"
   log "done: $out.zst"
