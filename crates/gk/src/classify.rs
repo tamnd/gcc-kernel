@@ -526,18 +526,18 @@ pub fn explain(repo: &Repo, args: &[String]) -> Result<String, String> {
         return Err("usage: gk explain K G P [--config C]".into());
     };
     let kernel = format!("linux-{}", kernel.trim_start_matches("linux-"));
-    let gcc = format!("gcc-{}", gcc.trim_start_matches("gcc-"));
     let (dir, r) = store::cells()?
         .into_iter()
         .rev()
         .find(|(_, r)| {
             let c = &r.coordinates;
             c.kernel.name == kernel
-                && c.gcc.name == gcc
+                && (c.gcc.name == gcc || c.gcc.name.strip_prefix("gcc-") == Some(gcc))
                 && c.platform == platform
                 && c.config.name == config
         })
         .ok_or_else(|| format!("no cell for {kernel} {gcc} {platform} {config} in the store"))?;
+    let gcc = &r.coordinates.gcc.name;
     let mut out = format!(
         "{kernel} x {gcc} on {platform} ({config}): {}, reached {}\n",
         r.verdict,
