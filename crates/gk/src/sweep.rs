@@ -1,6 +1,6 @@
 //! `gk binutils-sweep` and `gk report binutils`: the binutils axis of spec 04.6, with GCC fixed at the kernel's era GCC.
 //!
-//! The columns are the last point of each binutils release series, oldest first, except that the series of the binutils the era GCC's bundle was built with is stood for by that release itself, so the sweep starts from the matrix cell. From there the frontier search of spec 09.3 gallops out to each edge and binary searches it, as `gk search` does over GCC. A binutils that has no bundle yet is forged on the way, in the forge of the newest GCC released before it, and one that cannot be built for the platform at all is a column that does not work.
+//! The columns are the last point of each binutils release series, oldest first, except that the series of the binutils the era GCC's bundle was built with is stood for by that release itself, so the sweep starts from the matrix cell. From there the frontier search of spec 09.3 gallops out to each edge and binary searches it, as `gk search` does over GCC. A binutils that has no bundle yet is forged on the way, in the forge of the newest GCC released before it, and one that cannot be built for the platform at all is a column that does not work. One whose sources cannot be downloaded stops the sweep, since that is the network's failure and not the release's.
 //!
 //! A cell of the sweep carries the binutils bundle's digest in its binutils coordinate, where a matrix cell carries the tarball's, which is how the matrix and the reports about the GCC axis leave the sweep's cells out.
 
@@ -72,12 +72,21 @@ pub fn run(
         .ok_or_else(|| format!("binutils {paired} of {gcc} is not in binutils.toml"))?;
     println!("binutils sweep of {version} on {platform} with {gcc}, from binutils {paired}");
     let mut ran: BTreeMap<usize, Column> = BTreeMap::new();
+    // A download that fails says nothing about the binutils, so the sweep stops there rather than take it for an edge.
+    let mut offline: Option<String> = None;
     let mut works = |i: usize| {
+        if offline.is_some() {
+            return false;
+        }
         let b = cols[i];
         let c = if b.version.as_str() != paired
             && forge::manifest(&b.id, &p.triple).is_err()
             && let Err(e) = forge::run(repo, &b.id, std::slice::from_ref(&p.triple), None)
         {
+            if e.contains("downloading") {
+                offline = Some(e);
+                return false;
+            }
             Column::Broken(format!("no bundle: {e}"))
         } else {
             search::one_with(repo, &version, &gcc, platform, opts, false, Some(&b.id))
@@ -87,7 +96,11 @@ pub fn run(
         ran.insert(i, c);
         ok
     };
-    if search::frontier(cols.len(), at, &mut works).is_none() {
+    let found = search::frontier(cols.len(), at, &mut works);
+    if let Some(e) = offline {
+        return Err(format!("the sweep of {version} stopped, as {e}"));
+    }
+    if found.is_none() {
         println!("the cell with the paired binutils does not work, so there is nothing to sweep");
     }
     let row: Vec<(String, Column)> = ran
