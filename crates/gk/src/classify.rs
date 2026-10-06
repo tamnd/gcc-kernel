@@ -213,7 +213,7 @@ fn repair_errors(dir: &Path) -> Result<(), String> {
         return Ok(());
     };
     let units = build::failing_units(&records, Path::new("/src"));
-    if !units.first().is_some_and(|u| !u.error.is_empty()) {
+    if units.first().is_none_or(|u| u.error.is_empty()) {
         return Ok(());
     }
     let mut lines = String::new();
@@ -857,9 +857,17 @@ platform = ["x86_64"]
     fn a_museum_tree_whose_make_dep_failed_is_read_from_dep_log() {
         let dir = std::env::temp_dir().join(format!("gk-dep-log-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("dep.log"), "gcc: unrecognized option `-M'\nmake: *** [dep] Error 2\n").unwrap();
+        std::fs::write(
+            dir.join("dep.log"),
+            "gcc: unrecognized option `-M'\nmake: *** [dep] Error 2\n",
+        )
+        .unwrap();
         assert!(build_log(&dir).contains("unrecognized option"));
-        std::fs::write(dir.join("dep.log"), "make[1]: Leaving directory `/out/fs'\n").unwrap();
+        std::fs::write(
+            dir.join("dep.log"),
+            "make[1]: Leaving directory `/out/fs'\n",
+        )
+        .unwrap();
         std::fs::write(dir.join("make.log"), "fs/a.c:1: error: x\n").unwrap();
         assert_eq!(build_log(&dir), "fs/a.c:1: error: x\n");
         std::fs::remove_dir_all(&dir).unwrap();
