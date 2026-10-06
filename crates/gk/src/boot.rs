@@ -178,15 +178,15 @@ impl Outcome {
     pub fn read_line(&mut self, raw: &str) {
         let raw = raw.trim_end_matches(['\r', '\n']);
         let line = strip_timestamp(raw);
-        if line.len() == raw.len() {
-            if let Some(head) = self.cut.take() {
-                // The rest of a cut marker is the first line after it that is not the kernel's, as `s 0` after `GK-END smoke pas[    9.55] md: stopping all md devices.`. A line with a marker of its own means the cut was at the end of the old one.
-                if raw.contains("GK-") {
-                    self.read_line(&head);
-                } else {
-                    self.read_line(&format!("{head}{raw}"));
-                    return;
-                }
+        // The rest of a cut marker is the first line after it that is not the kernel's, as `s 0` after `GK-END smoke pas[    9.55] md: stopping all md devices.`. A line with a marker of its own means the cut was at the end of the old one.
+        if line.len() == raw.len()
+            && let Some(head) = self.cut.take()
+        {
+            if raw.contains("GK-") {
+                self.read_line(&head);
+            } else {
+                self.read_line(&format!("{head}{raw}"));
+                return;
             }
         }
         if let Some(at) = line.find("GK-") {
