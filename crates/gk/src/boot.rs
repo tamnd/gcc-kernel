@@ -112,6 +112,9 @@ pub struct Outcome {
     pub stopped_after_end: bool,
     /// How long it took, in seconds.
     pub seconds: f64,
+    /// The start of a marker the kernel printed into, until the rest of it comes.
+    #[serde(skip)]
+    cut: Option<String>,
 }
 
 impl Outcome {
@@ -132,6 +135,7 @@ impl Outcome {
             timed_out: false,
             stopped_after_end: false,
             seconds: 0.0,
+            cut: None,
         }
     }
 
@@ -157,6 +161,13 @@ impl Outcome {
             && self.checks.iter().all(|c| c.pass || !counts(c))
     }
 
+    /// Read a cut marker whose rest never came, as when the console stops right after it.
+    pub fn finish(&mut self) {
+        if let Some(head) = self.cut.take() {
+            self.read_line(&head);
+        }
+    }
+
     /// Whether the end marker has been read.
     #[must_use]
     pub fn ended(&self) -> bool {
@@ -165,13 +176,26 @@ impl Outcome {
 
     /// Take one console line, without its line ending.
     pub fn read_line(&mut self, raw: &str) {
-        let line = strip_timestamp(raw.trim_end_matches(['\r', '\n']));
+        let raw = raw.trim_end_matches(['\r', '\n']);
+        let line = strip_timestamp(raw);
+        // The rest of a cut marker is the first line after it that is not the kernel's, as `s 0` after `GK-END smoke pas[    9.55] md: stopping all md devices.`. A line with a marker of its own means the cut was at the end of the old one.
+        if line.len() == raw.len()
+            && let Some(head) = self.cut.take()
+        {
+            if raw.contains("GK-") {
+                self.read_line(&head);
+            } else {
+                self.read_line(&format!("{head}{raw}"));
+                return;
+            }
+        }
         if let Some(at) = line.find("GK-") {
-            // The kernel can print into the middle of a marker line, as in `GK-CHECK exec pass[    6.65] init (81) used greatest stack depth`. Markers never hold a `[`, so the marker ends there and the rest is a console line of its own.
-            let mut marker = &line[at..];
+            // The kernel can print into the middle of a marker line, as in `GK-CHECK exec pass[    6.65] init (81) used greatest stack depth`. Markers never hold a `[`, so the marker ends there and the rest is a console line of its own. What init wrote after the cut, up to its own line end, comes on a line of its own after the kernel's, so the marker waits for it.
+            let marker = &line[at..];
             if let Some(cut) = marker.find('[') {
                 self.read_line(&marker[cut..]);
-                marker = &marker[..cut];
+                self.cut = Some(marker[..cut].to_owned());
+                return;
             }
             let mut words = marker.split_whitespace();
             match words.next() {
@@ -724,6 +748,7 @@ fn watch(
         let _ = log.write_all(line.as_bytes());
         outcome.read_line(&line);
     }
+    outcome.finish();
 }
 
 /// Run `gk boot IMAGE --platform P --kernel K [--suite S] [--dir D]`. Returns whether the suite passed.
@@ -806,6 +831,7 @@ mod tests {
         for l in lines {
             o.read_line(l);
         }
+        o.finish();
         o
     }
 
@@ -1040,6 +1066,30 @@ mod tests {
         assert!(o.checks.iter().all(|c| c.pass));
         assert_eq!(o.checks.len(), 2);
         assert_eq!(o.splats.len(), 1);
+    }
+
+    #[test]
+    fn a_marker_cut_in_a_word_is_joined_again() {
+        let o = read(&[
+            "GK-CHECK cpus pass",
+            "GK-END smoke pas[    9.558465] md: stopping all md devices.",
+            "[    9.6] WARNING: CPU: 0 PID: 1 at lib/x.c:3 f+0x1/0x2",
+            "s 0",
+            "[   12.346192] ACPI: Preparing to enter system sleep state S5",
+        ]);
+        assert_eq!(o.status.as_deref(), Some("pass"));
+        assert_eq!(o.checks.len(), 1);
+        assert_eq!(o.splats.len(), 1);
+        assert!(o.passed());
+        let o = read(&[
+            "GK-CHECK cpus pa[    4.560537] md: stopping all md devices.",
+            "ss",
+            "GK-END smoke[    8.626687] md: stopping all md devices.",
+            " pass 0",
+        ]);
+        assert_eq!(o.checks.len(), 1);
+        assert_eq!(o.status.as_deref(), Some("pass"));
+        assert!(o.passed());
     }
 
     #[test]
