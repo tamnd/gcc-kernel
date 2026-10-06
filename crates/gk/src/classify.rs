@@ -67,9 +67,9 @@ fn is_error_line(l: &str) -> bool {
 /// The error line that names the target make first gave up on, as `arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table` before `*** [arch/x86/entry/thunk_64.o] Error 1`. Under `-j` that says more than the lines kbuild stopped on, which are whatever the other jobs printed last.
 fn gave_up_on(make: &str) -> Option<String> {
     let lines: Vec<&str> = make.lines().collect();
-    let at = lines.iter().position(|l| {
-        (l.starts_with("make:") || l.starts_with("make[")) && l.contains("*** [")
-    })?;
+    let at = lines
+        .iter()
+        .position(|l| (l.starts_with("make:") || l.starts_with("make[")) && l.contains("*** ["))?;
     let target = lines[at].split("*** [").nth(1)?.split(']').next()?;
     let target = target.rsplit(": ").next()?;
     lines[..at]
