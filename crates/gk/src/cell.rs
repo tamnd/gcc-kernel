@@ -1540,7 +1540,10 @@ mod tests {
         assert_eq!(refusals(refused).len(), 1);
         // With every header there, any #error is a refusal, and so is a missing compiler-gccN.h.
         assert_eq!(
-            refusals("/src/include/linux/compiler-gcc4.h:9:3: error: #error Your compiler is too buggy\n").len(),
+            refusals(
+                "/src/include/linux/compiler-gcc4.h:9:3: error: #error Your compiler is too buggy\n"
+            )
+            .len(),
             1
         );
         assert_eq!(
