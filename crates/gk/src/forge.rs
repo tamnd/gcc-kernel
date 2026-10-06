@@ -533,7 +533,17 @@ pub(crate) fn image_for(repo: &Repo, name: &str) -> Result<String, String> {
         .status()
         .map_err(|e| format!("running docker: {e}"))?;
     if !status.success() {
-        return Err(format!("building {tag} failed"));
+        // An image loaded from another machine has no build cache, so the build starts over and needs the network. The image itself is still good.
+        let have = Command::new("docker")
+            .args(["image", "inspect", "--format", "{{.Id}}", &tag])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|s| s.success());
+        if !have {
+            return Err(format!("building {tag} failed"));
+        }
+        eprintln!("gk: building {tag} failed, so the image already here is used");
     }
     Ok(tag)
 }
