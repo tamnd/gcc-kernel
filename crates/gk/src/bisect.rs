@@ -2,7 +2,7 @@
 //!
 //! The clone is a bare repository at `GK_HISTORY`, or `history/linux.git` in the cache. `gk history update` makes it from Linus's tree and adds the tags of the stable tree, which is enough to bisect anything from 2.6.12 on, mainline or stable. The history from before git joins it at G3.
 //!
-//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix.
+//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix. A bisection at L1 is of a refusal, and since L1 is the accept probe, each commit runs the probe alone and leaves no cell.
 
 use crate::cell::{self, CellRecord, Setup};
 use crate::{fetch, store};
@@ -173,6 +173,16 @@ fn run_or_load(repo: &Repo, setup: &Setup, jobs: usize) -> Result<CellRecord, St
     cell::run(repo, setup, jobs, false).map(|(_, r)| r)
 }
 
+/// The rung of a commit from the accept probe alone, `L1` or `L0`. L1 is the probe, so a bisection of a refusal builds nothing and stores no cell.
+fn probe_rung(setup: &Setup, jobs: usize) -> Result<String, String> {
+    let dir = fetch::cache_dir()
+        .join("scratch")
+        .join(format!("probe-{}", setup.coordinates.short_id()));
+    let probe = cell::probe(setup, &dir, jobs);
+    let _ = std::fs::remove_dir_all(&dir);
+    Ok(if probe?.passes() { "L1" } else { "L0" }.into())
+}
+
 /// Export a commit's tree into the cache.
 fn export(history: &Path, commit: &str) -> Result<PathBuf, String> {
     let tree = fetch::cache_dir()
@@ -306,24 +316,25 @@ fn bisect(
                 opts.config,
             )
             .and_then(|s| if boot { s.booting(repo) } else { Ok(s) })
-            .and_then(|s| run_or_load(repo, &s, opts.jobs))
+            .and_then(|s| {
+                if rung == "L1" {
+                    probe_rung(&s, opts.jobs)
+                } else {
+                    run_or_load(repo, &s, opts.jobs).map(|r| r.rung)
+                }
+            })
             .map(|r| (version, r)),
             None => Err("the Makefile has no version".into()),
         };
         let _ = std::fs::remove_dir_all(&tree);
         let said = match &outcome {
             Ok((version, r)) => {
-                let t = term(passes(&r.rung));
-                println!(
-                    "{} {:<10} {:<3} {t}",
-                    &commit[..12],
-                    version.as_str(),
-                    r.rung
-                );
+                let t = term(passes(r));
+                println!("{} {:<10} {:<3} {t}", &commit[..12], version.as_str(), r);
                 tested.push(Tested {
                     commit: commit.clone(),
                     version: version.as_str().to_owned(),
-                    rung: r.rung.clone(),
+                    rung: r.clone(),
                     term: t.into(),
                 });
                 git(history, &["bisect", t])?
