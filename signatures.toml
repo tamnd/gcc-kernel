@@ -10,12 +10,22 @@
 
 [[signature]]
 class = "gcc-too-old-295"
-rung = "L1"
+rung = "L1..L3"
 match = { first-error = 'Sorry, your GCC is too old\. It builds incorrect kernels' }
 kind = "refusal"
-summary = "2.6.0 to 2.6.15 refuse anything below GCC 2.95 in init/main.c"
+summary = "2.6.0 to 2.6.15 refuse anything below GCC 2.95 in init/main.c, which the probe does not compile, so the refusal can wait for L3"
 gcc = "<2.95"
 kernel = "<2.6.16"
+
+[[signature]]
+class = "gcc-min-32"
+rung = "L1..L3"
+match = { first-error = 'your compiler is too old/not recognized|your GCC is too old\. It builds incorrect kernels' }
+kind = "refusal"
+summary = "2.6.16 to 2.6.28 refuse anything below GCC 3.2, in compiler.h for GCC 2 and egcs and in init/main.c or compiler.h for 3.0 and 3.1"
+fixed-by = [ { commit = "a136564", first-tag = "v2.6.16-rc1", note = "the refusal is the policy" } ]
+gcc = "<3.2"
+kernel = ">=2.6.16, <2.6.29"
 
 [[signature]]
 class = "gcc-296-frame-pointer"
@@ -71,7 +81,7 @@ kernel = ">=2.6.29, <=4.1"
 
 [[signature]]
 class = "compiler-h-gnuc-gt-4"
-rung = "L1"
+rung = "L1..L3"
 match = { first-error = 'no compiler-gcc\.h file for this gcc version' }
 kind = "refusal"
 summary = "2.6.12 to 2.6.28 stop on any GCC major above 4 in compiler.h"
@@ -309,6 +319,46 @@ gcc = ">=15"
 # New errors and new warnings under -Werror.
 
 [[signature]]
+class = "gcc4-incomplete-array"
+rung = "L3"
+match = { first-error = 'array type has incomplete element type' }
+kind = "new-error"
+summary = "GCC 4.0 refuses the array of struct tss_struct that processor.h declares before the struct, which 2.6.0 to 2.6.8 do on i386 and x86_64"
+gcc = ">=4"
+kernel = "<2.6.9"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "gcc4-byteorder"
+rung = "L1..L3"
+match = { first-error = 'Please fix asm/byteorder\.h' }
+kind = "new-error"
+summary = "2.6.0 and 2.6.1 stop in kernel.h with Please fix asm/byteorder.h under GCC 4, whose predefined macros their byteorder check does not expect"
+gcc = ">=4"
+kernel = "<2.6.2"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "gcc46-m-elf-i386"
+rung = "L3"
+match = { first-error = 'elf_i386: No such file or directory|unrecognized (?:command-line )?option .-m.' }
+kind = "new-error"
+summary = "i386 builds its vsyscall pages by passing the linker's -m elf_i386 to gcc, which GCC 4.6 and later read as an input file and GCC 11 and later refuse outright"
+fixed-by = [ { commit = "de2a8cf98ecd", first-tag = "v2.6.37-rc7", note = "fixes the vdso Makefile, which replaced the vsyscall rule of arch/i386/kernel in 2.6.25" } ]
+gcc = ">=4.6"
+kernel = "<2.6.37"
+platform = ["i386"]
+
+[[signature]]
+class = "gcc-pre-295-on-26"
+rung = "L3"
+match = { first-error = 'parse error before|Invalid option .-W' }
+kind = "too-old"
+summary = "GCC below 2.95 cannot parse the headers of 2.6.14 and later and does not know their warning options, and from 2.6.16 nothing refuses it first"
+gcc = "<2.95"
+kernel = ">=2.6.14"
+
+[[signature]]
 class = "gcc7-format-werror"
 rung = "L3"
 match = { first-error = '\[-Werror=(?:format-truncation|format-overflow|int-in-bool-context)=?\]' }
@@ -487,6 +537,65 @@ fixed-by = [ { commit = "4c9ad387aa2d", first-tag = "v7.1" } ]
 gcc = ">=16"
 
 # binutils.
+
+[[signature]]
+class = "binutils-too-old-lfence"
+rung = "L3"
+match = { first-error = "no such 386 instruction: `lfence'" }
+kind = "binutils-too-old"
+summary = "binutils 2.10 and older do not know lfence, which i386 uses from 2.6.5, so the egcs and GCC 2.95 bundles stop there"
+binutils = "<2.12"
+platform = ["i386"]
+
+[[signature]]
+class = "binutils-too-old-sysexit"
+rung = "L3"
+match = { first-error = "suffix or operands invalid for `sysexit'" }
+kind = "binutils-too-old"
+summary = "binutils 2.14 does not take sysexit in the 64 bit ia32entry.S"
+binutils = "<2.16"
+platform = ["x86_64"]
+
+[[signature]]
+class = "binutils-too-old-bignum"
+rung = "L3"
+match = { first-error = 'bignum invalid', unit = 'drivers/(?:net/s2io|scsi/aic7xxx)' }
+kind = "binutils-too-old"
+summary = "binutils 2.14 rejects the 64 bit constants the s2io and aic79xx drivers write, on i386 from 2.6.7"
+binutils = "<2.16"
+platform = ["i386"]
+
+[[signature]]
+class = "binutils-x86-64-macro-redefined"
+rung = "L3"
+match = { first-error = 'Macro with this name was already defined', unit = 'arch/x86_64/kernel/entry' }
+kind = "binutils-assembler"
+summary = "binutils 2.16 refuses the macro that x86_64 entry.S defines twice, up to 2.6.10"
+binutils = ">=2.16"
+kernel = "<2.6.11"
+platform = ["x86_64"]
+
+[[signature]]
+class = "binutils-segment-mov"
+rung = "L3"
+match = { first-error = " `mov'", unit = 'arch/(?:i386|x86_64)/kernel/process' }
+kind = "binutils-assembler"
+summary = "binutils 2.17 and later refuse a 32 bit mov between a segment register and memory or a 64 bit register, which process.c does up to 2.6.11"
+fixed-by = [ { commit = "fd51f666fa59", first-tag = "v2.6.12-rc4" } ]
+binutils = ">=2.17"
+kernel = "<2.6.12"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "binutils-range-ok-cmp"
+rung = "L3"
+match = { first-error = "for `cmp'", unit = 'fs/binfmt_aout' }
+kind = "binutils-assembler"
+summary = "__range_ok in the i386 uaccess.h lets GCC put an immediate as the destination of cmpl, which binutils 2.20 and later refuse"
+fixed-by = [ { commit = "722f4f5b2600", first-tag = "v2.6.18-rc1" } ]
+binutils = ">=2.20"
+kernel = "<2.6.18"
+platform = ["i386"]
 
 [[signature]]
 class = "binutils-plt32"
