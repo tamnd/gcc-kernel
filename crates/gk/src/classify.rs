@@ -501,7 +501,10 @@ pub fn triage(repo: &Repo, all: bool) -> Result<String, String> {
             c.platform.clone(),
             c.config.name.clone(),
         );
-        if newest.get(&key).is_none_or(|(_, old)| old.started < r.started) {
+        if newest
+            .get(&key)
+            .is_none_or(|(_, old)| old.started < r.started)
+        {
             newest.insert(key, (dir, r));
         }
     }
@@ -519,7 +522,14 @@ pub fn triage(repo: &Repo, all: bool) -> Result<String, String> {
             c.kernel.name, c.gcc.name, c.platform, c.config.name
         );
         if all {
-            let first: String = f.first_error.lines().next().unwrap_or("").chars().take(160).collect();
+            let first: String = f
+                .first_error
+                .lines()
+                .next()
+                .unwrap_or("")
+                .chars()
+                .take(160)
+                .collect();
             let _ = write!(line, "\n          {first}\n          {}", dir.display());
         }
         clusters
