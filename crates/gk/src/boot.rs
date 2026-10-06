@@ -1081,6 +1081,15 @@ mod tests {
         assert_eq!(o.checks.len(), 1);
         assert_eq!(o.splats.len(), 1);
         assert!(o.passed());
+        let o = read(&[
+            "GK-CHECK cpus pa[    4.560537] md: stopping all md devices.",
+            "ss",
+            "GK-END smoke[    8.626687] md: stopping all md devices.",
+            " pass 0",
+        ]);
+        assert_eq!(o.checks.len(), 1);
+        assert_eq!(o.status.as_deref(), Some("pass"));
+        assert!(o.passed());
     }
 
     #[test]
