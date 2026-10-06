@@ -74,6 +74,8 @@ pub fn run(
     let mut ran: BTreeMap<usize, Column> = BTreeMap::new();
     // A download that fails says nothing about the binutils, so the sweep stops there rather than take it for an edge.
     let mut offline: Option<String> = None;
+    // The rung the paired cell reached, which every other column is held to. It is set by the first cell, which is the paired one.
+    let mut bar: Option<String> = None;
     let mut works = |i: usize| {
         if offline.is_some() {
             return false;
@@ -92,7 +94,11 @@ pub fn run(
             search::one_with(repo, &version, &gcc, platform, opts, false, Some(&b.id))
         };
         search::print_column(&b.id, &c);
-        let ok = search::works(&c);
+        let rung = reached(&c);
+        if i == at {
+            bar = Some(rung.to_owned()).filter(|r| r.as_str() >= BUILT);
+        }
+        let ok = bar.as_deref().is_some_and(|b| rung >= b);
         ran.insert(i, c);
         ok
     };
@@ -101,14 +107,52 @@ pub fn run(
         return Err(format!("the sweep of {version} stopped, as {e}"));
     }
     if found.is_none() {
-        println!("the cell with the paired binutils does not work, so there is nothing to sweep");
+        println!("the cell with the paired binutils does not build, so there is nothing to sweep");
     }
     let row: Vec<(String, Column)> = ran
         .into_iter()
         .map(|(i, c)| (cols[i].id.clone(), c))
         .collect();
-    search::print_edges(&row);
+    match bar.as_deref() {
+        Some(b) if b < LAST => {
+            println!(
+                "the cell with the paired binutils reaches {b}, so each column is held to {b}"
+            );
+            search::print_edges_by(&row, |c| reached(c) >= b, &format!("reaches {b}"));
+        }
+        _ => search::print_edges(&row),
+    }
     Ok(row)
+}
+
+/// The rung a cell built at, below which a sweep has nothing to say about binutils.
+const BUILT: &str = "L4";
+
+/// The last rung, which a cell that works has passed.
+const LAST: &str = "L8";
+
+/// The rung a column got to, or nothing when it did not run.
+fn reached(c: &Column) -> &str {
+    match c {
+        Column::Ran { record, .. } => &record.rung,
+        _ => "",
+    }
+}
+
+/// The rung a row's runs are held to: the highest any of them reached, which is L8 when one works. A kernel that no binutils takes through every rung, as when its KUnit run fails on its own, still shows which binutils get it that far. `None` when no run built.
+fn bar(runs: &[Run]) -> Option<&str> {
+    runs.iter()
+        .map(|r| r.entry.rung.as_str())
+        .max()
+        .filter(|r| *r >= BUILT)
+}
+
+/// The runs of a row that clear its bar, oldest binutils first.
+fn passing(runs: &[Run]) -> Vec<&Run> {
+    let Some(b) = bar(runs) else {
+        return Vec::new();
+    };
+    runs.iter().filter(|r| r.entry.rung.as_str() >= b).collect()
 }
 
 /// A cell of the sweep, or the matrix cell it starts from, as the report needs it.
@@ -174,9 +218,9 @@ fn rows(repo: &Repo, ungraded: bool) -> Result<Rows, String> {
     Ok(rows)
 }
 
-/// One edge of a row in words: the run just beyond the oldest or the newest that works, and why it does not.
+/// One edge of a row in words: the run just beyond the oldest or the newest that clears the bar, and why it does not.
 fn edge(runs: &[Run], older: bool) -> String {
-    let ok: Vec<&Run> = runs.iter().filter(|r| r.entry.verdict == "works").collect();
+    let ok = passing(runs);
     let Some(bound) = (if older { ok.first() } else { ok.last() }) else {
         return String::new();
     };
@@ -213,7 +257,7 @@ pub fn report(repo: &Repo, ungraded: bool) -> Result<String, String> {
     let all = columns(repo, "");
     let mut out = String::new();
     out.push_str("# The binutils sweep\n\n");
-    out.push_str("Which binutils builds and boots each kernel when GCC is held at the kernel's era GCC (spec 04.6). Each row starts from the matrix cell, whose binutils is the one the era GCC's bundle was built with, and the frontier search runs out from there over the last point of each binutils series until it finds the oldest and the newest release that work. A release between two that work is taken to work too, as the GCC search takes it, and a column nobody ran is left blank.\n\n");
+    out.push_str("Which binutils builds and boots each kernel when GCC is held at the kernel's era GCC (spec 04.6). Each row starts from the matrix cell, whose binutils is the one the era GCC's bundle was built with, and the frontier search runs out from there over the last point of each binutils series until it finds the oldest and the newest release that work. A release between two that work is taken to work too, as the GCC search takes it, and a column nobody ran is left blank. When no binutils takes a kernel through every rung, say because its KUnit run fails whatever the binutils, the row is held to the highest rung any of its cells reached instead, which the column `held to` gives.\n\n");
     out.push_str("Written by `gk report binutils` from the result store. `gk binutils-sweep K --platform P` runs a row.\n\n");
     if rows.is_empty() {
         out.push_str("No row has been swept yet.\n");
@@ -225,17 +269,22 @@ pub fn report(repo: &Repo, ungraded: bool) -> Result<String, String> {
             last_section = (platform.clone(), config.clone());
             let _ = write!(
                 out,
-                "## {platform}, {config}\n\n| kernel | GCC | works from | works to | older edge | newer edge |\n|---|---|---|---|---|---|\n"
+                "## {platform}, {config}\n\n| kernel | GCC | held to | from | to | older edge | newer edge |\n|---|---|---|---|---|---|---|\n"
             );
         }
-        let ok: Vec<&Run> = runs.iter().filter(|r| r.entry.verdict == "works").collect();
+        let ok = passing(runs);
         let (from, to) = match (ok.first(), ok.last()) {
             (Some(a), Some(b)) => (a.binutils.to_string(), b.binutils.to_string()),
             _ => ("none".into(), "none".into()),
         };
+        let held = match bar(runs) {
+            Some(LAST) => "works".to_owned(),
+            Some(b) => b.to_owned(),
+            None => "nothing built".to_owned(),
+        };
         let _ = writeln!(
             out,
-            "| {kernel} | {gcc} | {from} | {to} | {} | {} |",
+            "| {kernel} | {gcc} | {held} | {from} | {to} | {} | {} |",
             edge(runs, true),
             edge(runs, false)
         );
@@ -305,5 +354,38 @@ mod tests {
         assert!(cols.iter().any(|b| b.version.as_str() == "2.26"));
         assert!(!cols.iter().any(|b| b.version.as_str() == "2.26.1"));
         assert!(cols.windows(2).all(|w| w[0].version < w[1].version));
+    }
+
+    fn run(binutils: &str, rung: &str) -> Run {
+        let entry = serde_json::json!({
+            "cell": "", "kernel": "6.1.189", "gcc": "gcc-12.2.0", "binutils": binutils,
+            "platform": "x86_64", "config": "defconfig+gk", "host": "", "rung": rung,
+            "verdict": "", "runs": 1, "gk": "", "date": "", "seconds": 0.0, "machine": "",
+        });
+        Run {
+            binutils: binutils.parse().unwrap(),
+            entry: serde_json::from_value(entry).unwrap(),
+        }
+    }
+
+    #[test]
+    fn a_row_with_no_cell_that_works_is_held_to_its_best_rung() {
+        let runs = [
+            run("2.37", "L4"),
+            run("2.38", "L6"),
+            run("2.39", "L6"),
+            run("2.40", "L2"),
+        ];
+        assert_eq!(bar(&runs), Some("L6"));
+        let ok: Vec<String> = passing(&runs)
+            .iter()
+            .map(|r| r.binutils.to_string())
+            .collect();
+        assert_eq!(ok, ["2.38", "2.39"]);
+        assert!(edge(&runs, true).starts_with("2.37 "));
+        assert!(edge(&runs, false).starts_with("2.40 "));
+        let unbuilt = [run("2.39", "L2"), run("2.40", "L3")];
+        assert_eq!(bar(&unbuilt), None);
+        assert!(passing(&unbuilt).is_empty());
     }
 }
