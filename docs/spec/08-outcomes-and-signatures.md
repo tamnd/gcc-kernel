@@ -126,7 +126,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc16-unused-but-set` | new-warning-werror | 16 | L3 | 97fb54d86d21, 729a2e8e9ac4 |
 | `binutils-too-old-lfence` | binutils-* | binutils below 2.12, i386 | L3 | none, the kernel asks for 2.12 |
 | `binutils-too-old-sysexit` | binutils-* | binutils 2.14, x86_64 | L3 | none |
-| `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io | L3 | none |
+| `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io and aic79xx | L3 | none |
 | `binutils-x86-64-macro-redefined` | binutils-* | binutils 2.16 and later, x86_64, kernels before 2.6.11 | L3 | none, fixed before git |
 | `binutils-segment-mov` | binutils-* | binutils 2.17 and later, x86, kernels before 2.6.12 | L3 | fd51f666fa59 |
 | `binutils-range-ok-cmp` | binutils-* | binutils 2.20 and later, i386, kernels before 2.6.18 | L3 | 722f4f5b2600 |

@@ -559,9 +559,9 @@ platform = ["x86_64"]
 [[signature]]
 class = "binutils-too-old-bignum"
 rung = "L3"
-match = { first-error = 'bignum invalid', unit = 'drivers/net/s2io' }
+match = { first-error = 'bignum invalid', unit = 'drivers/(?:net/s2io|scsi/aic7xxx)' }
 kind = "binutils-too-old"
-summary = "binutils 2.14 rejects a 64 bit constant the s2io driver writes, on i386 from 2.6.7"
+summary = "binutils 2.14 rejects the 64 bit constants the s2io and aic79xx drivers write, on i386 from 2.6.7"
 binutils = "<2.16"
 platform = ["i386"]
 
@@ -578,7 +578,7 @@ platform = ["x86_64"]
 [[signature]]
 class = "binutils-segment-mov"
 rung = "L3"
-match = { first-error = "for `mov'", unit = 'arch/(?:i386|x86_64)/kernel/process' }
+match = { first-error = " `mov'", unit = 'arch/(?:i386|x86_64)/kernel/process' }
 kind = "binutils-assembler"
 summary = "binutils 2.17 and later refuse a 32 bit mov between a segment register and memory or a 64 bit register, which process.c does up to 2.6.11"
 fixed-by = [ { commit = "fd51f666fa59", first-tag = "v2.6.12-rc4" } ]
