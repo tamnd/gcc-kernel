@@ -1087,6 +1087,8 @@ pub fn run(
     let clock = Instant::now();
     let id = s.coordinates.identity();
     let cell_dir = store::cell_dir(&id);
+    // Before the old record goes: a shim that cannot run in the host would fail every cell at L3.
+    let shim_path = shim_binary()?;
     let scratch = fetch::cache_dir()
         .join("scratch")
         .join(s.coordinates.short_id());
@@ -1122,7 +1124,7 @@ pub fn run(
     // The shim, next to its settings, mounted at /gk/bin.
     let bin = scratch.join("bin");
     std::fs::create_dir_all(&bin).map_err(|e| format!("creating {}: {e}", bin.display()))?;
-    std::fs::copy(shim_binary()?, bin.join("gk-cc")).map_err(|e| format!("copying gk-cc: {e}"))?;
+    std::fs::copy(&shim_path, bin.join("gk-cc")).map_err(|e| format!("copying gk-cc: {e}"))?;
     let shim = ShimConfig {
         real: PathBuf::from(s.real_cc()),
         log: PathBuf::from("/out/compile.jsonl"),
@@ -1468,19 +1470,52 @@ pub fn run(
 
 /// Where `gk-cc` is: next to the running `gk`. It runs inside the host container, so it has to be a static build, as `cargo build --release --target x86_64-unknown-linux-musl -p gk-cc` gives.
 fn shim_binary() -> Result<PathBuf, String> {
-    if let Some(path) = std::env::var_os("GK_SHIM") {
-        return Ok(PathBuf::from(path));
-    }
-    let exe = std::env::current_exe().map_err(|e| format!("finding gk: {e}"))?;
-    let shim = exe.with_file_name("gk-cc");
-    if shim.is_file() {
-        Ok(shim)
+    let shim = if let Some(path) = std::env::var_os("GK_SHIM") {
+        PathBuf::from(path)
     } else {
-        Err(format!(
-            "gk-cc is not next to gk at {}; build it for musl and copy it there, or set GK_SHIM",
+        let exe = std::env::current_exe().map_err(|e| format!("finding gk: {e}"))?;
+        exe.with_file_name("gk-cc")
+    };
+    if !shim.is_file() {
+        return Err(format!(
+            "gk-cc is not at {}; build it for musl and copy it there, or set GK_SHIM",
             shim.display()
-        ))
+        ));
     }
+    let bytes = std::fs::read(&shim).map_err(|e| format!("reading {}: {e}", shim.display()))?;
+    if interpreted(&bytes) {
+        return Err(format!(
+            "{} is linked against the C library of the machine that built it, which the host images do not have; build gk-cc for musl, or set GK_SHIM to a static one",
+            shim.display()
+        ));
+    }
+    Ok(shim)
+}
+
+/// Whether a 64-bit little-endian ELF file names a program interpreter, that is, whether it needs the dynamic loader of the C library it was linked against.
+fn interpreted(elf: &[u8]) -> bool {
+    const PT_INTERP: u32 = 3;
+    if elf.len() < 64 || &elf[..4] != b"\x7fELF" || elf[4] != 2 || elf[5] != 1 {
+        return false;
+    }
+    let u16_at = |o: usize| elf.get(o..o + 2).map(|b| u16::from_le_bytes([b[0], b[1]]));
+    let u32_at = |o: usize| {
+        elf.get(o..o + 4)
+            .and_then(|b| b.try_into().ok())
+            .map(u32::from_le_bytes)
+    };
+    let u64_at = |o: usize| {
+        elf.get(o..o + 8)
+            .and_then(|b| b.try_into().ok())
+            .map(u64::from_le_bytes)
+    };
+    let (Some(phoff), Some(size), Some(count)) = (u64_at(32), u16_at(54), u16_at(56)) else {
+        return false;
+    };
+    let Ok(phoff) = usize::try_from(phoff) else {
+        return false;
+    };
+    (0..usize::from(count)).any(|i| u32_at(phoff + i * usize::from(size)) == Some(PT_INTERP))
 }
 
 /// The gk version and commit, and whether the checkout is clean.
@@ -1559,6 +1594,24 @@ mod tests {
             refusals("/src/include/linux/compiler-gcc.h:120:30: fatal error: linux/compiler-gcc9.h: No such file or directory\n").len(),
             1
         );
+    }
+
+    #[test]
+    fn a_shim_that_needs_the_dynamic_loader_is_found_out() {
+        // An ELF header with two program headers at 64, 56 bytes each.
+        let mut elf = vec![0u8; 64 + 2 * 56];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2;
+        elf[5] = 1;
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&2u16.to_le_bytes());
+        elf[64..68].copy_from_slice(&1u32.to_le_bytes());
+        elf[120..124].copy_from_slice(&2u32.to_le_bytes());
+        assert!(!interpreted(&elf));
+        elf[120..124].copy_from_slice(&3u32.to_le_bytes());
+        assert!(interpreted(&elf));
+        assert!(!interpreted(b"#!/bin/sh\n"));
     }
 
     #[test]
