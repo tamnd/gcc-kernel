@@ -6,7 +6,7 @@
 name = "x86_64"
 tier = 1
 triple = "x86_64-linux-gnu"
-arch = [{ from = "2.6.0", value = "x86_64" }, { from = "2.6.24", value = "x86" }]
+arch = [{ from = "2.6.0", value = "x86_64" }]
 first-kernel = "2.6.0"
 first-gcc = "3.1"
 defconfig = [{ from = "2.6.0", value = "defconfig" }, { from = "2.6.24", value = "x86_64_defconfig" }]
