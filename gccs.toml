@@ -548,16 +548,16 @@ columns = ["distribution"]
 why = "Debian stretch's own gcc-6, built with --enable-default-pie. Kernels before 8ae94224c9d7 and c6a385539175 (v4.9-rc6) fail to build with it, and upstream 6.3.0 does not show that. Run in gk-host-stretch with stretch's binutils 2.28, on the rows around the fix (spec 04.3)."
 
 [[gcc]]
-id = "ubuntu-precise-gcc-4.4"
-version = "4.4.7"
+id = "ubuntu-hardy-gcc-4.2"
+version = "4.2.4"
 flavor = "ubuntu"
-released = "2012-04-26"
-forge = "gk-host-precise"
-package = "gcc-4.4"
+released = "2008-04-24"
+forge = "gk-host-hardy"
+package = "gcc-4.2"
 targets = ["x86_64-linux-gnu"]
 binutils = "auto"
 columns = ["distribution"]
-why = "Ubuntu 12.04's own gcc-4.4, which builds with the plain -fstack-protector by default, as Ubuntu's GCC has since 6.10. Upstream 4.4.7 works on 2.6.18, so the two columns differ only in that default on the kernels from before kbuild passed -fno-stack-protector (spec 04.3)."
+why = "Ubuntu 8.04's own gcc-4.2, which builds with the plain -fstack-protector by default, as Ubuntu's GCC has since 6.10. Upstream 4.2.4 works on 2.6.17, so the two columns differ only in that default on the kernels from before kbuild passed -fno-stack-protector (spec 04.3)."
 
 [[gcc]]
 id = "ubuntu-xenial-gcc-5"
