@@ -262,6 +262,19 @@ fixed-by = [ { commit = "e33a814e772c", first-tag = "v5.6", stable = ["4.4", "4.
 gcc = ">=10"
 
 [[signature]]
+class = "gnu11-extern-inline"
+rung = "L3"
+match = { first-error = 'multiple definition of `intel_gmbus_is_(?:forced_bit|port_valid)' }
+kind = "default-change"
+summary = "GCC 5 defaults to -std=gnu11, where extern inline emits the function in every unit, and the extern inline helpers in i915_drv.h stop linking"
+fixed-by = [
+  { commit = "8f375e10ee47", first-tag = "v3.11-rc1", note = "makes the i915 helpers static inline, and 3.10.108 builds with GCC 5 too" },
+  { commit = "51b97e354ba9", first-tag = "v3.18-rc5", note = "builds the kernel with -std=gnu89" },
+]
+gcc = ">=5"
+kernel = "<3.11"
+
+[[signature]]
 class = "gnu23-bool"
 rung = "L3"
 match = { first-error = '''-std=c23|cannot use keyword '(?:true|false)'|'bool' cannot be defined|expected [^\n]* before '(?:bool|true|false)'|two or more data types in declaration specifiers''' }

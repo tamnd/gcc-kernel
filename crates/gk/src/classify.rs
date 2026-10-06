@@ -170,6 +170,14 @@ fn stopped(dir: &Path) -> Option<String> {
     (!text.is_empty()).then(|| text.join("\n"))
 }
 
+/// The first error of a build that failed with no failing unit, as when a link fails. The lines kbuild stopped on come first when they say what went wrong, but under `-j` they are often just the last commands of other jobs, and then the log's first error line is the one to go by.
+fn no_unit(stopped: Option<String>, make: &str) -> String {
+    match stopped {
+        Some(s) if !error_lines(&s).is_empty() || error_lines(make).is_empty() => s,
+        _ => first_of(make),
+    }
+}
+
 /// The first failing unit and its command line, from `errors.jsonl` and `compile.jsonl`. A cell run before the prepare step's `-S` units counted has an empty `errors.jsonl` when one of them failed, so `compile.jsonl` is asked again then.
 fn failing_unit(dir: &Path) -> Option<(build::FailedUnit, String)> {
     let records = gk_cc::record::read_log(&dir.join("compile.jsonl"))
@@ -232,8 +240,7 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
                 f.unit = unit.unit;
                 f.command = command;
             } else {
-                f.first_error =
-                    stopped(dir).unwrap_or_else(|| first_of(&log_text(dir, "make.log")));
+                f.first_error = no_unit(stopped(dir), &log_text(dir, "make.log"));
             }
         }
         "L4" => {
@@ -526,18 +533,18 @@ pub fn explain(repo: &Repo, args: &[String]) -> Result<String, String> {
         return Err("usage: gk explain K G P [--config C]".into());
     };
     let kernel = format!("linux-{}", kernel.trim_start_matches("linux-"));
-    let gcc = format!("gcc-{}", gcc.trim_start_matches("gcc-"));
     let (dir, r) = store::cells()?
         .into_iter()
         .rev()
         .find(|(_, r)| {
             let c = &r.coordinates;
             c.kernel.name == kernel
-                && c.gcc.name == gcc
+                && (c.gcc.name == gcc || c.gcc.name.strip_prefix("gcc-") == Some(gcc))
                 && c.platform == platform
                 && c.config.name == config
         })
         .ok_or_else(|| format!("no cell for {kernel} {gcc} {platform} {config} in the store"))?;
+    let gcc = &r.coordinates.gcc.name;
     let mut out = format!(
         "{kernel} x {gcc} on {platform} ({config}): {}, reached {}\n",
         r.verdict,
@@ -722,6 +729,19 @@ platform = ["x86_64"]
             v.findings,
             ["gcc10-start-secondary: platform arm64 is not x86_64"]
         );
+    }
+
+    #[test]
+    fn a_link_error_beats_stop_lines_that_say_nothing() {
+        let make = "  LD      drivers/gpu/drm/i915/i915.o\ni915_irq.c:(.text+0x20f0): multiple definition of `intel_gmbus_is_forced_bit'\nmake[4]: *** [i915.o] Error 1\n";
+        let quiet = "make -f /src/scripts/Makefile.build obj=net/sunrpc/auth_gss";
+        assert_eq!(
+            no_unit(Some(quiet.to_owned()), make),
+            "i915_irq.c:(.text+0x20f0): multiple definition of `intel_gmbus_is_forced_bit'"
+        );
+        assert_eq!(no_unit(Some(quiet.to_owned()), "nothing\n"), quiet);
+        let loud = "ld: final link failed: error: bad value";
+        assert_eq!(no_unit(Some(loud.to_owned()), make), loud);
     }
 
     #[test]
