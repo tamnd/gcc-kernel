@@ -230,6 +230,20 @@ summary = "The build machine ran out of disk, so the cell says nothing about the
 # Changed defaults.
 
 [[signature]]
+class = "distro-ssp"
+rung = "L3"
+match = { first-error = "undefined reference to `__stack_chk_fail'" }
+kind = "default-change"
+summary = "Ubuntu's GCC builds with -fstack-protector by default from 6.10, and a kernel from before kbuild turned it off calls __stack_chk_fail, which the kernel does not have"
+fixed-by = [
+  { commit = "34c162f79e37", first-tag = "v2.6.18-rc1", note = "passes -fno-stack-protector-all -fno-stack-protector, which Ubuntu's GCC rejects as a pair, so cc-option drops both" },
+  { commit = "eb2cafa1d902", first-tag = "v2.6.18-rc4", note = "passes -fno-stack-protector alone, the fix for Ubuntu" },
+]
+gcc = ">=4.1"
+flavor = ["ubuntu"]
+kernel = "<2.6.18"
+
+[[signature]]
 class = "distro-pie"
 rung = "L3"
 match = { first-error = 'code model kernel does not support PIC mode' }

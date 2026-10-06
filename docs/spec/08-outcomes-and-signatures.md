@@ -95,6 +95,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc-min-51` | refusal | below 5.1 | L1 | policy from 76ae847497bc, 5.15 |
 | `gcc-min-81` | refusal | below 8.1 | L1 | policy from a3e8fe814ad1 (x86, 6.15), 118c40b7b503 (all, 6.16) |
 | `gnu11-extern-inline` | default-change | 5, kernels before 3.11 | L3 | 8f375e10ee47 for i915, 51b97e354ba9 for the whole tree |
+| `distro-ssp` | default-change | Ubuntu 4.1 and later, kernels before 2.6.18 | L3 | eb2cafa1d902, after 34c162f79e37 missed Ubuntu |
 | `distro-pie` | default-change | Debian and Ubuntu 6 and later | L3 | 8ae94224c9d7, c6a385539175 |
 | `gcc7-format-werror` | new-warning-werror | 7 | L3 | bd664f6b3e37 |
 | `gcc8-packed-not-aligned` | new-warning-werror | 8 | L3 | 321cb0308a9e |

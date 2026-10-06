@@ -50,6 +50,7 @@ Distributions ship GCC with changed defaults, and several of those changes broke
 | Column | Default it changed | Kernels it hits | Fix |
 |---|---|---|---|
 | Debian stretch `gcc-6`, Ubuntu 16.10 `gcc-6` | PIE | 4.8 and earlier without the fix | 8ae94224c9d7 and c6a385539175, v4.9-rc6, backported to 4.8, 3.12, 3.16.40 |
+| Ubuntu 6.10 and later `gcc` | `-fstack-protector` | kernels before 2.6.18, which call `__stack_chk_fail` and do not have it | eb2cafa1d902, v2.6.18-rc4. 34c162f79e37 in rc1 passed `-fno-stack-protector-all` too, which Ubuntu's GCC rejects |
 | Ubuntu 14.10 and later `gcc` | `-fstack-protector-strong` | kernels whose boot or vDSO code is not built with `-fno-stack-protector` **(which ones is what the column measures)** | per architecture |
 | Ubuntu 19.10 and later `gcc` | `-fcf-protection` | x86 kernels before the flag was filtered **(unverified which)** | |
 | Ubuntu 19.10 and later `gcc` | `-fstack-clash-protection` | **(unverified whether any kernel noticed)** | |
@@ -58,7 +59,7 @@ Distributions ship GCC with changed defaults, and several of those changes broke
 | Arch `gcc` | PIE and `-fstack-protector-strong` | the same kernels as the Debian and Ubuntu columns, which already carry both. Not a column (13, question 6) | |
 | openSUSE `gcc` | PIE, only with the optional `gcc-PIE` package | as for Arch. Not a column (13, question 6) | |
 
-Three columns in `gccs.toml` cover these: `debian-stretch-gcc-6` for PIE, `ubuntu-xenial-gcc-5` for the stack protector and `ubuntu-eoan-gcc-9` for `-fcf-protection` and `-fstack-clash-protection`. Ubuntu 14.10's image is in a manifest format that current Docker no longer pulls, so 16.04 stands for it: its gcc-5 has the same stack protector default and does not yet build PIE, which keeps the two changes apart.
+Four columns in `gccs.toml` cover these: `debian-stretch-gcc-6` for PIE, `ubuntu-hardy-gcc-4.2` for the plain stack protector, `ubuntu-xenial-gcc-5` for the strong one and `ubuntu-eoan-gcc-9` for `-fcf-protection` and `-fstack-clash-protection`. Ubuntu 14.10's image is in a manifest format that current Docker no longer pulls, so 16.04 stands for it: its gcc-5 has the same stack protector default and does not yet build PIE, which keeps the two changes apart. Ubuntu 8.04's image is in the same old format, so `gk-host-hardy` is made with debootstrap from old-releases.ubuntu.com. Its gcc-4.2 next to upstream 4.2.4 on 2.6.17 is the stack protector break, and 2.6.18 is the fix. Every kernel that gcc-5 can build already passes `-fno-stack-protector`, so the xenial column finds nothing to break.
 
 A distribution column is run only on the kernels around each change: the row range from two years before the fix to the fix, on x86_64 and one tier 2 platform. That is enough to reproduce the break and the fix. It is not searched over the whole axis.
 
