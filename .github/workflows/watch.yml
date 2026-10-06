@@ -40,10 +40,15 @@ jobs:
       - name: gk pins
         id: pins
         run: |
-          set +e
-          ./target/release/gk pins > pins.txt
-          status=$?
-          set -e
+          # ftp.gnu.org is down now and then, so a run that cannot read it tries again later before it gives up.
+          for wait in 0 600 1200; do
+            sleep "$wait"
+            set +e
+            ./target/release/gk pins > pins.txt
+            status=$?
+            set -e
+            [ "$status" -le 1 ] && break
+          done
           cat pins.txt
           case $status in
             0) echo "changed=false" >> "$GITHUB_OUTPUT" ;;
