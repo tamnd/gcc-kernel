@@ -185,6 +185,45 @@ fn stopped(dir: &Path) -> Option<String> {
     (!text.is_empty()).then(|| text.join("\n"))
 }
 
+/// The log of the L3 step that failed. That is make.log, except where `make dep` or `make scripts` failed first and make.log was never written.
+fn build_log(dir: &Path) -> String {
+    let make = log_text(dir, "make.log");
+    if !make.trim().is_empty() {
+        return make;
+    }
+    ["dep.log", "scripts.log"]
+        .iter()
+        .map(|name| log_text(dir, name))
+        .find(|t| t.contains("***"))
+        .unwrap_or_default()
+}
+
+/// Write errors.jsonl again from compile.jsonl when its first unit has no error line and compile.jsonl now finds one, as for a unit gas failed before its `Error:` lines counted. A store copied without compile.jsonl keeps the line then.
+fn repair_errors(dir: &Path) -> Result<(), String> {
+    let path = dir.join("errors.jsonl");
+    let Ok(errors) = std::fs::read_to_string(&path) else {
+        return Ok(());
+    };
+    let stored: Option<build::FailedUnit> =
+        errors.lines().find_map(|l| serde_json::from_str(l).ok());
+    if !stored.is_some_and(|u| u.error.is_empty()) {
+        return Ok(());
+    }
+    let Ok((records, _)) = gk_cc::record::read_log(&dir.join("compile.jsonl")) else {
+        return Ok(());
+    };
+    let units = build::failing_units(&records, Path::new("/src"));
+    if !units.first().is_some_and(|u| !u.error.is_empty()) {
+        return Ok(());
+    }
+    let mut lines = String::new();
+    for u in &units {
+        lines.push_str(&serde_json::to_string(u).map_err(|e| e.to_string())?);
+        lines.push('\n');
+    }
+    std::fs::write(&path, lines).map_err(|e| format!("writing {}: {e}", path.display()))
+}
+
 /// The first error of a build that failed with no failing unit, as when a link fails. The lines kbuild stopped on come first when they say what went wrong, but under `-j` they are often just the last commands of other jobs, and then the log's first error line is the one to go by.
 fn no_unit(stopped: Option<String>, make: &str) -> String {
     if let Some(line) = gave_up_on(make) {
@@ -264,7 +303,7 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
                 f.unit = unit.unit;
                 f.command = command;
             } else {
-                f.first_error = no_unit(stopped(dir), &log_text(dir, "make.log"));
+                f.first_error = no_unit(stopped(dir), &build_log(dir));
             }
         }
         "L4" => {
@@ -443,6 +482,9 @@ pub fn classify(repo: &Repo, write: bool) -> Result<String, String> {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
     let mut failed = 0;
     for (dir, mut r) in store::cells()? {
+        if write {
+            repair_errors(&dir)?;
+        }
         let Some(f) = failure(&dir, &r) else {
             continue;
         };
@@ -809,6 +851,18 @@ platform = ["x86_64"]
                 "arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table"
             );
         }
+    }
+
+    #[test]
+    fn a_museum_tree_whose_make_dep_failed_is_read_from_dep_log() {
+        let dir = std::env::temp_dir().join(format!("gk-dep-log-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("dep.log"), "gcc: unrecognized option `-M'\nmake: *** [dep] Error 2\n").unwrap();
+        assert!(build_log(&dir).contains("unrecognized option"));
+        std::fs::write(dir.join("dep.log"), "make[1]: Leaving directory `/out/fs'\n").unwrap();
+        std::fs::write(dir.join("make.log"), "fs/a.c:1: error: x\n").unwrap();
+        assert_eq!(build_log(&dir), "fs/a.c:1: error: x\n");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
