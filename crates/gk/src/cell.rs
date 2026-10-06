@@ -642,6 +642,86 @@ pub fn probe(s: &Setup, dir: &Path, jobs: usize) -> Result<Probe, String> {
     })
 }
 
+/// The configuration of a cell, made in `out` by `make`: the configuration target, then the fragments, settled by the kernel's own Kconfig. Whether that worked, and the options of the fragments the kernel did not take.
+fn configure(
+    s: &Setup,
+    out: &Path,
+    make: &dyn Fn(&[&str], &str, usize) -> Result<i32, String>,
+) -> Result<(bool, Vec<String>), String> {
+    let dot = out.join(".config");
+    if make(&[s.target.as_str()], "config.log", 1)? != 0 || !dot.is_file() {
+        return Ok((false, Vec::new()));
+    }
+    let mut fragment = Vec::new();
+    for f in s
+        .extra
+        .iter()
+        .chain([&s.fragment])
+        .chain(&s.platform_fragment)
+    {
+        let text =
+            std::fs::read_to_string(f).map_err(|e| format!("reading {}: {e}", f.display()))?;
+        fragment.extend(kconfig::parse_fragment(&text));
+    }
+    if BUILD_ONLY.contains(&s.config) {
+        fragment.retain(|(_, v)| v == "n");
+    }
+    let mut configured = true;
+    if let Some(settle) = settle_target(&s.version) {
+        let before = std::fs::read_to_string(&dot)
+            .map_err(|e| format!("reading {}: {e}", dot.display()))?;
+        std::fs::write(&dot, kconfig::merge(&before, &fragment))
+            .map_err(|e| format!("writing {}: {e}", dot.display()))?;
+        configured = make(&[settle], "fragment.log", 1)? == 0;
+    }
+    Ok((configured, kconfig::missed(&kconfig::load(&dot)?, &fragment)))
+}
+
+/// Whether one object of the kernel builds, for the bisection of a build failure (spec 03.5): the configuration of a cell, `prepare`, then that object alone, with the compiler and no shim, and no record. That takes minutes where a whole build takes an hour.
+///
+/// It is an error, which a bisection takes as a commit to skip, when the tree does not configure, when `prepare` fails somewhere else, or when the tree has no rule for the object. A failure in `prepare` that names the object's source counts as the object failing, so the units `prepare` builds itself, such as `kernel/bounds.s`, can be bisected too.
+pub fn unit(s: &Setup, dir: &Path, object: &str, jobs: usize) -> Result<bool, String> {
+    let out = dir.join("out");
+    let _ = std::fs::remove_dir_all(&out);
+    std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
+    let seconds = s.build_seconds();
+    let make = |args: &[&str], log: &str, jobs: usize| {
+        s.make(&Make {
+            out: &out,
+            shim: None,
+            args,
+            log: &dir.join(log),
+            jobs,
+            seconds,
+        })
+    };
+    if !configure(s, &out, &make)?.0 {
+        return Err(format!("{} does not configure", s.version));
+    }
+    if scripts_race(&s.tree) && make(&["scripts"], "scripts.log", 1)? != 0 {
+        return Err("make scripts failed".into());
+    }
+    let source = object.rsplit_once('.').map_or(object, |(stem, _)| stem);
+    if make(&["prepare"], "prepare.log", jobs)? != 0 {
+        let log = std::fs::read_to_string(dir.join("prepare.log")).unwrap_or_default();
+        if log.lines().any(|l| l.contains(source) && l.contains("error")) {
+            return Ok(false);
+        }
+        return Err(format!(
+            "make prepare failed: {}",
+            tail_of(&dir.join("prepare.log")).join(" | ")
+        ));
+    }
+    if make(&[object], "unit.log", jobs)? == 0 {
+        return Ok(true);
+    }
+    let log = std::fs::read_to_string(dir.join("unit.log")).unwrap_or_default();
+    if log.contains("No rule to make target") {
+        return Err(format!("this tree has no rule for {object}"));
+    }
+    Ok(false)
+}
+
 /// The lines of a failed `init/main.i` that say the compiler was refused.
 ///
 /// Before 2.6.17 or so, `init/main.i` with `O=` does not make the `asm` link, so every `asm/` header is missing. GCC 3.x and 4.5 on stop at the first missing header, but 4.0 to 4.4 go on, and the headers that needed `asm/` fire their `#error`s, such as "Please fix asm/byteorder.h". So when some other header is missing, only an `#error` in the compiler headers counts.
@@ -1164,32 +1244,9 @@ pub fn run(
     if probe.passes() {
         reached = Rung::Accepted;
         let c = Instant::now();
-        configured =
-            make(&[s.target.as_str()], "config.log", 1)? == 0 && out.join(".config").is_file();
-        if configured {
-            let mut fragment = Vec::new();
-            for f in s
-                .extra
-                .iter()
-                .chain([&s.fragment])
-                .chain(&s.platform_fragment)
-            {
-                let text = std::fs::read_to_string(f)
-                    .map_err(|e| format!("reading {}: {e}", f.display()))?;
-                fragment.extend(kconfig::parse_fragment(&text));
-            }
-            if BUILD_ONLY.contains(&s.config) {
-                fragment.retain(|(_, v)| v == "n");
-            }
-            let dot = out.join(".config");
-            let before = std::fs::read_to_string(&dot)
-                .map_err(|e| format!("reading {}: {e}", dot.display()))?;
-            if let Some(settle) = settle_target(&s.version) {
-                std::fs::write(&dot, kconfig::merge(&before, &fragment))
-                    .map_err(|e| format!("writing {}: {e}", dot.display()))?;
-                configured = make(&[settle], "fragment.log", 1)? == 0;
-            }
-            fragment_missed = kconfig::missed(&kconfig::load(&dot)?, &fragment);
+        (configured, fragment_missed) = configure(s, &out, &make)?;
+        let dot = out.join(".config");
+        if dot.is_file() {
             if configured && !s.kunit_skip.is_empty() && !BUILD_ONLY.contains(&s.config) {
                 // With KUNIT_ALL_TESTS off the tests keep the values it gave them, and their options can be turned off one by one.
                 let off: Vec<(String, String)> = std::iter::once("KUNIT_ALL_TESTS")

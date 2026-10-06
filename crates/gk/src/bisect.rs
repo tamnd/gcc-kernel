@@ -2,7 +2,7 @@
 //!
 //! The clone is a bare repository at `GK_HISTORY`, or `history/linux.git` in the cache. `gk history update` makes it from Linus's tree and adds the tags of the stable tree, which is enough to bisect anything from 2.6.12 on, mainline or stable. The history from before git joins it at G3.
 //!
-//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix. A bisection at L1 is of a refusal, and since L1 is the accept probe, each commit runs the probe alone and leaves no cell.
+//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix. A bisection at L1 is of a refusal, and since L1 is the accept probe, each commit runs the probe alone and leaves no cell. A bisection of a build failure can name the object that fails with `--unit`, and then each commit, and each end, builds that object alone and leaves no cell either.
 
 use crate::cell::{self, CellRecord, Setup};
 use crate::{fetch, store};
@@ -121,6 +121,8 @@ pub struct Options {
     pub rung: Option<String>,
     /// Parallel jobs for each build.
     pub jobs: usize,
+    /// The one object to build instead of the whole kernel, for a failure at L3.
+    pub unit: Option<String>,
 }
 
 /// One tested commit.
@@ -141,6 +143,8 @@ struct Bisection {
     platform: String,
     config: String,
     rung: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unit: Option<String>,
     first: String,
     subject: String,
     contained_in: String,
@@ -158,9 +162,28 @@ fn release_rung(
 ) -> Result<String, String> {
     let setup = Setup::new(repo, kernel, gcc, platform, opts.config)?;
     let setup = if boot { setup.booting(repo)? } else { setup };
+    if let Some(object) = &opts.unit {
+        let rung = unit_rung(&setup, object, opts.jobs)?;
+        println!("{kernel:<10} {rung:<3} {object} {}", unit_term(&rung));
+        return Ok(rung);
+    }
     let record = run_or_load(repo, &setup, opts.jobs)?;
     println!("{kernel:<10} {:<3} {}", record.rung, record.verdict);
     Ok(record.rung)
+}
+
+/// The rung of a tree from one object: `L3` when it builds and `L2` when it does not.
+fn unit_rung(setup: &Setup, object: &str, jobs: usize) -> Result<String, String> {
+    let dir = fetch::cache_dir()
+        .join("scratch")
+        .join(format!("unit-{}", setup.coordinates.short_id()));
+    let built = cell::unit(setup, &dir, object, jobs);
+    let _ = std::fs::remove_dir_all(&dir);
+    Ok(if built? { "L3" } else { "L2" }.into())
+}
+
+fn unit_term(rung: &str) -> &'static str {
+    if rung == "L3" { "builds" } else { "fails" }
 }
 
 fn run_or_load(repo: &Repo, setup: &Setup, jobs: usize) -> Result<CellRecord, String> {
@@ -266,13 +289,17 @@ fn bisect(
         )
         .map_err(|_| format!("{t} is not in the history clone"))?;
     }
+    if opts.unit.is_some() && opts.rung.as_deref().is_some_and(|r| r != "L3") {
+        return Err("--unit bisects a build failure, which is at L3".into());
+    }
     let boot = opts.rung.as_deref().is_some_and(|r| r >= "L5");
     let r_old = release_rung(repo, from, gcc, platform, opts, boot)?;
     let r_new = release_rung(repo, to, gcc, platform, opts, boot)?;
-    let rung = opts
-        .rung
-        .clone()
-        .unwrap_or_else(|| r_old.clone().max(r_new.clone()));
+    let rung = match (&opts.unit, &opts.rung) {
+        (Some(_), _) => "L3".to_owned(),
+        (None, Some(r)) => r.clone(),
+        (None, None) => r_old.clone().max(r_new.clone()),
+    };
     let passes = |r: &str| r >= rung.as_str();
     let (p_old, p_new) = (passes(&r_old), passes(&r_new));
     if p_old == p_new {
@@ -283,7 +310,15 @@ fn bisect(
     }
     let term = |p: bool| if p { "reaches" } else { "misses" };
     let (old_term, new_term) = (term(p_old), term(p_new));
-    println!("bisecting {old_tag}..{new_tag} for the first commit whose cell {new_term} {rung}");
+    match &opts.unit {
+        Some(object) => println!(
+            "bisecting {old_tag}..{new_tag} for the first commit on which {object} {}",
+            if p_new { "builds" } else { "fails" }
+        ),
+        None => println!(
+            "bisecting {old_tag}..{new_tag} for the first commit whose cell {new_term} {rung}"
+        ),
+    }
     let _ = git(history, &["bisect", "reset"]);
     git(
         history,
@@ -317,7 +352,9 @@ fn bisect(
             )
             .and_then(|s| if boot { s.booting(repo) } else { Ok(s) })
             .and_then(|s| {
-                if rung == "L1" {
+                if let Some(object) = &opts.unit {
+                    unit_rung(&s, object, opts.jobs)
+                } else if rung == "L1" {
                     probe_rung(&s, opts.jobs)
                 } else {
                     run_or_load(repo, &s, opts.jobs).map(|r| r.rung)
@@ -387,6 +424,7 @@ fn bisect(
         platform: platform.into(),
         config: opts.config.into(),
         rung,
+        unit: opts.unit.clone(),
         first,
         subject,
         contained_in,
@@ -394,7 +432,12 @@ fn bisect(
     };
     let dir = store::root().join("bisections");
     std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
-    let name = format!("{from}-{to}-{gcc}-{platform}-{}.json", opts.config);
+    let unit = opts
+        .unit
+        .as_ref()
+        .map(|u| format!("-{}", u.replace('/', "_")))
+        .unwrap_or_default();
+    let name = format!("{from}-{to}-{gcc}-{platform}-{}{unit}.json", opts.config);
     let json = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())? + "\n";
     std::fs::write(dir.join(&name), json).map_err(|e| format!("writing bisections/{name}: {e}"))?;
     Ok(())
