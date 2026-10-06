@@ -115,7 +115,9 @@ pub fn run(
         .collect();
     match bar.as_deref() {
         Some(b) if b < LAST => {
-            println!("the cell with the paired binutils reaches {b}, so each column is held to {b}");
+            println!(
+                "the cell with the paired binutils reaches {b}, so each column is held to {b}"
+            );
             search::print_edges_by(&row, |c| reached(c) >= b, &format!("reaches {b}"));
         }
         _ => search::print_edges(&row),
@@ -368,9 +370,17 @@ mod tests {
 
     #[test]
     fn a_row_with_no_cell_that_works_is_held_to_its_best_rung() {
-        let runs = [run("2.37", "L4"), run("2.38", "L6"), run("2.39", "L6"), run("2.40", "L2")];
+        let runs = [
+            run("2.37", "L4"),
+            run("2.38", "L6"),
+            run("2.39", "L6"),
+            run("2.40", "L2"),
+        ];
         assert_eq!(bar(&runs), Some("L6"));
-        let ok: Vec<String> = passing(&runs).iter().map(|r| r.binutils.to_string()).collect();
+        let ok: Vec<String> = passing(&runs)
+            .iter()
+            .map(|r| r.binutils.to_string())
+            .collect();
         assert_eq!(ok, ["2.38", "2.39"]);
         assert!(edge(&runs, true).starts_with("2.37 "));
         assert!(edge(&runs, false).starts_with("2.40 "));
