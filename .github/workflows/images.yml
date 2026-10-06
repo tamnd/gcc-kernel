@@ -64,8 +64,8 @@ jobs:
             dir: provision/hosts/gk-host-trixie
           - name: gk-host-xenial
             dir: provision/hosts/gk-host-xenial
-          - name: gk-host-precise
-            dir: provision/hosts/gk-host-precise
+          - name: gk-host-hardy
+            dir: provision/hosts/gk-host-hardy
           - name: gk-host-eoan
             dir: provision/hosts/gk-host-eoan
           - name: gk-forge-modern
