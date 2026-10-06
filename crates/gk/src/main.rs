@@ -86,7 +86,8 @@ commands:
              [--ungraded] [--stdout]: write reports/persona-surface.md, the gates, Kconfig symbols and
              flags that change at each GCC column (spec 11.3)
   classify   run signatures.toml over every failed cell in the store and write the class into
-             its cell.json, or only print them with --dry-run
+             its cell.json, or only print them with --dry-run. Writing also grades again the KUnit
+             runs of cells that had no era cell to grade against when they ran
   triage     the failed cells no signature names, clustered by first error, largest first: triage [--all]
   explain    explain K G P [--config C]: the cell's first error, its class, and whether the fix
              is in the kernel's tree
