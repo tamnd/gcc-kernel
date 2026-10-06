@@ -9,11 +9,19 @@ use gk_model::repo::Repo;
 use std::fmt::Write as _;
 
 /// The newest cell of `gcc` on a kernel, platform and configuration.
-fn newest<'a>(cells: &'a [Cell], gcc: &str, kernel: &str, platform: &str, config: &str) -> Option<&'a Entry> {
+fn newest<'a>(
+    cells: &'a [Cell],
+    gcc: &str,
+    kernel: &str,
+    platform: &str,
+    config: &str,
+) -> Option<&'a Entry> {
     cells
         .iter()
         .map(|c| &c.entry)
-        .filter(|e| e.gcc == gcc && e.kernel == kernel && e.platform == platform && e.config == config)
+        .filter(|e| {
+            e.gcc == gcc && e.kernel == kernel && e.platform == platform && e.config == config
+        })
         .max_by(|a, b| a.started.cmp(&b.started))
 }
 
@@ -34,17 +42,30 @@ pub fn report(repo: &Repo, cells: &[Cell]) -> String {
     out.push_str("A distribution column is a GCC as a distribution shipped it, run in that distribution's own image with its own binutils (spec 04.3). What sets it apart from the upstream release it was built from is its defaults, such as PIE, the stack protector and `-fcf-protection`, and this report shows which kernels notice them. Each row is the newest cell of the column, beside the newest cell of the upstream release it was built from, or of the newest upstream release of the same major series when the matrix lacks that one, on the same kernel, platform and configuration.\n\n");
     out.push_str("Written by `gk report distributions` from the result store. `gk cell K <column> --platform P` runs a row.\n");
     for g in repo.gccs.gccs.iter().filter(|g| g.flavor != "upstream") {
-        let _ = write!(out, "\n## {}, {} {} {}\n\n", g.id, g.flavor, g.package, g.version);
+        let _ = write!(
+            out,
+            "\n## {}, {} {} {}\n\n",
+            g.id, g.flavor, g.package, g.version
+        );
         if !g.why.is_empty() {
             let _ = write!(out, "{}\n\n", g.why);
         }
         // The release it was built from when the matrix has it, or else the newest of the same major series.
-        let series = || repo.gccs.gccs.iter().filter(|u| u.flavor == "upstream" && u.version.parts().first() == g.version.parts().first());
-        let upstream = series().find(|u| u.version == g.version).or_else(|| series().max_by(|a, b| a.version.cmp(&b.version)));
+        let series = || {
+            repo.gccs.gccs.iter().filter(|u| {
+                u.flavor == "upstream" && u.version.parts().first() == g.version.parts().first()
+            })
+        };
+        let upstream = series()
+            .find(|u| u.version == g.version)
+            .or_else(|| series().max_by(|a, b| a.version.cmp(&b.version)));
         let mut rows: Vec<&Entry> = Vec::new();
         for c in cells.iter().filter(|c| c.entry.gcc == g.id) {
             let e = &c.entry;
-            if rows.iter().any(|r| r.kernel == e.kernel && r.platform == e.platform && r.config == e.config) {
+            if rows
+                .iter()
+                .any(|r| r.kernel == e.kernel && r.platform == e.platform && r.config == e.config)
+            {
                 continue;
             }
             if let Some(n) = newest(cells, &g.id, &e.kernel, &e.platform, &e.config) {
@@ -56,11 +77,20 @@ pub fn report(repo: &Repo, cells: &[Cell]) -> String {
             continue;
         }
         rows.sort_by(|a, b| {
-            let key = |e: &Entry| (e.platform.clone(), e.config.clone(), e.kernel.parse::<Version>().ok());
+            let key = |e: &Entry| {
+                (
+                    e.platform.clone(),
+                    e.config.clone(),
+                    e.kernel.parse::<Version>().ok(),
+                )
+            };
             key(a).cmp(&key(b))
         });
         let up = upstream.map_or("upstream", |u| u.id.as_str());
-        let _ = writeln!(out, "| Kernel | Platform | Configuration | Verdict | Class | {up} |");
+        let _ = writeln!(
+            out,
+            "| Kernel | Platform | Configuration | Verdict | Class | {up} |"
+        );
         out.push_str("|---|---|---|---|---|---|\n");
         for e in rows {
             let class = if e.class.is_empty() {
@@ -81,8 +111,19 @@ pub fn report(repo: &Repo, cells: &[Cell]) -> String {
             );
         }
     }
+    changed_defaults(repo, cells, &mut out);
+    out
+}
+
+/// The last table: the `default-change` signatures and the cells classified under each.
+fn changed_defaults(repo: &Repo, cells: &[Cell], out: &mut String) {
     out.push_str("\n## Changed defaults\n\nThe signatures of kind `default-change`, and the cells of any column classified under each.\n\n| Class | Flavors | GCC | Fixed by | Reproduced on |\n|---|---|---|---|---|\n");
-    for s in repo.signatures.signatures.iter().filter(|s| s.kind == "default-change") {
+    for s in repo
+        .signatures
+        .signatures
+        .iter()
+        .filter(|s| s.kind == "default-change")
+    {
         let fixes: Vec<String> = s
             .fixed_by
             .iter()
@@ -119,5 +160,4 @@ pub fn report(repo: &Repo, cells: &[Cell]) -> String {
             fixes.join(", ")
         );
     }
-    out
 }

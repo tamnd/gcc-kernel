@@ -322,9 +322,9 @@ const DISK_FULL: &str = "No space left on device";
 /// Whether the cell in `dir` failed because the build machine ran out of disk, from its `errors.jsonl` and `build.json`. The kernel and the compiler had nothing to do with it, so a search runs such a cell again.
 #[must_use]
 pub fn disk_full(dir: &Path) -> bool {
-    ["errors.jsonl", "build.json"].iter().any(|f| {
-        std::fs::read_to_string(dir.join(f)).is_ok_and(|text| text.contains(DISK_FULL))
-    })
+    ["errors.jsonl", "build.json"]
+        .iter()
+        .any(|f| std::fs::read_to_string(dir.join(f)).is_ok_and(|text| text.contains(DISK_FULL)))
 }
 
 /// Whether the cell in `dir` stopped for a reason of the machine's rather than of the cell's: over the budget, or out of disk.
@@ -462,7 +462,11 @@ mod tests {
     fn a_unit_that_found_the_disk_full_is_the_rigs_failure() {
         let dir = std::env::temp_dir().join(format!("gk-disk-full-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("errors.jsonl"), "{\"unit\":\"mm/slub.o\",\"stderr\":\"mm/slub.c:9:1: error: 'y' undeclared\"}\n").unwrap();
+        std::fs::write(
+            dir.join("errors.jsonl"),
+            "{\"unit\":\"mm/slub.o\",\"stderr\":\"mm/slub.c:9:1: error: 'y' undeclared\"}\n",
+        )
+        .unwrap();
         assert!(!rig_failed(&dir));
         std::fs::write(dir.join("errors.jsonl"), "{\"unit\":\"mm/slub.o\",\"stderr\":\"fatal error: error writing to /tmp/ccALpihd.s: No space left on device\"}\n").unwrap();
         assert!(disk_full(&dir));
