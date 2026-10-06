@@ -11,7 +11,7 @@ use gk_model::signatures::{Range, Signature, rung_covers};
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// What a failed cell shows, part by part.
@@ -488,11 +488,25 @@ pub fn cluster_key(first_error: &str) -> String {
     })
 }
 
-/// `gk triage`: the unclassified first errors, clustered by [`cluster_key`], largest cluster first.
-pub fn triage(repo: &Repo) -> Result<String, String> {
+/// `gk triage [--all]`: the unclassified first errors, clustered by [`cluster_key`], largest cluster first. Only the newest cell of each kernel, GCC, platform and configuration counts, as in the matrix. With `all` every cell of a cluster is listed with its first error and its directory, not just the first five.
+pub fn triage(repo: &Repo, all: bool) -> Result<String, String> {
     let catalog = compile(repo);
-    let mut clusters: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    let mut newest: BTreeMap<(String, String, String, String), (PathBuf, CellRecord)> =
+        BTreeMap::new();
     for (dir, r) in store::cells()? {
+        let c = &r.coordinates;
+        let key = (
+            c.kernel.name.clone(),
+            c.gcc.name.clone(),
+            c.platform.clone(),
+            c.config.name.clone(),
+        );
+        if newest.get(&key).is_none_or(|(_, old)| old.started < r.started) {
+            newest.insert(key, (dir, r));
+        }
+    }
+    let mut clusters: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    for (dir, r) in newest.into_values() {
         let Some(f) = failure(&dir, &r) else {
             continue;
         };
@@ -500,23 +514,29 @@ pub fn triage(repo: &Repo) -> Result<String, String> {
             continue;
         }
         let c = &r.coordinates;
+        let mut line = format!(
+            "{} {} {} {}",
+            c.kernel.name, c.gcc.name, c.platform, c.config.name
+        );
+        if all {
+            let first: String = f.first_error.lines().next().unwrap_or("").chars().take(160).collect();
+            let _ = write!(line, "\n          {first}\n          {}", dir.display());
+        }
         clusters
             .entry((f.rung.clone(), cluster_key(&f.first_error)))
             .or_default()
-            .push(format!(
-                "{} {} {} {}",
-                c.kernel.name, c.gcc.name, c.platform, c.config.name
-            ));
+            .push(line);
     }
     let mut sorted: Vec<_> = clusters.into_iter().collect();
     sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
     let mut out = String::new();
     for ((rung, key), cells) in &sorted {
         let _ = writeln!(out, "{:>4}  {rung}  {key}", cells.len());
-        for cell in cells.iter().take(5) {
+        let shown = if all { cells.len() } else { 5 };
+        for cell in cells.iter().take(shown) {
             let _ = writeln!(out, "        {cell}");
         }
-        if cells.len() > 5 {
+        if cells.len() > shown {
             let _ = writeln!(out, "        and {} more", cells.len() - 5);
         }
     }
