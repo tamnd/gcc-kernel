@@ -389,28 +389,33 @@ pub(crate) fn works(c: &Column) -> bool {
 
 /// The edges of a searched row, in words.
 pub(crate) fn print_edges(row: &[(String, Column)]) {
-    let ok: Vec<usize> = (0..row.len()).filter(|i| works(&row[*i].1)).collect();
+    print_edges_by(row, works, "works");
+}
+
+/// The edges of a row by any test of a column, with `word` saying what passing it means, as `works` or `reaches L6`.
+pub(crate) fn print_edges_by(row: &[(String, Column)], pass: impl Fn(&Column) -> bool, word: &str) {
+    let ok: Vec<usize> = (0..row.len()).filter(|i| pass(&row[*i].1)).collect();
     let (Some(&first), Some(&last)) = (ok.first(), ok.last()) else {
-        println!("no column works");
+        println!("no column {word}");
         return;
     };
     if first > 0 {
         println!(
-            "older edge: {} works, {} does not",
+            "older edge: {} {word}, {} does not",
             row[first].0,
             row[first - 1].0
         );
     } else {
-        println!("older edge: none, the oldest column run works");
+        println!("older edge: none, the oldest column run {word}");
     }
     if last + 1 < row.len() {
         println!(
-            "newer edge: {} works, {} does not",
+            "newer edge: {} {word}, {} does not",
             row[last].0,
             row[last + 1].0
         );
     } else {
-        println!("newer edge: none, the newest column run works");
+        println!("newer edge: none, the newest column run {word}");
     }
 }
 
