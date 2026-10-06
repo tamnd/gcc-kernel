@@ -87,7 +87,7 @@ commands:
              flags that change at each GCC column (spec 11.3)
   classify   run signatures.toml over every failed cell in the store and write the class into
              its cell.json, or only print them with --dry-run
-  triage     the failed cells no signature names, clustered by first error, largest first
+  triage     the failed cells no signature names, clustered by first error, largest first: triage [--all]
   explain    explain K G P [--config C]: the cell's first error, its class, and whether the fix
              is in the kernel's tree
   history    history update: clone Linus's tree into the history clone, or bring it up to date,
@@ -134,7 +134,10 @@ fn main() -> ExitCode {
             text_command(|_| surface::flags_command(rest))
         }
         Some("classify") => classify_command(&args[1..]),
-        Some("triage") => text_command(classify::triage),
+        Some("triage") => {
+            let all = args[1..].iter().any(|a| a == "--all");
+            text_command(|repo| classify::triage(repo, all))
+        }
         Some("explain") => {
             let rest = &args[1..];
             text_command(|repo| classify::explain(repo, rest))
