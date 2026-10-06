@@ -302,7 +302,7 @@ pub fn today() -> String {
     add_days("1970-01-01", i64::try_from(days).unwrap_or(0)).unwrap_or_default()
 }
 
-/// Write `matrix/matrix.json`, the heat maps, the warning census, the configuration differential, the era check and the holes under the repository. Returns how many cells the matrix holds and which reports were written.
+/// Write `matrix/matrix.json`, the heat maps, the warning census, the configuration differential, the era check, the holes and the bisections under the repository. Returns how many cells the matrix holds and which reports were written.
 pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String> {
     let m = matrix(repo, ungraded)?;
     let dir = repo.root.join("matrix");
@@ -334,6 +334,7 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
         ),
         ("reports/eras.md", crate::history::eras(repo, &m)),
         ("reports/holes.md", crate::history::holes(repo, &m)),
+        ("reports/bisections.md", crate::bisect::report(repo)),
     ] {
         std::fs::create_dir_all(&reports)
             .map_err(|e| format!("creating {}: {e}", reports.display()))?;

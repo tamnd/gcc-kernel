@@ -8,7 +8,8 @@ use crate::cell::{self, CellRecord, Setup};
 use crate::{fetch, store};
 use gk_model::Version;
 use gk_model::repo::Repo;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -126,7 +127,7 @@ pub struct Options {
 }
 
 /// One tested commit.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Tested {
     commit: String,
     version: String,
@@ -135,7 +136,7 @@ struct Tested {
 }
 
 /// The record a bisection leaves in the store under `bisections/`.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Bisection {
     from: String,
     to: String,
@@ -143,11 +144,12 @@ struct Bisection {
     platform: String,
     config: String,
     rung: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     unit: Option<String>,
     first: String,
     subject: String,
     contained_in: String,
+    #[serde(default)]
     tested: Vec<Tested>,
 }
 
@@ -443,6 +445,113 @@ fn bisect(
     Ok(())
 }
 
+/// The bisections in the store, oldest range first.
+fn stored() -> Vec<Bisection> {
+    let mut out: Vec<Bisection> = std::fs::read_dir(store::root().join("bisections"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+        .filter_map(|text| serde_json::from_str(&text).ok())
+        .collect();
+    let key = |b: &Bisection| b.from.parse::<Version>().ok();
+    out.sort_by(|a, b| key(a).cmp(&key(b)).then(a.gcc.cmp(&b.gcc)));
+    out
+}
+
+/// Whether a fixing commit as the catalog abbreviates it and a full commit id are the same commit.
+fn same_commit(fix: &str, full: &str) -> bool {
+    !fix.is_empty() && full.starts_with(fix)
+}
+
+/// `reports/bisections.md`: which fixing commits of the catalog a bisection has confirmed, and every bisection in the store with what it found.
+#[must_use]
+pub fn report(repo: &Repo) -> String {
+    report_of(repo, &stored())
+}
+
+fn report_of(repo: &Repo, runs: &[Bisection]) -> String {
+    let mut out = String::from(
+        "# Bisections\n\nEvery `fixed-by` commit of the failure catalog is confirmed by bisecting between a kernel the signature matches and one it does not, with the signature's GCC (spec 03.5 and 08.2). When the bisection finds another commit, the bisected commit wins and the signature is corrected. A signature can name several commits, one for each place the kernel had to change, and a bisection confirms the one its range and platform reach. Written by `gk publish` from `signatures.toml` and the bisections in the result store.\n\n",
+    );
+    let with_fix: Vec<_> = repo
+        .signatures
+        .signatures
+        .iter()
+        .filter(|s| !s.fixed_by.is_empty())
+        .collect();
+    let confirmed =
+        |commit: &str, flag: bool| flag || runs.iter().any(|b| same_commit(commit, &b.first));
+    let done = with_fix
+        .iter()
+        .filter(|s| s.fixed_by.iter().any(|f| confirmed(&f.commit, f.bisected)))
+        .count();
+    let _ = write!(
+        out,
+        "{} bisections in the store. {done} of the {} signatures with a fixing commit have at least one of their commits confirmed.\n\n## Signatures\n\n| Signature | Rung | Kind | Fixing commits | Confirmed |\n|---|---|---|---|---|\n",
+        runs.len(),
+        with_fix.len()
+    );
+    for s in &with_fix {
+        let commits: Vec<String> = s
+            .fixed_by
+            .iter()
+            .map(|f| format!("`{}`", f.commit))
+            .collect();
+        let found: Vec<String> = s
+            .fixed_by
+            .iter()
+            .filter(|f| confirmed(&f.commit, f.bisected))
+            .map(|f| format!("`{}`", f.commit))
+            .collect();
+        let _ = writeln!(
+            out,
+            "| {} | {} | {} | {} | {} |",
+            s.class,
+            s.rung,
+            s.kind,
+            commits.join(" "),
+            found.join(" ")
+        );
+    }
+    out.push_str("\n## Runs\n\n");
+    if runs.is_empty() {
+        out.push_str("No bisections yet.\n");
+        return out;
+    }
+    out.push_str("| Range | GCC | Platform | Judged by | Steps | First commit | Subject | In | Signature |\n|---|---|---|---|--:|---|---|---|---|\n");
+    for b in runs {
+        let classes: Vec<&str> = repo
+            .signatures
+            .signatures
+            .iter()
+            .filter(|s| s.fixed_by.iter().any(|f| same_commit(&f.commit, &b.first)))
+            .map(|s| s.class.as_str())
+            .collect();
+        let _ = writeln!(
+            out,
+            "| {}..{} | {} | {} | {} | {} | `{}` | {} | {} | {} |",
+            b.from,
+            b.to,
+            b.gcc,
+            b.platform,
+            b.unit
+                .as_ref()
+                .map_or_else(|| b.rung.clone(), |u| format!("`{u}`")),
+            b.tested.len(),
+            b.first.get(..12).unwrap_or(&b.first),
+            crate::census::escape(&b.subject),
+            b.contained_in,
+            if classes.is_empty() {
+                "none".to_owned()
+            } else {
+                classes.join(", ")
+            }
+        );
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -454,6 +563,33 @@ mod tests {
         let stable = "VERSION = 4\nPATCHLEVEL = 9\nSUBLEVEL = 337\nEXTRAVERSION =\n";
         assert_eq!(makefile_version(stable).unwrap().as_str(), "4.9.337");
         assert!(makefile_version("all:\n").is_none());
+    }
+
+    #[test]
+    fn the_report_matches_a_bisection_to_the_signature_it_confirms() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let run = |first: &str| Bisection {
+            from: "5.7".into(),
+            to: "5.8".into(),
+            gcc: "gcc-4.8.5".into(),
+            platform: "x86_64".into(),
+            config: "defconfig+gk".into(),
+            rung: "L1".into(),
+            unit: None,
+            first: first.into(),
+            subject: "compiler.h: raise minimum | something".into(),
+            contained_in: "v5.8-rc1".into(),
+            tested: Vec::new(),
+        };
+        let text = report_of(&repo, &[run("6ec4476ac82512f09c94aff5972654b70f3772b2")]);
+        assert!(text.contains("| gcc-min-49 | L1 | refusal | `6ec4476ac825` | `6ec4476ac825` |"));
+        assert!(
+            text.contains("`6ec4476ac825` | compiler.h: raise minimum \\| something | v5.8-rc1 |")
+        );
+        assert!(text.contains("gcc-min-49"));
+        let other = report_of(&repo, &[run("0123456789abcdef")]);
+        assert!(other.contains("| none |"));
+        assert!(other.contains("| gcc-min-49 | L1 | refusal | `6ec4476ac825` |  |"));
     }
 
     #[test]
