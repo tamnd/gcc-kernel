@@ -79,14 +79,19 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 
 | Class | Kind | GCC | Rung | Fixed by |
 |---|---|---|---|---|
-| `gcc-too-old-295` | refusal | below 2.95 | L1 | none, the refusal is the policy (2.6.0 to 2.6.15) |
+| `gcc-too-old-295` | refusal | below 2.95 | L1 to L3 | none, the refusal is the policy (2.6.0 to 2.6.15) |
 | `gcc-296-frame-pointer` | refusal | 2.96 | L1 | removed with gcc-2 checks, a136564 |
+| `gcc-min-32` | refusal | below 3.2 on 2.6.16 to 2.6.28 | L1 to L3 | policy from a136564 |
+| `gcc-pre-295-on-26` | too-old | below 2.95 on 2.6.14 and later | L3 | none, nothing refuses it first |
 | `gcc3-0-1-refused` | refusal | 3.0, 3.1 | L1 | policy from 6680598 |
 | `arm-gcc3-below-33` | refusal | 3.0 to 3.2, arm | L1 | policy from a136564 |
+| `gcc4-incomplete-array` | new-error | 4 and later on 2.6.0 to 2.6.8, x86 | L3 | none, fixed before git in 2.6.9 |
+| `gcc4-byteorder` | new-error | 4 and later on 2.6.0 and 2.6.1, x86 | L1 to L3 | none, fixed before git in 2.6.2 |
 | `gcc41-weak` | blacklist | 4.1.0, 4.1.1 | L1 | policy from f9d1425 |
 | `no-compiler-header` | refusal | 5 and later on 2.6.29 to 4.1 | L1 | cb984d101b30, 71458cfc782e |
-| `compiler-h-gnuc-gt-4` | refusal | 5 and later on 2.6.12 to 2.6.28 | L1 | f153b82 changes the form, cb984d101b30 ends it |
+| `compiler-h-gnuc-gt-4` | refusal | 5 and later on 2.6.12 to 2.6.28 | L1 to L3 | f153b82 changes the form, cb984d101b30 ends it |
 | `asm-goto-miscompile` | miscompile | 4.5 to 4.8.1 | L5 to L7 | 3f0116c, a9f180345f53 |
+| `gcc46-m-elf-i386` | new-error | 4.6 and later on kernels before 2.6.37, i386 | L3 | de2a8cf98ecd |
 | `arm-gcc48-pr58854` | blacklist | 4.8.0 to 4.8.2, arm | L1 | policy from 7fc150543c73, removed in 5.8 |
 | `arm-gcc47-ice-migrate` | ice | 4.7 to 4.8, arm | L3 | `ICE_noinline`, removed in 5.8 |
 | `gcc49-load-balance` | miscompile | 4.9.0, 4.9.1 | L5 to L7 | 2062afb4f804 |
@@ -119,6 +124,12 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc15-unterminated-string` | new-warning-werror | 15 | L3 | d5d45a7f2619, 9d7a0577c9db |
 | `gcc16-modpost-ipa-init` | modpost | 16 | L4 | 4c9ad387aa2d |
 | `gcc16-unused-but-set` | new-warning-werror | 16 | L3 | 97fb54d86d21, 729a2e8e9ac4 |
+| `binutils-too-old-lfence` | binutils-* | binutils below 2.12, i386 | L3 | none, the kernel asks for 2.12 |
+| `binutils-too-old-sysexit` | binutils-* | binutils 2.14, x86_64 | L3 | none |
+| `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io | L3 | none |
+| `binutils-x86-64-macro-redefined` | binutils-* | binutils 2.16 and later, x86_64, kernels before 2.6.11 | L3 | none, fixed before git |
+| `binutils-segment-mov` | binutils-* | binutils 2.17 and later, x86, kernels before 2.6.12 | L3 | fd51f666fa59 |
+| `binutils-range-ok-cmp` | binutils-* | binutils 2.20 and later, i386, kernels before 2.6.18 | L3 | 722f4f5b2600 |
 | `binutils-plt32` | binutils-* | binutils 2.31 and later, x86_64 | L4 to L5 | b21ebf2fb4cd |
 | `binutils-separate-code` | binutils-* | binutils 2.31 and later, x86_64 | L5 | e3d03598e8ae |
 | `binutils-got32x` | binutils-* | binutils 2.26 and later, i386 | L5 | 6d92bc9d483a |
