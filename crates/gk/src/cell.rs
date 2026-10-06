@@ -1208,9 +1208,7 @@ pub fn run(
             let _ = std::fs::copy(&dot, cell_dir.join(".config"));
             // A 32 bit kernel in the x86_64 row would be an i386 result under the wrong name (spec 06.2).
             if s.platform.name == "x86_64"
-                && kconfig::load(&dot)?
-                    .get("X86_32")
-                    .is_some_and(|v| v == "y")
+                && kconfig::load(&dot)?.get("X86_32").is_some_and(|v| v == "y")
             {
                 return Err(format!(
                     "{} {} configured a 32 bit kernel on x86_64",
