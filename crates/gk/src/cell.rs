@@ -1034,10 +1034,9 @@ fn clean(
 fn objtool_warnings(cell_dir: &Path) -> Vec<String> {
     ["make.log", "modules.log"]
         .iter()
-        .filter_map(|f| std::fs::read(cell_dir.join(f)).ok())
-        .flat_map(|b| {
-            String::from_utf8_lossy(&b)
-                .lines()
+        .map(|f| crate::classify::log_text(cell_dir, f))
+        .flat_map(|t| {
+            t.lines()
                 .filter(|l| l.contains("warning: objtool:"))
                 .map(str::to_owned)
                 .collect::<Vec<_>>()
@@ -1140,6 +1139,100 @@ fn kunit_reference(repo: &Repo, s: &Setup) -> Result<Reference, String> {
     let record: KunitRecord =
         serde_json::from_str(&text).map_err(|e| format!("reading {}: {e}", path.display()))?;
     Ok(Reference::Cell(id, record.suites, record.splats))
+}
+
+/// Whether a cell's KUnit runs are waiting for the era GCC's cell: every run passed smoke and was booted for KUnit, and there was nothing to grade them against when the cell ran.
+fn waits_for_reference(record: &CellRecord, kunit: &KunitRecord) -> bool {
+    kunit.reference.is_empty()
+        && kunit.runs > 0
+        && record.boots.len() == kunit.runs
+        && record.boots.iter().all(|b| *b == Rung::Smoke.to_string())
+}
+
+/// Grade a cell's KUnit runs again once the era GCC's cell is in the store, when they had nothing to be graded against as the cell ran. A cell run on its own, or before its row's era cell, stops at L6 that way. The runs are read back from `boot-N.json` and `kunit-N.json`, so nothing boots again, and the cell is raised to L7 and L8 as the first grading would have raised it. Returns whether the record changed.
+pub fn regrade(repo: &Repo, dir: &Path, record: &mut CellRecord) -> Result<bool, String> {
+    let Some(kunit) = std::fs::read_to_string(dir.join("kunit.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<KunitRecord>(&t).ok())
+    else {
+        return Ok(false);
+    };
+    // The objtool warnings come from the build log, which a cell copied without it no longer has.
+    if !waits_for_reference(record, &kunit)
+        || !["make.log", "make.log.zst"]
+            .iter()
+            .any(|f| dir.join(f).is_file())
+    {
+        return Ok(false);
+    }
+    let c = &record.coordinates;
+    let Ok(s) = Setup::new(
+        repo,
+        &c.kernel.name,
+        &c.gcc.name,
+        &c.platform,
+        &c.config.name,
+    ) else {
+        return Ok(false);
+    };
+    if matches!(kunit_reference(repo, &s)?, Reference::None) {
+        return Ok(false);
+    }
+    let outcome = |name: String| -> Result<boot::Outcome, String> {
+        let path = dir.join(&name);
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| format!("reading {}: {e}", path.display()))?;
+        serde_json::from_str(&text).map_err(|e| format!("reading {}: {e}", path.display()))
+    };
+    let mut suites = Vec::new();
+    let mut smoke_splats = Vec::new();
+    let mut kunit_splats = Vec::new();
+    for n in 1..=kunit.runs {
+        smoke_splats.push(outcome(format!("boot-{n}.json"))?.splats);
+        let k = outcome(format!("kunit-{n}.json"))?;
+        kunit_splats.push(k.splats.iter().map(|l| boot::splat_key(l)).collect());
+        suites.push((k.ended() && k.panic.is_none()).then_some(k.kunit));
+    }
+    let tested = Rung::Tested.to_string();
+    let clean_rung = Rung::Clean.to_string();
+    let seconds = record
+        .steps
+        .iter()
+        .find(|st| st.rung == tested)
+        .map_or(0.0, |st| st.seconds);
+    let mut rungs = vec![Rung::Smoke; kunit.runs];
+    let (step, allowed) = grade(
+        repo,
+        &s,
+        dir,
+        &mut rungs,
+        &suites,
+        &kunit_splats,
+        seconds,
+    )?;
+    record
+        .steps
+        .retain(|st| st.rung != tested && st.rung != clean_rung);
+    record.steps.push(step);
+    if rungs.contains(&Rung::Tested) {
+        let objtool = objtool_warnings(dir);
+        record.steps.push(clean(
+            dir,
+            &mut rungs,
+            &objtool,
+            smoke_splats,
+            &kunit_splats,
+            allowed.as_deref(),
+        )?);
+    }
+    let reached = rungs.iter().copied().min().unwrap_or(Rung::Smoke);
+    record.rung = reached.to_string();
+    record.verdict = format!("{:?}", Verdict::of(Some(reached), Rung::Clean)).to_lowercase();
+    record.boots = rungs.iter().map(ToString::to_string).collect();
+    record.flaky = rungs.windows(2).any(|w| w[0] != w[1]);
+    record.classes.clear();
+    record.findings.clear();
+    Ok(true)
 }
 
 /// Whether the top Makefile reaches `scripts/` through two phony targets, `scripts` and `scripts/fixdep`, as in the first 2.6 releases. A parallel build then runs two makes in `scripts/` at once, and they race on the temporary files of `split-include`, so the cell fails whatever the GCC. Those trees get their helpers built first, with one job, which changes nothing that is compiled for the kernel.
@@ -1625,6 +1718,33 @@ fn killed(log: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_cells_at_l6_with_no_reference_wait_for_one() {
+        let record = |boots: &str| -> CellRecord {
+            let json = format!(
+                r#"{{"cell":"sha256:00","coordinates":{{"kernel":{{"name":"linux-6.12.112","digest":""}},"gcc":{{"name":"gcc-16.2.0","digest":""}},"binutils":{{"name":"binutils-2.44","digest":""}},"platform":"x86_64","config":{{"name":"defconfig+gk","digest":""}},"host":{{"name":"bookworm","digest":""}},"qemu":"","initramfs":""}},"rung":"L6","verdict":"runs","steps":[],"boots":[{boots}],"probe":{{"result":"accepted","step":"init/main.i","seconds":1.0}},"era":"M12","started":0,"seconds":1.0,"machine":"x","gk":"0","graded":true}}"#
+            );
+            serde_json::from_str(&json).unwrap()
+        };
+        let kunit = |reference: &str| KunitRecord {
+            runs: 3,
+            reference: reference.into(),
+            graded: Vec::new(),
+            failed: vec![Vec::new(); 3],
+            suites: Vec::new(),
+            splats: Vec::new(),
+        };
+        let all = record(r#""L6","L6","L6""#);
+        assert!(waits_for_reference(&all, &kunit("")));
+        assert!(!waits_for_reference(&all, &kunit("self")));
+        assert!(!waits_for_reference(&all, &kunit("sha256:ab")));
+        assert!(!waits_for_reference(
+            &record(r#""L6","L5","L6""#),
+            &kunit("")
+        ));
+        assert!(!waits_for_reference(&record(r#""L6""#), &kunit("")));
+    }
 
     #[test]
     fn the_fragment_names_the_skipped_tests() {

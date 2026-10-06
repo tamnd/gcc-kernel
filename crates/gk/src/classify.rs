@@ -80,7 +80,7 @@ fn gave_up_on(make: &str) -> Option<String> {
 }
 
 /// A log of a cell directory, decompressed when only the `.zst` is left.
-fn log_text(dir: &Path, name: &str) -> String {
+pub(crate) fn log_text(dir: &Path, name: &str) -> String {
     if let Ok(text) = std::fs::read_to_string(dir.join(name)) {
         return text;
     }
@@ -484,6 +484,17 @@ pub fn classify(repo: &Repo, write: bool) -> Result<String, String> {
     for (dir, mut r) in store::cells()? {
         if write {
             repair_errors(&dir)?;
+            if crate::cell::regrade(repo, &dir, &mut r)? {
+                let c = &r.coordinates;
+                let _ = writeln!(
+                    out,
+                    "{} {} {} {}: graded again, {}",
+                    c.kernel.name, c.gcc.name, c.platform, c.config.name, r.rung
+                );
+                let json = serde_json::to_string_pretty(&r).map_err(|e| e.to_string())?;
+                std::fs::write(dir.join("cell.json"), json + "\n")
+                    .map_err(|e| format!("writing {}/cell.json: {e}", dir.display()))?;
+            }
         }
         let Some(f) = failure(&dir, &r) else {
             continue;
