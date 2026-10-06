@@ -2,7 +2,7 @@
 //!
 //! The clone is a bare repository at `GK_HISTORY`, or `history/linux.git` in the cache. `gk history update` makes it from Linus's tree and adds the tags of the stable tree, which is enough to bisect anything from 2.6.12 on, mainline or stable. The history from before git joins it at G3.
 //!
-//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix. A bisection at L1 is of a refusal, and since L1 is the accept probe, each commit runs the probe alone and leaves no cell. A bisection of a build failure can name the object that fails with `--unit`, and then each commit, and each end, builds that object alone and leaves no cell either.
+//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix. A bisection at L1 is of a refusal, and since L1 is the accept probe, each commit and each end runs the probe alone and leaves no cell. A bisection of a build failure can name the object that fails with `--unit`, and then each commit, and each end, builds that object alone and leaves no cell either.
 
 use crate::cell::{self, CellRecord, Setup};
 use crate::{fetch, store};
@@ -167,6 +167,16 @@ fn release_rung(
     if let Some(object) = &opts.unit {
         let rung = unit_rung(&setup, object, opts.jobs)?;
         println!("{kernel:<10} {rung:<3} {object} {}", unit_term(&rung));
+        return Ok(rung);
+    }
+    // An end with no cell yet would only be built to show it gets past the probe, so it is probed, like the commits between.
+    let stored = store::cell_dir(&setup.coordinates.identity()).join("cell.json");
+    if opts.rung.as_deref() == Some("L1") && !stored.is_file() {
+        let rung = probe_rung(&setup, opts.jobs)?;
+        println!(
+            "{kernel:<10} {rung:<3} {}",
+            if rung == "L1" { "accepted" } else { "refused" }
+        );
         return Ok(rung);
     }
     let record = run_or_load(repo, &setup, opts.jobs)?;
