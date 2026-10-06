@@ -202,14 +202,20 @@ fn failing_unit(dir: &Path) -> Option<(build::FailedUnit, String)> {
         .ok()
         .map(|(r, _)| r);
     let errors = std::fs::read_to_string(dir.join("errors.jsonl")).unwrap_or_default();
-    let first: build::FailedUnit = errors
-        .lines()
-        .find_map(|l| serde_json::from_str(l).ok())
-        .or_else(|| {
-            build::failing_units(records.as_deref()?, Path::new("/src"))
-                .into_iter()
-                .next()
-        })?;
+    let stored: Option<build::FailedUnit> =
+        errors.lines().find_map(|l| serde_json::from_str(l).ok());
+    let first = match stored {
+        Some(u) if !u.error.is_empty() => u,
+        // A cell run before gas's `Error:` lines counted stored a unit that failed in the assembler with no error, and compile.jsonl still has its stderr.
+        stored => records
+            .as_deref()
+            .and_then(|r| {
+                build::failing_units(r, Path::new("/src"))
+                    .into_iter()
+                    .next()
+            })
+            .or(stored)?,
+    };
     let command = records
         .and_then(|records| {
             records

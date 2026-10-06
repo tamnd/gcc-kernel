@@ -263,7 +263,7 @@ pub fn unit_source(record: &CompileRecord, tree: &Path) -> String {
         .map_or_else(|_| input.to_string(), |p| p.display().to_string())
 }
 
-/// Every failed unit with its first error line, sorted, one per unit.
+/// Every failed unit with its first error line, sorted, one per unit. GCC writes `error:` and gas writes `Error:`.
 #[must_use]
 pub fn failing_units(records: &[CompileRecord], tree: &Path) -> Vec<FailedUnit> {
     let mut units: Vec<FailedUnit> = records
@@ -274,7 +274,7 @@ pub fn failing_units(records: &[CompileRecord], tree: &Path) -> Vec<FailedUnit> 
             error: r
                 .stderr
                 .lines()
-                .find(|l| l.contains("error"))
+                .find(|l| l.contains("error") || l.contains("Error:"))
                 .unwrap_or_default()
                 .trim()
                 .to_owned(),
@@ -508,6 +508,18 @@ mod tests {
         assert_eq!(failed.len(), 1);
         assert_eq!(failed[0].unit, "scripts/mod/devicetable-offsets.c");
         assert_eq!(count(&records, 0).units, 1);
+    }
+
+    #[test]
+    fn a_unit_that_fails_in_the_assembler_has_the_gas_error_line() {
+        let log = r#"{"started":1,"argv":["gk-cc","-c","-o","arch/i386/kernel/vsyscall.o","/src/arch/i386/kernel/vsyscall.S"],"compiler":"/g","cwd":"/out","inputs":[{"path":"/src/arch/i386/kernel/vsyscall.S","sha256":"a"}],"wall-seconds":0.1,"exit":1,"stderr":"/tmp/ccZnGQvD.s: Assembler messages:\n/tmp/ccZnGQvD.s:1699: Error: Unknown pseudo-op:  `.incbin'\n"}
+"#;
+        let (records, _) = parse_log(log);
+        let failed = failing_units(&records, Path::new("/src"));
+        assert_eq!(
+            failed[0].error,
+            "/tmp/ccZnGQvD.s:1699: Error: Unknown pseudo-op:  `.incbin'"
+        );
     }
 
     #[test]
