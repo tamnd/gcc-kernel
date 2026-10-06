@@ -84,7 +84,7 @@ Bisecting an edge needs every commit, not only releases. `gk bisect-kernel K1 K2
 - the `history.git` import of BitKeeper history, 2.4.0 to 2.6.12-rc2, whose root commit is bb441db;
 - mpe's `linux-fullhistory`, which grafts the two and adds the pre-2.4 releases as commits.
 
-The joined clone lives on gpc (about 6 GB), updated weekly. The bisection runs cells of the form (commit, G, P) with the row's configuration and host, to the rung where the edge is, and reports the first commit on which the cell's verdict changes. An edge at L1 is a refusal, so its bisection runs only the accept probe on each commit, which takes seconds instead of a build. Commits before git are release-sized, so bisections into the museum stop at release granularity, which the report says.
+The joined clone lives on gpc (about 6 GB), updated weekly. The bisection runs cells of the form (commit, G, P) with the row's configuration and host, to the rung where the edge is, and reports the first commit on which the cell's verdict changes. An edge at L1 is a refusal, so its bisection runs only the accept probe on each commit, which takes seconds instead of a build. An edge at L3 whose first failing unit is known can be bisected with `--unit` and that object, and then each commit is configured as its cell would be and builds `prepare` and the object alone, which takes minutes instead of an hour. Commits before git are release-sized, so bisections into the museum stop at release granularity, which the report says.
 
 Bisections have two uses:
 1. **Confirming `fixed-by`.** Every signature's fix commit (08.2) is confirmed by bisecting between a failing and a working kernel with the signature's GCC. A mismatch with the claimed commit is recorded and the bisected commit wins.
