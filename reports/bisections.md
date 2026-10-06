@@ -2,18 +2,19 @@
 
 Every `fixed-by` commit of the failure catalog is confirmed by bisecting between a kernel the signature matches and one it does not, with the signature's GCC (spec 03.5 and 08.2). When the bisection finds another commit, the bisected commit wins and the signature is corrected. A signature can name several commits, one for each place the kernel had to change, and a bisection confirms the one its range and platform reach. Written by `gk publish` from `signatures.toml` and the bisections in the result store.
 
-0 bisections in the store. 0 of the 48 signatures with a fixing commit have at least one of their commits confirmed.
+0 bisections in the store. 0 of the 52 signatures with a fixing commit have at least one of their commits confirmed.
 
 ## Signatures
 
 | Signature | Rung | Kind | Fixing commits | Confirmed |
 |---|---|---|---|---|
+| gcc-min-32 | L1..L3 | refusal | `a136564` |  |
 | gcc-296-frame-pointer | L1 | refusal | `a136564` |  |
 | gcc3-0-1-refused | L1 | refusal | `6680598` |  |
 | arm-gcc3-below-33 | L1 | refusal | `a136564` |  |
 | gcc41-weak | L1 | blacklist | `f9d1425` |  |
 | no-compiler-header | L1 | refusal | `cb984d101b30` `71458cfc782e` |  |
-| compiler-h-gnuc-gt-4 | L1 | refusal | `f153b82` `cb984d101b30` |  |
+| compiler-h-gnuc-gt-4 | L1..L3 | refusal | `f153b82` `cb984d101b30` |  |
 | arm-gcc48-pr58854 | L1 | blacklist | `7fc150543c73` |  |
 | gcc-min-46 | L1 | refusal | `cafa0010cd51` |  |
 | gcc-min-49 | L1 | refusal | `6ec4476ac825` |  |
@@ -32,6 +33,7 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | fno-common | L3 | default-change | `e33a814e772c` |  |
 | gnu11-extern-inline | L3 | default-change | `8f375e10ee47` `51b97e354ba9` |  |
 | gnu23-bool | L3 | default-change | `b3bee1e7c3f2` `ee2ab467bddf` `8ba14d9f490a` `3b8b80e99376` `947d5d036c78` `5a821e2d69e2` `7cbb015e2d3d` `0f4ae7c6ecb8` |  |
+| gcc46-m-elf-i386 | L3 | new-error | `de2a8cf98ecd` |  |
 | gcc7-format-werror | L3 | new-warning-werror | `bd664f6b3e37` |  |
 | gcc8-packed-not-aligned | L3 | new-warning-werror | `321cb0308a9e` |  |
 | gcc8-attribute-alias | L3 | new-warning-werror | `bee20031772a` |  |
@@ -48,6 +50,8 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | gcc8-objtool-cold | L4..L8 | objtool | `13810435b9a7` |  |
 | gcc8-objtool-switch | L4..L8 | objtool | `fd35c88b7441` |  |
 | gcc16-modpost-ipa-init | L4 | modpost | `4c9ad387aa2d` |  |
+| binutils-segment-mov | L3 | binutils-assembler | `fd51f666fa59` |  |
+| binutils-range-ok-cmp | L3 | binutils-assembler | `722f4f5b2600` |  |
 | binutils-plt32 | L4..L5 | binutils-relocation | `b21ebf2fb4cd` |  |
 | binutils-separate-code | L5 | binutils-layout | `e3d03598e8ae` |  |
 | binutils-got32x | L5 | binutils-relocation | `6d92bc9d483a` |  |
