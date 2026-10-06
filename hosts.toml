@@ -176,6 +176,16 @@ binutils = "2.26.1"
 make = "4.1"
 
 [[host]]
+name = "gk-host-precise"
+image = ""
+kind = "host"
+base = "ubuntu:12.04"
+arches = ["amd64"]
+gcc = "4.6.3"
+binutils = "2.22"
+make = "3.81"
+
+[[host]]
 name = "gk-host-eoan"
 image = ""
 kind = "host"
