@@ -642,12 +642,11 @@ pub fn probe(s: &Setup, dir: &Path, jobs: usize) -> Result<Probe, String> {
     })
 }
 
+/// One `make` in a cell's output directory: the arguments, the log's name and the jobs, to the exit code.
+type MakeStep<'a> = dyn Fn(&[&str], &str, usize) -> Result<i32, String> + 'a;
+
 /// The configuration of a cell, made in `out` by `make`: the configuration target, then the fragments, settled by the kernel's own Kconfig. Whether that worked, and the options of the fragments the kernel did not take.
-fn configure(
-    s: &Setup,
-    out: &Path,
-    make: &dyn Fn(&[&str], &str, usize) -> Result<i32, String>,
-) -> Result<(bool, Vec<String>), String> {
+fn configure(s: &Setup, out: &Path, make: &MakeStep<'_>) -> Result<(bool, Vec<String>), String> {
     let dot = out.join(".config");
     if make(&[s.target.as_str()], "config.log", 1)? != 0 || !dot.is_file() {
         return Ok((false, Vec::new()));
@@ -668,13 +667,16 @@ fn configure(
     }
     let mut configured = true;
     if let Some(settle) = settle_target(&s.version) {
-        let before = std::fs::read_to_string(&dot)
-            .map_err(|e| format!("reading {}: {e}", dot.display()))?;
+        let before =
+            std::fs::read_to_string(&dot).map_err(|e| format!("reading {}: {e}", dot.display()))?;
         std::fs::write(&dot, kconfig::merge(&before, &fragment))
             .map_err(|e| format!("writing {}: {e}", dot.display()))?;
         configured = make(&[settle], "fragment.log", 1)? == 0;
     }
-    Ok((configured, kconfig::missed(&kconfig::load(&dot)?, &fragment)))
+    Ok((
+        configured,
+        kconfig::missed(&kconfig::load(&dot)?, &fragment),
+    ))
 }
 
 /// Whether one object of the kernel builds, for the bisection of a build failure (spec 03.5): the configuration of a cell, `prepare`, then that object alone, with the compiler and no shim, and no record. That takes minutes where a whole build takes an hour.
@@ -704,7 +706,10 @@ pub fn unit(s: &Setup, dir: &Path, object: &str, jobs: usize) -> Result<bool, St
     let source = object.rsplit_once('.').map_or(object, |(stem, _)| stem);
     if make(&["prepare"], "prepare.log", jobs)? != 0 {
         let log = std::fs::read_to_string(dir.join("prepare.log")).unwrap_or_default();
-        if log.lines().any(|l| l.contains(source) && l.contains("error")) {
+        if log
+            .lines()
+            .any(|l| l.contains(source) && l.contains("error"))
+        {
             return Ok(false);
         }
         return Err(format!(
