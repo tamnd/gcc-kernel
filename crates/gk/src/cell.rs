@@ -347,9 +347,9 @@ impl Setup {
             && !BUILD_ONLY.contains(&self.config)
     }
 
-    /// The build budget: the platform's, or ten times it for a build-only configuration, which compiles about ten times as much (spec 06.7).
+    /// The build budget: the platform's, or ten times it for a build-only configuration, which compiles about ten times as much (spec 06.7), times the machine's [`budget_factor`].
     pub fn build_seconds(&self) -> u64 {
-        let minutes = u64::from(self.platform.budget.build_minutes);
+        let minutes = u64::from(self.platform.budget.build_minutes) * budget_factor();
         if BUILD_ONLY.contains(&self.config) {
             minutes * 600
         } else {
@@ -580,6 +580,15 @@ impl Probe {
     }
 }
 
+/// What every build budget is multiplied by on this machine, from `GK_BUDGET_FACTOR`, for a machine shared with other work that leaves the builds a fraction of its cores. It applies to every cell the machine runs, so no column gets more time than another (spec 06.7).
+pub fn budget_factor() -> u64 {
+    std::env::var("GK_BUDGET_FACTOR")
+        .ok()
+        .and_then(|v| v.trim().parse().ok())
+        .filter(|&f| f >= 1)
+        .unwrap_or(1)
+}
+
 /// The accept probe of spec 09.4: the configuration target, which runs the Kconfig and `cc-version.sh` checks, then `init/main.i`, which runs every `#error` in the compiler headers with kbuild's own flags.
 ///
 /// A refusal is a configuration step that fails, an `#error` directive that fires, or a missing `compiler-gccN.h`, which is how 2.6.29 to 4.1 refuse a GCC major they have no header for. Anything else that fails is inconclusive and is left to the build, because `init/main.i` depends on `prepare`, which compiles `bounds.c` and `asm-offsets.c` for real.
@@ -588,7 +597,7 @@ pub fn probe(s: &Setup, dir: &Path, jobs: usize) -> Result<Probe, String> {
     let out = dir.join("out");
     let _ = std::fs::remove_dir_all(&out);
     std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
-    let seconds = u64::from(s.platform.budget.build_minutes) * 60;
+    let seconds = u64::from(s.platform.budget.build_minutes) * 60 * budget_factor();
     let config_log = dir.join("probe-config.log");
     let code = s.make(&Make {
         out: &out,
