@@ -1141,7 +1141,8 @@ mod tests {
             "WARNING: drivers/gpu/drm/drm_connector.c:260"
         ));
         assert!(!same_splat(a, "WARNING: drivers/gpu/drm/drm_rect.c:232"));
-        assert!(same_splat("UBSAN: x in lib/x.c:3:9", "UBSAN: x in lib/x.c:3:9"));
-        assert!(!same_splat("UBSAN: x in lib/x.c:3:9", "UBSAN: x in lib/x.c:3:8"));
+        let ubsan = "UBSAN: x in lib/x.c:3:9";
+        assert!(same_splat(ubsan, ubsan));
+        assert!(!same_splat(ubsan, "UBSAN: x in lib/x.c:3:8"));
     }
 }
