@@ -54,7 +54,10 @@ fn is_error_line(l: &str) -> bool {
         && !l.starts_with("make[")
         && !l.starts_with('#')
         && !l.starts_with("  ")
+        // kbuild echoes a recipe such as the include/asm symlink check, whose `echo "ERROR: ...` says nothing went wrong.
+        && !l.starts_with("set -e;")
         && (l.contains("error:")
+            || l.contains(": parse error")
             || l.contains("Error:")
             || l.contains("ERROR:")
             || l.contains("objtool:")
@@ -213,7 +216,7 @@ fn repair_errors(dir: &Path) -> Result<(), String> {
         return Ok(());
     };
     let units = build::failing_units(&records, Path::new("/src"));
-    if units.first().is_none_or(|u| u.error.is_empty()) {
+    if units.iter().all(|u| u.error.is_empty()) {
         return Ok(());
     }
     let mut lines = String::new();
@@ -249,9 +252,10 @@ fn failing_unit(dir: &Path) -> Option<(build::FailedUnit, String)> {
         stored => records
             .as_deref()
             .and_then(|r| {
-                build::failing_units(r, Path::new("/src"))
-                    .into_iter()
-                    .next()
+                // The units come in name order, so the first that says why stands for them.
+                let units = build::failing_units(r, Path::new("/src"));
+                let said = units.iter().position(|u| !u.error.is_empty()).unwrap_or(0);
+                units.into_iter().nth(said)
             })
             .or(stored)?,
     };
@@ -851,6 +855,20 @@ platform = ["x86_64"]
         assert_eq!(no_unit(Some(quiet.to_owned()), "nothing\n"), quiet);
         let loud = "ld: final link failed: error: bad value";
         assert_eq!(no_unit(Some(loud.to_owned()), make), loud);
+    }
+
+    #[test]
+    fn an_echoed_recipe_is_no_error() {
+        let make = "set -e; if [ -L include/asm ]; then echo \"ERROR: the symlink include/asm points to asm-x86\"; fi\nld: init/mounts.o: in function `tty_kref_get':\n(.text+0x1b): multiple definition of `tty_kref_get'; init/main.o:main.c:(.text+0x1b): first defined here\nmake[2]: *** [init/built-in.o] Error 1\n";
+        assert_eq!(
+            no_unit(None, make),
+            "(.text+0x1b): multiple definition of `tty_kref_get'; init/main.o:main.c:(.text+0x1b): first defined here"
+        );
+        let lds = "ld:arch/x86/kernel/vmlinux.lds:432: parse error\nmake[1]: *** [.tmp_vmlinux1] Error 1\n";
+        assert_eq!(
+            no_unit(None, lds),
+            "ld:arch/x86/kernel/vmlinux.lds:432: parse error"
+        );
     }
 
     #[test]
