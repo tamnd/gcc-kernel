@@ -668,6 +668,16 @@ kernel = "<5.11"
 platform = ["x86_64", "i386"]
 
 [[signature]]
+class = "binutils-objtool-align"
+rung = "L3"
+match = { first-error = 'objtool: elf_update: invalid section alignment' }
+kind = "binutils-objtool"
+summary = "objtool built against the libelf of Debian 10 and 11 cannot write back an object that binutils 2.45 or later assembled, so 5.10 and 5.15 stop on the first object objtool changes while binutils 2.43 builds them, and Chris Packham saw the same on 6.6 and 6.12 in a Debian 11 container"
+binutils = ">=2.45"
+kernel = ">=4.20, <6.0"
+platform = ["x86_64"]
+
+[[signature]]
 class = "binutils-riscv-zicsr"
 rung = "L3"
 match = { first-error = 'unrecognized opcode `(?:csr|fence\.i)' }
