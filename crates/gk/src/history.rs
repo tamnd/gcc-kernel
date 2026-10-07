@@ -1,4 +1,4 @@
-//! `reports/eras.md` and `reports/holes.md`, which `gk publish` writes from the matrix (spec 11.2 and 08.5).
+//! `reports/eras.md` and `reports/holes.md`, which `gk publish` writes from the matrix (spec 11.2 and 08.5), and `matrix/frontiers.json` and `matrix/ranges.json`, the same rows read the other two ways (spec 02.6 and 10.2).
 //!
 //! Both read the newest cell at every crossing of a kernel, a GCC column, a platform and a configuration, so a rerun replaces the cell it reran. A row is every cell of one kernel on one platform and configuration, in GCC version order, and its working set is the columns whose cell works.
 
@@ -6,6 +6,7 @@ use crate::publish::{Entry, Matrix, letter};
 use crate::search::era_column;
 use gk_model::Version;
 use gk_model::repo::Repo;
+use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -212,6 +213,185 @@ pub fn holes(repo: &Repo, m: &Matrix) -> String {
     out
 }
 
+/// `matrix/frontiers.json`.
+#[derive(Debug, Serialize)]
+pub struct Frontiers {
+    /// The schema version, the same as `matrix.json`'s.
+    pub schema: u32,
+    /// One per kernel, platform and configuration that has an upstream cell.
+    pub rows: Vec<Frontier>,
+}
+
+/// The working set W(K, P) of one row over the upstream columns (spec 02.6).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Frontier {
+    /// The kernel.
+    pub kernel: String,
+    /// The platform.
+    pub platform: String,
+    /// The configuration.
+    pub config: String,
+    /// The era column e(K) on the platform, when the kernel has one.
+    pub era: Option<String>,
+    /// Whether the era column's cell works, or `None` when it has not run.
+    pub era_works: Option<bool>,
+    /// min(K, P), the oldest column that works, or `None` when none does.
+    pub min: Option<String>,
+    /// max(K, P), the newest column that works.
+    pub max: Option<String>,
+    /// The newest column older than min that ran and does not work, which is the other side of the older edge.
+    pub below: Option<String>,
+    /// The oldest column newer than max that ran and does not work.
+    pub above: Option<String>,
+    /// The columns strictly between min and max that ran and do not work.
+    pub holes: Vec<String>,
+    /// How many upstream columns have a cell in the row.
+    pub columns: usize,
+}
+
+/// `matrix/ranges.json`.
+#[derive(Debug, Serialize)]
+pub struct Ranges {
+    /// The schema version, the same as `matrix.json`'s.
+    pub schema: u32,
+    /// One per upstream column, platform and configuration that has a cell.
+    pub columns: Vec<KernelRange>,
+}
+
+/// The kernel range of one GCC column on one platform and configuration (spec 02.6), the view rucc reads.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct KernelRange {
+    /// The GCC column.
+    pub gcc: String,
+    /// The platform.
+    pub platform: String,
+    /// The configuration.
+    pub config: String,
+    /// The oldest kernel the column works on, or `None` when it works on none.
+    pub oldest: Option<String>,
+    /// The newest kernel it works on.
+    pub newest: Option<String>,
+    /// The kernels strictly between the two that ran and do not work.
+    pub gaps: Vec<String>,
+    /// How many kernels it works on.
+    pub works: usize,
+    /// How many kernels it ran on.
+    pub ran: usize,
+}
+
+/// The upstream cells of each row, which are the only ones W(K, P) counts.
+fn upstream<'a>(repo: &Repo, m: &'a Matrix) -> BTreeMap<RowKey<'a>, Vec<(Version, &'a Entry)>> {
+    let mut out = rows(repo, m);
+    for cells in out.values_mut() {
+        cells.retain(|(_, e)| repo.gccs.get(&e.gcc).is_some_and(|g| g.flavor == "upstream"));
+    }
+    out.retain(|_, cells| !cells.is_empty());
+    out
+}
+
+/// The frontier of every row.
+#[must_use]
+pub fn frontiers(repo: &Repo, m: &Matrix) -> Frontiers {
+    let full = rows(repo, m);
+    let mut out = Vec::new();
+    for (key, cells) in upstream(repo, m) {
+        let (platform, config, kernel) = &key;
+        let triple = repo
+            .platforms
+            .get(platform)
+            .map(|p| p.triple.clone())
+            .unwrap_or_default();
+        let era = repo
+            .eras
+            .of(kernel)
+            .and_then(|e| era_column(repo, &e.gcc, &triple));
+        let era_works = era.as_ref().and_then(|c| {
+            full.get(&key)?
+                .iter()
+                .find(|(_, e)| e.gcc == *c)
+                .map(|(_, e)| e.verdict == "works")
+        });
+        let works = |e: &Entry| e.verdict == "works";
+        let first = cells.iter().position(|(_, e)| works(e));
+        let last = cells.iter().rposition(|(_, e)| works(e));
+        let name = |i: usize| cells[i].1.gcc.clone();
+        let (below, above, holes) = match (first, last) {
+            (Some(a), Some(b)) => (
+                a.checked_sub(1).map(name),
+                (b + 1 < cells.len()).then(|| name(b + 1)),
+                cells[a..=b]
+                    .iter()
+                    .filter(|(_, e)| !works(e))
+                    .map(|(_, e)| e.gcc.clone())
+                    .collect(),
+            ),
+            _ => (None, None, Vec::new()),
+        };
+        out.push(Frontier {
+            kernel: kernel.to_string(),
+            platform: (*platform).to_owned(),
+            config: (*config).to_owned(),
+            era,
+            era_works,
+            min: first.map(name),
+            max: last.map(name),
+            below,
+            above,
+            holes,
+            columns: cells.len(),
+        });
+    }
+    Frontiers {
+        schema: crate::publish::SCHEMA,
+        rows: out,
+    }
+}
+
+/// The kernel range of every column.
+#[must_use]
+pub fn ranges(repo: &Repo, m: &Matrix) -> Ranges {
+    let mut by: BTreeMap<(Version, &str, &str, &str), Vec<(&Version, bool)>> = BTreeMap::new();
+    let rows = upstream(repo, m);
+    for ((platform, config, kernel), cells) in &rows {
+        for (v, e) in cells {
+            by.entry((v.clone(), e.gcc.as_str(), *platform, *config))
+                .or_default()
+                .push((kernel, e.verdict == "works"));
+        }
+    }
+    let columns = by
+        .into_iter()
+        .map(|((_, gcc, platform, config), kernels)| {
+            let first = kernels.iter().position(|k| k.1);
+            let last = kernels.iter().rposition(|k| k.1);
+            let gaps = match (first, last) {
+                (Some(a), Some(b)) => kernels[a..=b]
+                    .iter()
+                    .filter(|k| !k.1)
+                    .map(|k| k.0.to_string())
+                    .collect(),
+                _ => Vec::new(),
+            };
+            KernelRange {
+                gcc: gcc.to_owned(),
+                platform: platform.to_owned(),
+                config: config.to_owned(),
+                oldest: first.map(|i| kernels[i].0.to_string()),
+                newest: last.map(|i| kernels[i].0.to_string()),
+                gaps,
+                works: kernels.iter().filter(|k| k.1).count(),
+                ran: kernels.len(),
+            }
+        })
+        .collect();
+    Ranges {
+        schema: crate::publish::SCHEMA,
+        columns,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,5 +440,52 @@ mod tests {
         assert!(text.contains(&format!(
             "{column} fails at L3, and the nearest working column is gcc-16.2.0"
         )));
+    }
+
+    #[test]
+    fn a_frontier_has_both_edges_and_its_holes() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let m = Matrix {
+            schema: 1,
+            cells: vec![
+                cell("7.2.8", "gcc-5.5.0", "fails"),
+                cell("7.2.8", "gcc-8.5.0", "works"),
+                cell("7.2.8", "gcc-12.5.0", "fails"),
+                cell("7.2.8", "gcc-14.2.0", "works"),
+                cell("7.2.8", "gcc-16.2.0", "builds"),
+            ],
+        };
+        let f = frontiers(&repo, &m);
+        assert_eq!(f.rows.len(), 1);
+        let row = &f.rows[0];
+        assert_eq!(row.min.as_deref(), Some("gcc-8.5.0"));
+        assert_eq!(row.max.as_deref(), Some("gcc-14.2.0"));
+        assert_eq!(row.below.as_deref(), Some("gcc-5.5.0"));
+        assert_eq!(row.above.as_deref(), Some("gcc-16.2.0"));
+        assert_eq!(row.holes, ["gcc-12.5.0"]);
+        assert_eq!(row.columns, 5);
+        let r = ranges(&repo, &m);
+        let twelve = r.columns.iter().find(|c| c.gcc == "gcc-12.5.0").unwrap();
+        assert_eq!((twelve.oldest.as_ref(), twelve.works, twelve.ran), (None, 0, 1));
+    }
+
+    #[test]
+    fn a_kernel_range_has_its_gaps() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let m = Matrix {
+            schema: 1,
+            cells: vec![
+                cell("6.1.188", "gcc-14.2.0", "works"),
+                cell("6.6.157", "gcc-14.2.0", "fails"),
+                cell("7.2.8", "gcc-14.2.0", "works"),
+            ],
+        };
+        let r = ranges(&repo, &m);
+        assert_eq!(r.columns.len(), 1);
+        let c = &r.columns[0];
+        assert_eq!(c.oldest.as_deref(), Some("6.1.188"));
+        assert_eq!(c.newest.as_deref(), Some("7.2.8"));
+        assert_eq!(c.gaps, ["6.6.157"]);
+        assert_eq!((c.works, c.ran), (2, 3));
     }
 }

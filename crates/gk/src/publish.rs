@@ -4,7 +4,7 @@
 //!
 //! The status section of `README.md` is rewritten too, between its markers (see [`crate::status`]).
 //!
-//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one colored square per cell. The era check and the holes go to `reports/eras.md` and `reports/holes.md` (see [`crate::history`]).
+//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one colored square per cell. The era check and the holes go to `reports/eras.md` and `reports/holes.md`, and the frontier of every row and the kernel range of every column to `matrix/frontiers.json` and `matrix/ranges.json` (see [`crate::history`]).
 
 use crate::cell::CellRecord;
 use crate::classify::{self, Compiled};
@@ -302,7 +302,7 @@ pub fn today() -> String {
     add_days("1970-01-01", i64::try_from(days).unwrap_or(0)).unwrap_or_default()
 }
 
-/// Write `matrix/matrix.json`, the heat maps, the warning census, the configuration differential, the era check, the holes and the bisections under the repository. Returns how many cells the matrix holds and which reports were written.
+/// Write `matrix/matrix.json`, the frontiers and kernel ranges beside it, the heat maps, the warning census, the configuration differential, the era check, the holes and the bisections under the repository. Returns how many cells the matrix holds and which reports were written.
 pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String> {
     let m = matrix(repo, ungraded)?;
     let dir = repo.root.join("matrix");
@@ -310,6 +310,20 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
     let text = serde_json::to_string_pretty(&m).map_err(|e| e.to_string())? + "\n";
     std::fs::write(dir.join("matrix.json"), text)
         .map_err(|e| format!("writing matrix/matrix.json: {e}"))?;
+    for (name, text) in [
+        (
+            "frontiers.json",
+            serde_json::to_string_pretty(&crate::history::frontiers(repo, &m)),
+        ),
+        (
+            "ranges.json",
+            serde_json::to_string_pretty(&crate::history::ranges(repo, &m)),
+        ),
+    ] {
+        let text = text.map_err(|e| e.to_string())? + "\n";
+        std::fs::write(dir.join(name), text)
+            .map_err(|e| format!("writing matrix/{name}: {e}"))?;
+    }
     let reports = repo.root.join("reports");
     let mut written = Vec::new();
     for p in &repo.platforms.platforms {
