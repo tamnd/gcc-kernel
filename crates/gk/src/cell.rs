@@ -1005,7 +1005,10 @@ fn clean(
                 .filter(|k| {
                     // Keys stored by an older gk still name the function, and splat_key of a key is the key, so both sides go through it again.
                     let key = boot::splat_key(k);
-                    allowed.is_some_and(|a| !a.iter().any(|x| boot::splat_key(x) == key))
+                    allowed.is_some_and(|a| {
+                        !a.iter()
+                            .any(|x| boot::same_splat(&boot::splat_key(x), &key))
+                    })
                 })
                 .cloned()
                 .collect();
@@ -1190,19 +1193,24 @@ fn waits_for_reference(record: &CellRecord, kunit: &KunitRecord) -> bool {
         && record.boots.iter().all(|b| *b == Rung::Smoke.to_string())
 }
 
-/// A cell's `splats.json` when it holds KUnit keys written before a key stopped naming the function a warning was inlined into. Such a cell can sit at L7 for a warning its reference shows under another name, as gcc-8.5.0 says `drm_calc_scale` where the era GCC says `drm_rect_calc_hscale`.
-fn stale_splats(dir: &Path) -> Option<SplatRecord> {
+/// A cell's `splats.json` when a KUnit splat that kept it from L8 is one the era GCC's cell showed too, as gk matches them now. A key written before keys stopped naming the function a warning was inlined into, or a warning a line or two off the reference's, held such a cell at L7.
+fn stale_splats(dir: &Path, allowed: &[String]) -> Option<SplatRecord> {
     let text = std::fs::read_to_string(dir.join("splats.json")).ok()?;
     let record: SplatRecord = serde_json::from_str(&text).ok()?;
     record
         .kunit
         .iter()
         .flatten()
-        .any(|k| boot::splat_key(k) != *k)
+        .any(|k| {
+            let key = boot::splat_key(k);
+            allowed
+                .iter()
+                .any(|x| boot::same_splat(&boot::splat_key(x), &key))
+        })
         .then_some(record)
 }
 
-/// Grade a cell's KUnit runs again once the era GCC's cell is in the store, when they had nothing to be graded against as the cell ran. A cell run on its own, or before its row's era cell, stops at L6 that way, and a cell whose `splats.json` has keys of an older gk is graded again too. The runs are read back from `boot-N.json` and `kunit-N.json`, so nothing boots again, and the cell is raised to L7 and L8 as the first grading would have raised it. `cells` is the store, where the era cell is looked for. Returns whether the record changed.
+/// Grade a cell's KUnit runs again once the era GCC's cell is in the store, when they had nothing to be graded against as the cell ran. A cell run on its own, or before its row's era cell, stops at L6 that way, and a cell whose `splats.json` holds a splat the era cell showed too is graded again. The runs are read back from `boot-N.json` and `kunit-N.json`, so nothing boots again, and the cell is raised to L7 and L8 as the first grading would have raised it. `cells` is the store, where the era cell is looked for. Returns whether the record changed.
 pub fn regrade(
     repo: &Repo,
     dir: &Path,
@@ -1212,18 +1220,25 @@ pub fn regrade(
     let Some(kunit) = read_kunit(dir) else {
         return Ok(false);
     };
-    let stale = stale_splats(dir);
     // The objtool warnings come from the build log, which a cell copied without it no longer has. A cell graded before keeps them in its splats.json.
     let waiting = waits_for_reference(record, &kunit)
         && ["make.log", "make.log.zst"]
             .iter()
             .any(|f| dir.join(f).is_file());
-    if !waiting && stale.is_none() {
+    if !waiting && !dir.join("splats.json").is_file() {
         return Ok(false);
     }
     let Some((id, theirs)) = era_cell(repo, record, cells) else {
         return Ok(false);
     };
+    let stale = if waiting {
+        None
+    } else {
+        stale_splats(dir, &theirs.splats)
+    };
+    if !waiting && stale.is_none() {
+        return Ok(false);
+    }
     let reference = Reference::Cell(id, theirs.suites, theirs.splats);
     let outcome = |name: String| -> Result<boot::Outcome, String> {
         let path = dir.join(&name);
@@ -1921,17 +1936,23 @@ mod tests {
     }
 
     #[test]
-    fn splats_keyed_by_an_older_gk_are_stale() {
+    fn splats_the_reference_showed_are_stale() {
         let dir = std::env::temp_dir().join(format!("gk-stale-splats-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let write = |key: &str| {
             let json = format!(r#"{{"objtool": [], "smoke": [[]], "kunit": [["{key}"]]}}"#);
             std::fs::write(dir.join("splats.json"), json).unwrap();
         };
+        let allowed = vec![
+            "WARNING: drivers/gpu/drm/drm_rect.c:137".to_owned(),
+            "WARNING: drivers/gpu/drm/drm_connector.c:232".to_owned(),
+        ];
         write("WARNING: at drivers/gpu/drm/drm_rect.c:137 drm_calc_scale");
-        assert!(stale_splats(&dir).is_some());
-        write("WARNING: drivers/gpu/drm/drm_rect.c:137");
-        assert!(stale_splats(&dir).is_none());
+        assert!(stale_splats(&dir, &allowed).is_some());
+        write("WARNING: drivers/gpu/drm/drm_connector.c:234");
+        assert!(stale_splats(&dir, &allowed).is_some());
+        write("WARNING: kernel/fork.c:12");
+        assert!(stale_splats(&dir, &allowed).is_none());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
