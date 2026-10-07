@@ -273,6 +273,14 @@ kernel = ">=2.6, <2.6.18"
 platform = ["i386"]
 
 [[signature]]
+class = "tcg-ioapic-timer"
+rung = "L5"
+match = { first-error = "IO-APIC \\+ timer doesn't work" }
+kind = "emulator"
+summary = "check_timer() gives the PIT a few jiffies to tick through the IO-APIC, and under TCG on a loaded host the vCPU can miss that window. It shows in one boot of three, on kernels from 2.6.26 to 6.1 with GCCs from 3.4 to 12 that boot cleanly in the other two, so the cell says nothing about GCC"
+platform = ["x86_64", "i386"]
+
+[[signature]]
 class = "out-of-tree-include"
 rung = "L3"
 match = { first-error = 'arch/x86_64/pci/[a-z0-9]+\.c:\d+(:\d+)?: pci\.h: No such file or directory' }
