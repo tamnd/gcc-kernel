@@ -280,6 +280,14 @@ fn no_unit(stopped: Option<String>, make: &str) -> String {
     }
 }
 
+/// The first error line of a build log, or nothing when it has none.
+fn unit_error_in(make: &str) -> String {
+    error_lines(make)
+        .first()
+        .map(|l| l.trim().to_owned())
+        .unwrap_or_default()
+}
+
 /// The first failing unit and its command line, from `errors.jsonl` and `compile.jsonl`. A cell run before the prepare step's `-S` units counted has an empty `errors.jsonl` when one of them failed, so `compile.jsonl` is asked again then.
 fn failing_unit(dir: &Path) -> Option<(build::FailedUnit, String)> {
     let records = gk_cc::record::read_log(&dir.join("compile.jsonl"))
@@ -346,7 +354,12 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
         "L2" => f.first_error = first_of(&log_text(dir, "config.log")),
         "L3" => {
             if let Some((unit, command)) = failing_unit(dir) {
-                f.first_error = unit.error;
+                // The shim keeps the first 64 KiB of a unit's standard error, which GCC 3.0 can fill with `always_inline` warnings before the error, and make.log has the rest.
+                f.first_error = if unit.error.is_empty() {
+                    unit_error_in(&build_log(dir))
+                } else {
+                    unit.error
+                };
                 f.unit = unit.unit;
                 f.command = command;
             } else {
@@ -1052,6 +1065,16 @@ gcc = "<5"
                 "/tmp/ccgphHwh.s: Error: .size expression for f does not evaluate to a constant"
             )
         );
+    }
+
+    #[test]
+    fn a_unit_with_too_many_warnings_takes_its_error_from_make() {
+        let make = "include2/asm/i387.h:55: warning: `always_inline' attribute directive ignored\ninclude2/asm/i387.h: In function `__save_init_fpu':\ninclude2/asm/i387.h:58: parse error before '[' token\nmake[2]: *** [arch/i386/kernel/asm-offsets.s] Error 1\n";
+        assert_eq!(
+            unit_error_in(make),
+            "include2/asm/i387.h:58: parse error before '[' token"
+        );
+        assert_eq!(unit_error_in("make: *** [all] Error 2\n"), "");
     }
 
     #[test]
