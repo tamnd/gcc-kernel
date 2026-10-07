@@ -96,6 +96,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc46-m-elf-i386` | new-error | 4.6 and later on kernels before 2.6.37, i386 and x86_64 | L3 | de2a8cf98ecd |
 | `gcc44-setup-dil` | new-error | 4.4 and later on 2.6.23 and 2.6.24 | L3 | 811a0fff5d6e |
 | `gcc43-no-unit-at-a-time` | new-error | 4.3 and later, i386, kernels before 2.6.16 | L3 | 9ab34fe76114 |
+| `gcc34-fastcall-prototype` | new-error | 3.4 and later, i386, kernels before 2.6.4 | L3 | none, fixed before git |
 | `arm-gcc48-pr58854` | blacklist | 4.8.0 to 4.8.2, arm | L1 | policy from 7fc150543c73, removed in 5.8 |
 | `arm-gcc47-ice-migrate` | ice | 4.7 to 4.8, arm | L3 | `ICE_noinline`, removed in 5.8 |
 | `gcc49-load-balance` | miscompile | 4.9.0, 4.9.1 | L5 to L7 | 2062afb4f804 |
@@ -103,7 +104,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc-min-49` | refusal | below 4.9 | L1 | policy from 6ec4476ac825, 5.8 |
 | `gcc-min-51` | refusal | below 5.1 | L1 | policy from 76ae847497bc, 5.15 |
 | `gcc-min-81` | refusal | below 8.1 | L1 | policy from a3e8fe814ad1 (x86, 6.15), 118c40b7b503 (all, 6.16) |
-| `gnu11-extern-inline` | default-change | 5, kernels before 3.11 | L3 | 14bfc987e395 for tty in 2.6.28, 8f375e10ee47 for i915, 51b97e354ba9 for the whole tree |
+| `gnu11-extern-inline` | default-change | 5, kernels before 3.11 | L3 | e2afe67453e5 for i386 prefetch, 14bfc987e395 for tty in 2.6.28, 8f375e10ee47 for i915, 51b97e354ba9 for the whole tree |
 | `distro-ssp` | default-change | Ubuntu 4.1 and later, kernels before 2.6.18 | L3 | eb2cafa1d902, after 34c162f79e37 missed Ubuntu |
 | `distro-pie` | default-change | Debian and Ubuntu 6 and later | L3 | 8ae94224c9d7, c6a385539175 |
 | `gcc7-format-werror` | new-warning-werror | 7 | L3 | bd664f6b3e37 |
@@ -131,6 +132,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `binutils-too-old-lfence` | binutils-* | binutils below 2.12, i386 | L3 | none, the kernel asks for 2.12 |
 | `binutils-too-old-sysexit` | binutils-* | binutils 2.14, x86_64 | L3 | none |
 | `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io and aic79xx | L3 | none |
+| `binutils-too-old-assert` | binutils-* | binutils 2.14, x86, 2.6.27 to 2.6.30 | L3 | d2ba8b211bb8 |
 | `binutils-x86-64-macro-redefined` | binutils-* | binutils 2.16 and later, x86_64, kernels before 2.6.11 | L3 | none, fixed before git |
 | `binutils-segment-mov` | binutils-* | binutils 2.17 and later, x86, kernels before 2.6.12 | L3 | fd51f666fa59 |
 | `binutils-range-ok-cmp` | binutils-* | binutils 2.20 and later, i386, kernels before 2.6.18 | L3 | 722f4f5b2600 |

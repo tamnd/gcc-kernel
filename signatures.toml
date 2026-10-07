@@ -288,10 +288,11 @@ gcc = ">=10"
 [[signature]]
 class = "gnu11-extern-inline"
 rung = "L3"
-match = { first-error = 'multiple definition of `(?:intel_gmbus_is_(?:forced_bit|port_valid)|tty_(?:driver_)?kref_get)' }
+match = { first-error = 'multiple definition of `(?:intel_gmbus_is_(?:forced_bit|port_valid)|tty_(?:driver_)?kref_get|prefetchw?)' }
 kind = "default-change"
-summary = "GCC 5 defaults to -std=gnu11, where extern inline emits the function in every unit, and the extern inline helpers in i915_drv.h, and in 2.6.28 the tty kref helpers in tty.h, stop linking"
+summary = "GCC 5 defaults to -std=gnu11, where extern inline emits the function in every unit, and the extern inline helpers in i915_drv.h, in 2.6.28 the tty kref helpers in tty.h, and up to 2.6.13 prefetch in the i386 processor.h stop linking"
 fixed-by = [
+  { commit = "e2afe67453e5", first-tag = "v2.6.14-rc1", note = "makes the extern inline helpers of include/asm-i386 static inline" },
   { commit = "14bfc987e395", first-tag = "v2.6.29-rc1", note = "makes tty_kref_get static inline, for a warning and not for GCC 5" },
   { commit = "8f375e10ee47", first-tag = "v3.11-rc1", note = "makes the i915 helpers static inline, and 3.10.108 builds with GCC 5 too" },
   { commit = "51b97e354ba9", first-tag = "v3.18-rc5", note = "builds the kernel with -std=gnu89" },
@@ -396,6 +397,16 @@ summary = "i386 builds with -fno-unit-at-a-time up to 2.6.15, and in that mode G
 fixed-by = [ { commit = "9ab34fe76114", first-tag = "v2.6.16-rc1", note = "keeps -fno-unit-at-a-time for GCC 3 only" } ]
 gcc = ">=4.3"
 kernel = "<2.6.16"
+platform = ["i386"]
+
+[[signature]]
+class = "gcc34-fastcall-prototype"
+rung = "L3"
+match = { first-error = "conflicting types for .smp_send_reschedule" }
+kind = "new-error"
+summary = "linux/smp.h declares smp_send_reschedule FASTCALL while i386 smp.c defines it without, which GCC 3.4 refuses as conflicting types, up to 2.6.3, and 2.6.4 drops the FASTCALL before git"
+gcc = ">=3.4"
+kernel = "<2.6.4"
 platform = ["i386"]
 
 [[signature]]
@@ -604,6 +615,17 @@ kind = "binutils-too-old"
 summary = "binutils 2.14 rejects the 64 bit constants the s2io and aic79xx drivers write, on i386 from 2.6.7"
 binutils = "<2.16"
 platform = ["i386"]
+
+[[signature]]
+class = "binutils-too-old-assert"
+rung = "L3"
+match = { first-error = 'vmlinux\.lds:\d+: parse error' }
+kind = "binutils-too-old"
+summary = "From 2.6.27 the x86 linker script has a bare ASSERT outside an assignment, which binutils 2.14 cannot parse, although the kernel still asks for 2.12"
+fixed-by = [ { commit = "d2ba8b211bb8", first-tag = "v2.6.31-rc6", note = "assigns each ASSERT to the location counter" } ]
+binutils = "<2.16"
+kernel = ">=2.6.27, <2.6.31"
+platform = ["i386", "x86_64"]
 
 [[signature]]
 class = "binutils-x86-64-macro-redefined"
