@@ -124,7 +124,7 @@ impl Fix {
 }
 
 /// The kinds of spec 08.3, apart from the `binutils-` family.
-pub const KINDS: [&str; 14] = [
+pub const KINDS: [&str; 15] = [
     "refusal",
     "blacklist",
     "new-error",
@@ -137,6 +137,7 @@ pub const KINDS: [&str; 14] = [
     "modpost",
     "too-old",
     "host-tool",
+    "out-of-tree",
     "emulator",
     "timeout",
 ];

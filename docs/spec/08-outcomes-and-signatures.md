@@ -68,10 +68,11 @@ Fields:
 | `too-old` | an old GCC lacks a feature the kernel uses without a probe | `asm goto` before 4.5, `_Generic` before 4.9 |
 | `binutils-*` | the assembler or linker, not GCC | binutils 2.39 RWX segment warnings |
 | `host-tool` | a host program failed. Should not happen in the matrix (05.1). A cell with this kind means the era host is wrong | make 3.82 on 2.6.35 |
+| `out-of-tree` | the kernel cannot build under `O=`, which gk uses from 2.6 on, and builds in place | `-I arch/i386/pci` with a space on x86_64 2.6.5 to 2.6.8 |
 | `emulator` | the boot failed for a reason the L5k twin removes | wrong `-cpu` for the kernel's age |
 | `timeout` | over budget with no other signal | |
 
-The kind decides what a failure means for rucc (11.6). A `refusal` or `blacklist` must be reproduced under the persona. A `miscompile` must not be. A `new-error` or `default-change` must be reproduced at the version it appeared. A `host-tool` or `emulator` kind is a bug in gcc-kernel, not a finding.
+The kind decides what a failure means for rucc (11.6). A `refusal` or `blacklist` must be reproduced under the persona. A `miscompile` must not be. A `new-error` or `default-change` must be reproduced at the version it appeared. A `host-tool`, `out-of-tree` or `emulator` kind is a bug in gcc-kernel, not a finding.
 
 ## 8.4 The seed catalog
 
@@ -151,6 +152,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `binutils-rwx-warning` | binutils-* | binutils 2.39 and later | L4, fatal with `CONFIG_WERROR` from 6.18 | 0d362be5b142, ffcf9c5700e4 |
 | `binutils-loongarch-relax` | binutils-* | binutils 2.41 and later, loongarch | L5 to L7 (module load) | 03c53eb90c0c |
 | `binutils-ppc-ztext` | binutils-* | binutils 2.46 and later, ppc | L4 | 97f902dd4c99 |
+| `out-of-tree-include` | out-of-tree | any, x86_64, 2.6.5 to 2.6.8 | L3 | none, fixed before git in 2.6.9 |
 | `too-old-asm-goto` | too-old | below 4.5 | L3 | the kernel's `CC_HAS_ASM_GOTO` probe and, from 4.20 on x86, the requirement |
 | `too-old-generic` | too-old | below 4.9 | L3 | policy from 6ec4476ac825 |
 
