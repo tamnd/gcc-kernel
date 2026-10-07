@@ -264,6 +264,15 @@ kernel = ">=2.4, <2.5"
 platform = ["i386"]
 
 [[signature]]
+class = "tcg-tsc-clock"
+rung = "L6"
+match = { first-error = 'smoke checks failed: clock$', console = 'Using tsc for high-res timesource' }
+kind = "emulator"
+summary = "Before 2.6.18, i386 interpolates the time of day from the TSC with the cpu_khz it measured at boot. Under TCG on a loaded host that measurement can be off by a factor of four or come out negative, so a 20 ms nap reads as less than 19 ms and the clock check fails in one boot of three. The cell says nothing about GCC"
+kernel = ">=2.6, <2.6.18"
+platform = ["i386"]
+
+[[signature]]
 class = "out-of-tree-include"
 rung = "L3"
 match = { first-error = 'arch/x86_64/pci/[a-z0-9]+\.c:\d+(:\d+)?: pci\.h: No such file or directory' }
