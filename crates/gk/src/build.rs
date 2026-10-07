@@ -496,7 +496,8 @@ mod tests {
         assert!(!cut_short(&dir));
         let json = serde_json::json!({ "configured": true, "built": false });
         std::fs::write(dir.join("build.json"), json.to_string()).unwrap();
-        std::fs::write(dir.join("make.log"), "  CC      init/main.o\n  CC      init/do_mounts.o\n").unwrap();
+        let log = "  CC      init/main.o\n  CC      init/do_mounts.o\n";
+        std::fs::write(dir.join("make.log"), log).unwrap();
         assert!(cut_short(&dir));
         assert!(rig_failed(&dir));
         std::fs::write(dir.join("make.log"), "init/main.c:9:1: error: 'y' undeclared\nmake[1]: *** [init/main.o] Error 1\nmake: *** [init] Error 2\n").unwrap();
