@@ -288,10 +288,11 @@ gcc = ">=10"
 [[signature]]
 class = "gnu11-extern-inline"
 rung = "L3"
-match = { first-error = 'multiple definition of `intel_gmbus_is_(?:forced_bit|port_valid)' }
+match = { first-error = 'multiple definition of `(?:intel_gmbus_is_(?:forced_bit|port_valid)|tty_(?:driver_)?kref_get)' }
 kind = "default-change"
-summary = "GCC 5 defaults to -std=gnu11, where extern inline emits the function in every unit, and the extern inline helpers in i915_drv.h stop linking"
+summary = "GCC 5 defaults to -std=gnu11, where extern inline emits the function in every unit, and the extern inline helpers in i915_drv.h, and in 2.6.28 the tty kref helpers in tty.h, stop linking"
 fixed-by = [
+  { commit = "14bfc987e395", first-tag = "v2.6.29-rc1", note = "makes tty_kref_get static inline, for a warning and not for GCC 5" },
   { commit = "8f375e10ee47", first-tag = "v3.11-rc1", note = "makes the i915 helpers static inline, and 3.10.108 builds with GCC 5 too" },
   { commit = "51b97e354ba9", first-tag = "v3.18-rc5", note = "builds the kernel with -std=gnu89" },
 ]
@@ -341,22 +342,50 @@ platform = ["x86_64", "i386"]
 [[signature]]
 class = "gcc46-m-elf-i386"
 rung = "L3"
-match = { first-error = 'elf_i386: No such file or directory|unrecognized (?:command-line )?option .-m.' }
+match = { first-error = 'elf_(?:i386|x86_64): No such file or directory|unrecognized (?:command-line )?option .-m.' }
 kind = "new-error"
-summary = "i386 builds its vsyscall pages by passing the linker's -m elf_i386 to gcc, which GCC 4.6 and later read as an input file and GCC 11 and later refuse outright"
-fixed-by = [ { commit = "de2a8cf98ecd", first-tag = "v2.6.37-rc7", note = "fixes the vdso Makefile, which replaced the vsyscall rule of arch/i386/kernel in 2.6.25" } ]
+summary = "x86 builds its vsyscall and vdso pages by passing the linker's -m elf_i386 or -m elf_x86_64 to gcc, which GCC 4.6 and later read as an input file and GCC 11 and later refuse outright"
+fixed-by = [ { commit = "de2a8cf98ecd", first-tag = "v2.6.37-rc7", note = "fixes the vdso Makefile for both, which replaced the vsyscall rule of arch/i386/kernel in 2.6.25" } ]
 gcc = ">=4.6"
 kernel = "<2.6.37"
-platform = ["i386"]
+platform = ["i386", "x86_64"]
 
 [[signature]]
-class = "gcc-pre-295-on-26"
+class = "gcc-below-min-on-26"
 rung = "L3"
-match = { first-error = 'parse error before|Invalid option .-W' }
+match = { first-error = 'parse error before|Invalid option' }
 kind = "too-old"
-summary = "GCC below 2.95 cannot parse the headers of 2.6.14 and later and does not know their warning options, and from 2.6.16 nothing refuses it first"
-gcc = "<2.95"
-kernel = ">=2.6.14"
+summary = "A GCC below the minimum of 2.6, 2.95 up to 2.6.15 and 3.2 from 2.6.16, stops on a flag it does not know or a header it cannot parse before the refusal in init/main.c or compiler.h is compiled. GCC 3.0 and 3.1 count as below it throughout, as the kernel never trusted them"
+gcc = "<3.2"
+kernel = ">=2.6.0"
+
+[[signature]]
+class = "gcc-pre-27-on-20"
+rung = "L3"
+match = { first-error = 'Invalid option|GCC is too old' }
+kind = "too-old"
+summary = "2.0 asks for GCC 2.7.2, and 2.5.8 does not know -malign-loops and stops on the #error in init/main.c"
+gcc = "<2.7"
+kernel = ">=2.0, <2.1"
+
+[[signature]]
+class = "ifdef-0-in-10"
+rung = "L3"
+match = { first-error = 'macro names must be identifiers' }
+kind = "new-error"
+summary = "1.0 has an #ifdef 0 in drivers/char/serial.c, which GCC 2.5.8 passed over and the cpp of later GCC refuses"
+gcc = ">=4.1"
+kernel = "<1.1"
+
+[[signature]]
+class = "gcc44-setup-dil"
+rung = "L3"
+match = { first-error = "bad register name `%dil'" }
+kind = "new-error"
+summary = "The byte accessors of the setup code take their operand with an r constraint, and GCC 4.4 can pick %dil for it, which the assembler refuses in 16-bit code"
+fixed-by = [ { commit = "811a0fff5d6e", first-tag = "v2.6.25-rc1" } ]
+gcc = ">=4.4"
+kernel = ">=2.6.23, <2.6.25"
 
 [[signature]]
 class = "gcc7-format-werror"

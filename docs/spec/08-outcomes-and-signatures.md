@@ -82,7 +82,9 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc-too-old-295` | refusal | below 2.95 | L1 to L3 | none, the refusal is the policy (2.6.0 to 2.6.15) |
 | `gcc-296-frame-pointer` | refusal | 2.96 | L1 | removed with gcc-2 checks, a136564 |
 | `gcc-min-32` | refusal | below 3.2 on 2.6.16 to 2.6.28 | L1 to L3 | policy from a136564 |
-| `gcc-pre-295-on-26` | too-old | below 2.95 on 2.6.14 and later | L3 | none, nothing refuses it first |
+| `gcc-below-min-on-26` | too-old | below 2.95 on 2.6.0 to 2.6.15, below 3.2 from 2.6.16 | L3 | none, it stops before the refusal is compiled |
+| `gcc-pre-27-on-20` | too-old | below 2.7 on 2.0 | L3 | none |
+| `ifdef-0-in-10` | new-error | 4.1 and later on 1.0 | L3 | none, gone by 1.2 |
 | `gcc3-0-1-refused` | refusal | 3.0, 3.1 | L1 | policy from 6680598 |
 | `arm-gcc3-below-33` | refusal | 3.0 to 3.2, arm | L1 | policy from a136564 |
 | `gcc4-incomplete-array` | new-error | 4 and later on 2.6.0 to 2.6.8, x86 | L3 | none, fixed before git in 2.6.9 |
@@ -91,7 +93,8 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `no-compiler-header` | refusal | 5 and later on 2.6.29 to 4.1 | L1 | cb984d101b30, 71458cfc782e |
 | `compiler-h-gnuc-gt-4` | refusal | 5 and later on 2.6.12 to 2.6.28 | L1 to L3 | f153b82 changes the form, cb984d101b30 ends it |
 | `asm-goto-miscompile` | miscompile | 4.5 to 4.8.1 | L5 to L7 | 3f0116c, a9f180345f53 |
-| `gcc46-m-elf-i386` | new-error | 4.6 and later on kernels before 2.6.37, i386 | L3 | de2a8cf98ecd |
+| `gcc46-m-elf-i386` | new-error | 4.6 and later on kernels before 2.6.37, i386 and x86_64 | L3 | de2a8cf98ecd |
+| `gcc44-setup-dil` | new-error | 4.4 and later on 2.6.23 and 2.6.24 | L3 | 811a0fff5d6e |
 | `arm-gcc48-pr58854` | blacklist | 4.8.0 to 4.8.2, arm | L1 | policy from 7fc150543c73, removed in 5.8 |
 | `arm-gcc47-ice-migrate` | ice | 4.7 to 4.8, arm | L3 | `ICE_noinline`, removed in 5.8 |
 | `gcc49-load-balance` | miscompile | 4.9.0, 4.9.1 | L5 to L7 | 2062afb4f804 |
@@ -99,7 +102,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc-min-49` | refusal | below 4.9 | L1 | policy from 6ec4476ac825, 5.8 |
 | `gcc-min-51` | refusal | below 5.1 | L1 | policy from 76ae847497bc, 5.15 |
 | `gcc-min-81` | refusal | below 8.1 | L1 | policy from a3e8fe814ad1 (x86, 6.15), 118c40b7b503 (all, 6.16) |
-| `gnu11-extern-inline` | default-change | 5, kernels before 3.11 | L3 | 8f375e10ee47 for i915, 51b97e354ba9 for the whole tree |
+| `gnu11-extern-inline` | default-change | 5, kernels before 3.11 | L3 | 14bfc987e395 for tty in 2.6.28, 8f375e10ee47 for i915, 51b97e354ba9 for the whole tree |
 | `distro-ssp` | default-change | Ubuntu 4.1 and later, kernels before 2.6.18 | L3 | eb2cafa1d902, after 34c162f79e37 missed Ubuntu |
 | `distro-pie` | default-change | Debian and Ubuntu 6 and later | L3 | 8ae94224c9d7, c6a385539175 |
 | `gcc7-format-werror` | new-warning-werror | 7 | L3 | bd664f6b3e37 |
