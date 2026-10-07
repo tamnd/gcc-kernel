@@ -2,7 +2,7 @@
 
 Every `fixed-by` commit of the failure catalog is confirmed by bisecting between a kernel the signature matches and one it does not, with the signature's GCC (spec 03.5 and 08.2). When the bisection finds another commit, the bisected commit wins and the signature is corrected. A signature can name several commits, one for each place the kernel had to change, and a bisection confirms the one its range and platform reach. Written by `gk publish` from `signatures.toml` and the bisections in the result store.
 
-0 bisections in the store. 4 of the 67 signatures with a fixing commit have at least one of their commits confirmed.
+6 bisections in the store. 4 of the 67 signatures with a fixing commit have at least one of their commits confirmed.
 
 ## Signatures
 
@@ -14,7 +14,7 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | arm-gcc3-below-33 | L1 | refusal | `a136564` |  |
 | gcc41-weak | L1 | blacklist | `f9d1425` |  |
 | no-compiler-header | L1 | refusal | `cb984d101b30` `71458cfc782e` | `cb984d101b30` `71458cfc782e` |
-| compiler-h-gnuc-gt-4 | L1..L3 | refusal | `f153b82121b0` `cb984d101b30` | `f153b82121b0` |
+| compiler-h-gnuc-gt-4 | L1..L3 | refusal | `f153b82121b0` `cb984d101b30` | `f153b82121b0` `cb984d101b30` |
 | arm-gcc48-pr58854 | L1 | blacklist | `7fc150543c73` |  |
 | gcc-min-46 | L1 | refusal | `cafa0010cd51` | `cafa0010cd51` |
 | gcc-min-49 | L1 | refusal | `6ec4476ac825` |  |
@@ -78,4 +78,11 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 
 ## Runs
 
-No bisections yet.
+| Range | GCC | Platform | Judged by | Steps | First commit | Subject | In | Signature |
+|---|---|---|---|--:|---|---|---|---|
+| 2.6.28..2.6.29 | gcc-5.5.0 | x86_64 | L1 | 14 | `f153b82121b0` | Sanitize gcc version header includes | v2.6.29-rc1 | compiler-h-gnuc-gt-4 |
+| 3.17..3.18 | gcc-5.5.0 | x86_64 | L1 | 14 | `71458cfc782e` | kernel: add support for gcc 5 | v3.18-rc1 | no-compiler-header |
+| 4.1..4.2 | gcc-6.5.0 | x86_64 | L1 | 13 | `cb984d101b30` | compiler-gcc: integrate the various compiler-gcc[345].h files | v4.2-rc1 | no-compiler-header, compiler-h-gnuc-gt-4 |
+| 4.18..4.19 | gcc-4.5.4 | x86_64 | L1 | 14 | `cafa0010cd51` | Raise the minimum required gcc version to 4.6 | v4.19-rc1 | gcc-min-46 |
+| 5.2..5.3 | ubuntu-eoan-gcc-9 | x86_64 | L3 | 14 | `46f5c0cc3af0` | Merge branch 'perf-urgent-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip | v5.3-rc1 | none |
+| 5.2..5.3 | ubuntu-eoan-gcc-9 | x86_64 | `scripts/mod/devicetable-offsets.s` | 14 | `29be86d7f9cb` | kbuild: add -fcf-protection=none when using retpoline flags | v5.3-rc1 | distro-cf-protection |

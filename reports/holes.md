@@ -2,7 +2,7 @@
 
 A hole is a cell that does not work between two columns of the same row that do (spec 08.5). It is where one GCC release broke a kernel that the releases around it built and ran, or where the rig was noisy, which is what the flaky mark and the three runs are for. Written by `gk publish` from `matrix/matrix.json`.
 
-17 holes.
+22 holes.
 
 | Kernel | Platform | Configuration | GCC | Cell | Rung | Class | First error |
 |---|---|---|---|:-:|---|---|---|
@@ -23,3 +23,8 @@ A hole is a cell that does not work between two columns of the same row that do 
 | 6.18.54 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | L7 | gcc14-objtool-endbr |  |
 | 7.2.8 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟧⚠️ | L5 | unclassified | the boots disagreed |
 | 7.2.8 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | L7 | gcc14-objtool-endbr |  |
+| 7.2.9 | x86_64 | tinyconfig+gk | gcc-10.5.0 | 🟧 | L5 | unclassified |  |
+| 7.2.9 | x86_64 | tinyconfig+gk | gcc-11.5.0 | 🟧 | L5 | unclassified |  |
+| 7.2.9 | x86_64 | tinyconfig+gk | gcc-12.2.0 | 🟧 | L5 | unclassified |  |
+| 7.2.9 | x86_64 | tinyconfig+gk | gcc-12.5.0 | 🟧 | L5 | unclassified |  |
+| 7.2.9 | x86_64 | tinyconfig+gk | gcc-13.5.0 | 🟧 | L5 | unclassified |  |

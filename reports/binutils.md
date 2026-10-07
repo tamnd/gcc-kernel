@@ -9,7 +9,7 @@ Written by `gk report binutils` from the result store. `gk binutils-sweep K --pl
 | kernel | GCC | held to | from | to | older edge | newer edge |
 |---|---|---|---|---|---|---|
 | 5.10.271 | gcc-10.5.0 | L7 | 2.41 | 2.42 | 2.40 fails at L2: `over-budget` | 2.43.1 builds at L4: `tcg-ioapic-timer` |
-| 6.1.189 | gcc-12.2.0 | L6 | 2.39 | 2.39 | 2.38 fails at L2: `over-budget` | none run |
+| 6.1.189 | gcc-12.2.0 | L6 | 2.39 | 2.39 | 2.38 fails at L2: `over-budget` | 2.40 fails at L2: `over-budget` |
 | 6.12.112 | gcc-12.2.0 | works | 2.35.2 | 2.40 | 2.34 fails at L2: `unclassified` | 2.41 fails at L2: `over-budget` |
 
 ## Every column
@@ -19,6 +19,6 @@ One character for each binutils series, oldest first: `#` works, `+` builds or r
 ```
                  2.8 to 2.47
 x86_64 5.10.271  ...............................x+++....  defconfig+gk
-x86_64 6.1.189   .............................x+........  defconfig+gk
+x86_64 6.1.189   .............................x+x.......  defconfig+gk
 x86_64 6.12.112  ......................x.xx#.####x......  defconfig+gk
 ```
