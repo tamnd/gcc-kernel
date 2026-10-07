@@ -142,6 +142,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `binutils-too-old-sysexit` | binutils-* | binutils 2.14, x86_64 | L3 | none |
 | `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io and aic79xx | L3 | none |
 | `binutils-too-old-assert` | binutils-* | binutils 2.14, x86, 2.6.27 to 2.6.30 | L3 | d2ba8b211bb8 |
+| `binutils-too-old-cfi` | binutils-* | binutils below 2.16, x86, 2.6.18 and 2.6.19 with the unwinder | L3 | d1526e2cda64 |
 | `binutils-x86-64-macro-redefined` | binutils-* | binutils 2.16 and later, x86_64, kernels before 2.6.11 | L3 | none, fixed before git |
 | `binutils-segment-mov` | binutils-* | binutils 2.17 and later, x86, kernels before 2.6.12 | L3 | fd51f666fa59 |
 | `binutils-range-ok-cmp` | binutils-* | binutils 2.20 and later, i386, kernels before 2.6.18 | L3 | 722f4f5b2600 |

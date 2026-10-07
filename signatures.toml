@@ -760,6 +760,17 @@ kernel = ">=2.6.27, <2.6.31"
 platform = ["i386", "x86_64"]
 
 [[signature]]
+class = "binutils-too-old-cfi"
+rung = "L3"
+match = { first-error = 'unknown pseudo-op: `\.cfi_', config = '(?m)^CONFIG_UNWIND_INFO=y' }
+kind = "binutils-too-old"
+summary = "With the stack unwinder on, 2.6.18 and 2.6.19 write .cfi directives from dwarf2.h whenever CONFIG_UNWIND_INFO is set, and binutils older than 2.16 does not know them, even though 2.6.19 already probes the assembler for CFI"
+fixed-by = [ { commit = "d1526e2cda64", first-tag = "v2.6.20-rc2", note = "removes the stack unwinder, so the defconfig no longer turns on UNWIND_INFO" } ]
+binutils = "<2.16"
+kernel = ">=2.6.18, <2.6.20"
+platform = ["i386", "x86_64"]
+
+[[signature]]
 class = "binutils-x86-64-macro-redefined"
 rung = "L3"
 match = { first-error = 'Macro with this name was already defined', unit = 'arch/x86_64/kernel/entry' }
