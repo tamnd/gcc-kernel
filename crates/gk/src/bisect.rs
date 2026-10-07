@@ -5,7 +5,7 @@
 //! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix. A bisection at L1 is of a refusal, and since L1 is the accept probe, each commit and each end runs the probe alone and leaves no cell. A bisection of a build failure can name the object that fails with `--unit`, and then each commit, and each end, builds that object alone and leaves no cell either.
 
 use crate::cell::{self, CellRecord, Setup};
-use crate::{fetch, store};
+use crate::{build, fetch, store};
 use gk_model::Version;
 use gk_model::repo::Repo;
 use serde::{Deserialize, Serialize};
@@ -203,9 +203,17 @@ fn run_or_load(repo: &Repo, setup: &Setup, jobs: usize) -> Result<CellRecord, St
     if let Ok(text) = std::fs::read_to_string(dir.join("cell.json"))
         && let Ok(record) = serde_json::from_str::<CellRecord>(&text)
     {
-        return Ok(record);
+        if !build::rig_failed(&dir) {
+            return Ok(record);
+        }
+        println!("the stored cell failed for the machine's reasons, building it again");
     }
-    cell::run(repo, setup, jobs, false).map(|(_, r)| r)
+    let record = cell::run(repo, setup, jobs, false).map(|(_, r)| r)?;
+    // A miss the machine caused would send the bisection down the wrong half, so the step is skipped instead.
+    if build::rig_failed(&dir) {
+        return Err("the build failed for the machine's reasons and not the commit's".into());
+    }
+    Ok(record)
 }
 
 /// The rung of a commit from the accept probe alone, `L1` or `L0`. L1 is the probe, so a bisection of a refusal builds nothing and stores no cell.
