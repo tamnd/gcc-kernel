@@ -337,10 +337,9 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
             let text = std::fs::read_to_string(dir.join(log)).unwrap_or_default();
             let mut lines: Vec<&str> = r.probe.why.iter().map(String::as_str).collect();
             lines.extend(
-                text.lines()
-                    .filter(|l| {
-                        l.contains("error") || l.starts_with("***") || l.contains(": *** ")
-                    }),
+                text.lines().filter(|l| {
+                    l.contains("error") || l.starts_with("***") || l.contains(": *** ")
+                }),
             );
             f.first_error = lines.join("\n");
         }
