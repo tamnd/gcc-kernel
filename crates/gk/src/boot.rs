@@ -257,6 +257,17 @@ pub fn splat_key(line: &str) -> String {
     words.join(" ")
 }
 
+/// Whether two splat keys are the same complaint. GCC 9 and later give `__LINE__` in a macro's arguments the line the macro's name is on, and older GCCs the line its arguments end on, so a `WARN_ON` whose condition runs over three lines is at 232 for gcc-12.2.0 and at 234 for gcc-8.5.0. Two warnings in one file at most a few lines apart are taken as one.
+#[must_use]
+pub fn same_splat(a: &str, b: &str) -> bool {
+    let at = |k: &str| -> Option<(String, u32)> {
+        let (file, line) = k.strip_prefix("WARNING: ")?.rsplit_once(':')?;
+        Some((file.to_owned(), line.parse().ok()?))
+    };
+    a == b
+        || matches!((at(a), at(b)), (Some((fa, la)), Some((fb, lb))) if fa == fb && la.abs_diff(lb) <= 4)
+}
+
 /// Whether a word is a `file.c:123` source location.
 fn is_source_line(word: &str) -> bool {
     word.rsplit_once(':').is_some_and(|(file, line)| {
@@ -1116,5 +1127,15 @@ mod tests {
             splat_key("UBSAN: shift-out-of-bounds in lib/x.c:3:9"),
             "UBSAN: shift-out-of-bounds in lib/x.c:3:9"
         );
+    }
+
+    #[test]
+    fn a_warning_a_few_lines_off_is_the_same_splat() {
+        let a = "WARNING: drivers/gpu/drm/drm_connector.c:232";
+        assert!(same_splat(a, "WARNING: drivers/gpu/drm/drm_connector.c:234"));
+        assert!(!same_splat(a, "WARNING: drivers/gpu/drm/drm_connector.c:260"));
+        assert!(!same_splat(a, "WARNING: drivers/gpu/drm/drm_rect.c:232"));
+        assert!(same_splat("UBSAN: x in lib/x.c:3:9", "UBSAN: x in lib/x.c:3:9"));
+        assert!(!same_splat("UBSAN: x in lib/x.c:3:9", "UBSAN: x in lib/x.c:3:8"));
     }
 }
