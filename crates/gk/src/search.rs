@@ -1,6 +1,6 @@
 //! `gk search`: run the cells of one matrix row, a kernel on a platform across the GCC columns.
 //!
-//! The dense search runs every upstream column that targets the platform in version order, except that the kernel's era GCC runs first because the others grade their KUnit runs against it. The frontier search of spec 09.3 starts at the era GCC too, gallops out to each edge of the working set over the last-point columns, binary searches the edge, samples two interior columns and narrows each edge with the point columns. The edge failures are run again with `make -k` (spec 09.5). A row whose era cell does not work, or whose interior sample finds a hole, is run dense.
+//! The dense search runs every upstream column that targets the platform in version order, except that the kernel's era GCC runs first because the others grade their KUnit runs against it. The frontier search of spec 09.3 starts at the era GCC too, gallops out to each edge of the working set over the last-point columns, binary searches the edge, samples two interior columns, runs the point columns a signature names on their own, and narrows each edge with the point columns. The edge failures are run again with `make -k` (spec 09.5). A row whose era cell does not work, or whose interior sample finds a hole, is run dense.
 //!
 //! The last-point columns are ordered by version, not by release date as 09.3 has it: the series overlap in time, and 13.5 came out after 16.2, so date order would put it at the newer edge.
 //!
@@ -10,6 +10,7 @@ use crate::cell::{self, CellRecord, Setup};
 use crate::{build, store};
 use gk_model::Version;
 use gk_model::repo::Repo;
+use gk_model::signatures::Range;
 use gk_model::toolchains::Gcc;
 
 /// How to search. Each switch is a command line flag, which is why there are so many bools.
@@ -261,6 +262,31 @@ pub fn interior(lo: usize, hi: usize, ran: &[usize], seed: u64) -> Vec<usize> {
     out
 }
 
+/// The point columns among `cols` that a signature pins by exact release for this kernel and platform, as `gcc = "=14.2"`. Such a release breaks kernels its neighbours build, and the last points step over it, so the search runs these inside every working set (spec 09.3).
+#[must_use]
+pub fn pinned<'a>(repo: &Repo, kernel: &Version, platform: &str, cols: &[&'a Gcc]) -> Vec<&'a Gcc> {
+    let pins: Vec<Range> = repo
+        .signatures
+        .signatures
+        .iter()
+        .filter(|s| {
+            !s.gcc.is_empty()
+                && s.gcc
+                    .split('|')
+                    .all(|a| a.trim().starts_with('=') && !a.contains(','))
+                && (s.platform.is_empty() || s.platform.iter().any(|p| p == platform))
+                && (s.flavor.is_empty() || s.flavor.iter().any(|f| f == "upstream"))
+                && Range::parse(&s.kernel).is_ok_and(|r| r.contains(kernel))
+        })
+        .filter_map(|s| Range::parse(&s.gcc).ok())
+        .collect();
+    cols.iter()
+        .copied()
+        .filter(|g| !g.columns.iter().any(|c| c == "last-point"))
+        .filter(|g| pins.iter().any(|r| r.contains(&g.version)))
+        .collect()
+}
+
 /// The frontier search of one row. The cells it runs come back in version order.
 #[allow(clippy::too_many_lines)]
 fn frontier_row(
@@ -344,6 +370,17 @@ fn frontier_row(
                     dense: true,
                     ..opts
                 },
+            );
+        }
+    }
+
+    // A pinned point column inside the working set is a hole the signature already explains, so it is run and kept but does not send the row dense.
+    let (lo, hi) = (&last[found.older.0].version, &last[found.newer.0].version);
+    for g in pinned(repo, &version, platform, &usable) {
+        if g.version > *lo && g.version < *hi && !run_one(g, false, &mut ran) {
+            println!(
+                "{} inside the working set does not work, a release a signature pins",
+                g.id
             );
         }
     }
@@ -547,5 +584,19 @@ mod tests {
         assert_eq!(a, interior(2, 20, &[3, 5, 11], 42));
         assert_eq!(interior(4, 6, &[], 7), [5]);
         assert!(interior(4, 5, &[], 7).is_empty());
+    }
+
+    #[test]
+    fn the_pinned_point_columns_are_the_releases_a_signature_names() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let ids = |kernel: &str, platform: &str, triple: &str| -> Vec<String> {
+            let v: Version = kernel.parse().unwrap();
+            pinned(&repo, &v, platform, &columns(&repo, triple))
+                .iter()
+                .map(|g| g.id.clone())
+                .collect()
+        };
+        assert_eq!(ids("7.2.8", "x86_64", "x86_64-linux-gnu"), ["gcc-14.2.0"]);
+        assert!(ids("7.2.8", "arm64", "aarch64-linux-gnu").is_empty());
     }
 }
