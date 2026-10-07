@@ -412,6 +412,17 @@ kernel = "<2.6.4"
 platform = ["i386"]
 
 [[signature]]
+class = "gcc48-ptrace-asmregparm"
+rung = "L3"
+match = { first-error = "ptrace\\.c:\\d+(:\\d+)?: error: conflicting types for 'syscall_trace_enter'" }
+kind = "new-error"
+summary = "From 2.6.28, asm/ptrace.h declares syscall_trace_enter() plainly while ptrace.c defines it asmregparm, which is regparm(3) on i386, and GCC 4.8 and later refuse the definition because the regparm differs"
+fixed-by = [ { commit = "1b4ac2a935aa", first-tag = "v3.0-rc1", note = "drops asmregparm, the declaration came with c1686aeaf078" } ]
+gcc = ">=4.8"
+kernel = ">=2.6.28, <3.0"
+platform = ["i386"]
+
+[[signature]]
 class = "gcc4-byteorder"
 rung = "L1..L3"
 match = { first-error = 'Please fix asm/byteorder\.h' }

@@ -92,6 +92,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `arm-gcc3-below-33` | refusal | 3.0 to 3.2, arm | L1 | policy from a136564 |
 | `gcc4-incomplete-array` | new-error | 4 and later on 2.6.0 to 2.6.8, x86 | L3 | none, fixed before git in 2.6.9 |
 | `gcc48-printk-regparm` | new-error | 4.8 and later on 2.6.0 to 2.6.3, i386 | L3 | none, fixed before git in 2.6.4 |
+| `gcc48-ptrace-asmregparm` | new-error | 4.8 and later on 2.6.28 to 2.6.39, i386 | L3 | 1b4ac2a935aa |
 | `gcc4-byteorder` | new-error | 4 and later on 2.6.0 and 2.6.1, x86 | L1 to L3 | none, fixed before git in 2.6.2 |
 | `gcc41-weak` | blacklist | 4.1.0, 4.1.1 | L1 | policy from f9d1425 |
 | `no-compiler-header` | refusal | 5 and later on 2.6.29 to 4.1 | L1 | cb984d101b30, 71458cfc782e |
