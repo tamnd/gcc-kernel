@@ -200,6 +200,7 @@ Over 7.2.8.
 | 12.2.0 to 12.5.0 | 1 | 5 |
 | 12.5.0 to 13.5.0 | 1 | 3 |
 | 13.5.0 to 14.2.0 | 1 | 5 |
+| 14.2.0 to 14.4.0 | 1 | 2 |
 
 ### 8.5.0 to 9.5.0
 
@@ -289,3 +290,12 @@ Over 7.2.9.
 | CC_HAS_MIN_FUNCTION_ALIGNMENT | all | (absent) | y |
 | CC_HAS_SANE_FUNCTION_ALIGNMENT | all | (absent) | y |
 | LD_VERSION | all | 20285426 | 24301 |
+
+### 14.2.0 to 14.4.0
+
+Over 7.2.9.
+
+| Symbol | Kernels | 14.2.0 | 14.4.0 |
+|---|---|---|---|
+| AS_VERSION | all | 24301 | 20285426 |
+| LD_VERSION | all | 24301 | 20285426 |

@@ -30,7 +30,7 @@ Kernels with a cell: 7 of 7. Of those, 6 run.
 | 6.6.158 | longterm | runs | L6 | 0 |  |
 | 6.12.112 | longterm | runs | L6 | 0 |  |
 | 6.18.55 | longterm | runs | L6 | 0 |  |
-| 7.2.9 | stable | builds | L5 | 0 |  |
+| 7.2.9 | stable | fails | L2 | 0 |  |
 
 ### arm64
 
