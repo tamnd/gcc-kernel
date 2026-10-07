@@ -60,7 +60,8 @@ fn is_old_error_line(l: &str) -> bool {
         && !l.starts_with('#')
         && !l.starts_with("  ")
         && build::old_style_error(l)
-        && l.split_once(": ").is_some_and(|(place, _)| place.contains(':'))
+        && l.split_once(": ")
+            .is_some_and(|(place, _)| place.contains(':'))
 }
 
 fn is_error_line(l: &str) -> bool {
