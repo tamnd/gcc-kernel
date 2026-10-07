@@ -124,18 +124,22 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc13-enum-type` | new-error | 13, 32-bit | L3 | 525ff9c29657 |
 | `gcc14-new-errors` | new-error | 14 | L3 | per unit |
 | `gcc14-objtool-endbr` | objtool | 14.2 | L4 | none in the kernel, GCC PR 116174 |
+| `stable-objtool-fred-reboot` | objtool | 8 to 14, 5.15.168 and later on 5.15, x86_64 | L8 | none yet, a stable backport |
 | `gnu23-bool` | default-change | 15 | L3 | b3bee1e7c3f2, ee2ab467bddf, 8ba14d9f490a, 3b8b80e99376, 947d5d036c78, 5a821e2d69e2, 7cbb015e2d3d, 0f4ae7c6ecb8 |
 | `gcc15-union-padding` | miscompile-by-assumption | 15 | L5 to L7, if anywhere | dce4aab8441d, c15253494fd9 |
 | `gcc15-unterminated-string` | new-warning-werror | 15 | L3 | d5d45a7f2619, 9d7a0577c9db |
 | `gcc16-modpost-ipa-init` | modpost | 16 | L4 | 4c9ad387aa2d |
 | `gcc16-unused-but-set` | new-warning-werror | 16 | L3 | 97fb54d86d21, 729a2e8e9ac4 |
 | `binutils-too-old-lfence` | binutils-* | binutils below 2.12, i386 | L3 | none, the kernel asks for 2.12 |
+| `binutils-too-old-incbin` | binutils-* | binutils below 2.12, i386, 2.6 | L3 | none, the kernel asks for 2.12 |
+| `binutils-too-old-281` | binutils-* | binutils 2.8.1, i386, 2.6 | L3 | none, the kernel asks for 2.12 |
 | `binutils-too-old-sysexit` | binutils-* | binutils 2.14, x86_64 | L3 | none |
 | `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io and aic79xx | L3 | none |
 | `binutils-too-old-assert` | binutils-* | binutils 2.14, x86, 2.6.27 to 2.6.30 | L3 | d2ba8b211bb8 |
 | `binutils-x86-64-macro-redefined` | binutils-* | binutils 2.16 and later, x86_64, kernels before 2.6.11 | L3 | none, fixed before git |
 | `binutils-segment-mov` | binutils-* | binutils 2.17 and later, x86, kernels before 2.6.12 | L3 | fd51f666fa59 |
 | `binutils-range-ok-cmp` | binutils-* | binutils 2.20 and later, i386, kernels before 2.6.18 | L3 | 722f4f5b2600 |
+| `binutils-size-undefined` | binutils-* | binutils 2.21 and later, x86_64, 2.6.19 to 2.6.26 | L3 | ad2fc2cd9253 |
 | `binutils-plt32` | binutils-* | binutils 2.31 and later, x86_64 | L4 to L5 | b21ebf2fb4cd |
 | `binutils-separate-code` | binutils-* | binutils 2.31 and later, x86_64 | L5 | e3d03598e8ae |
 | `binutils-got32x` | binutils-* | binutils 2.26 and later, i386 | L5 | 6d92bc9d483a |
