@@ -191,7 +191,7 @@ pub fn count(records: &[CompileRecord], unreadable: usize) -> Calls {
 /// The message of the first `error:` line in a compiler's standard error, with quoted names and numbers taken out, so that failures group by cause.
 #[must_use]
 pub fn error_key(stderr: &str) -> Option<String> {
-    let line = stderr.lines().find(|l| l.contains("error"))?;
+    let line = stderr.lines().find(|l| says_error(l))?;
     let message = line
         .split_once("error: ")
         .map_or(line, |(_, m)| m)
@@ -279,34 +279,39 @@ pub fn failing_units(records: &[CompileRecord], tree: &Path) -> Vec<FailedUnit> 
     units
 }
 
-/// The error line of a unit's stderr. GCC before 3.3 printed an error as `file:line: message` with no `error:` in it, so when no line says error, the first such line that is not a warning counts.
+/// Whether a line says error as a word of its own, and not only in a flag such as `-Werror-implicit-function-declaration` that an echoed command line carries.
+fn says_error(l: &str) -> bool {
+    l.match_indices("error")
+        .any(|(i, _)| !l[..i].ends_with(|c: char| c.is_ascii_alphanumeric()))
+}
+
+/// The error line of a unit's stderr. GCC before 3.3 printed an error as `file:line: message` and an option it did not know as `cc1: Invalid option`, with no `error:` in either, so when no line says error, the first such line that is not a warning counts.
 fn unit_error(stderr: &str) -> String {
     stderr
         .lines()
-        .find(|l| l.contains("error") || l.contains("Error:"))
+        .find(|l| says_error(l) || l.contains("Error:"))
         .or_else(|| stderr.lines().find(|l| old_style_error(l)))
         .unwrap_or_default()
         .trim()
         .to_owned()
 }
 
-/// Whether a line is an old GCC's `file:line: message` that is not a warning or a note.
+/// Whether a line is an old GCC's `file:line: message` or `tool: message` that is not a warning or a note.
 fn old_style_error(l: &str) -> bool {
-    let mut parts = l.splitn(3, ':');
-    let (Some(file), Some(line), Some(rest)) = (parts.next(), parts.next(), parts.next()) else {
+    let Some((place, rest)) = l.split_once(": ") else {
         return false;
     };
-    // A newer GCC puts a column after the line.
-    let rest = rest
-        .trim_start_matches(|c: char| c.is_ascii_digit())
-        .trim_start_matches(':')
-        .trim_start();
+    let mut parts = place.split(':');
+    let file = parts.next().unwrap_or_default();
+    let numbers = parts.all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+    let rest = rest.trim_start();
     !file.is_empty()
         && !file.contains(' ')
-        && !line.is_empty()
-        && line.bytes().all(|b| b.is_ascii_digit())
+        && numbers
         && !rest.starts_with("warning")
         && !rest.starts_with("note")
+        && !rest.starts_with("In function")
+        && !rest.starts_with("At top level")
 }
 
 /// The last lines of a log that say why kbuild stopped: not make's own lines, and not kbuild's indented progress lines.
@@ -525,9 +530,22 @@ mod tests {
             unit_error(warned),
             "/out/include/asm/io.h:82: inconsistent operand constraints in an `asm'"
         );
+        let option = "cc1: Invalid option `-fno-strict-aliasing'\n";
+        assert_eq!(unit_error(option), "cc1: Invalid option `-fno-strict-aliasing'");
+        assert_eq!(unit_error("init/main.c: In function `start_kernel':\n"), "");
         let new = "/src/a.c:3:1: warning: x\n/src/a.c:9:2: error: y undeclared\n";
         assert_eq!(unit_error(new), "/src/a.c:9:2: error: y undeclared");
         assert_eq!(unit_error("/src/a.c:3:1: warning: x\n"), "");
+    }
+
+    #[test]
+    fn a_flag_that_says_error_is_no_error() {
+        let echoed = "\"i386\" \"y\" \"\" \"/gk/bin/gk-cc -Wall -Werror-implicit-function-declaration -Os\"\nld:arch/x86/kernel/vmlinux.lds:432: parse error\n";
+        assert_eq!(
+            error_key(echoed).unwrap(),
+            "ld:arch/xN/kernel/vmlinux.lds:N: parse error"
+        );
+        assert!(error_key("gcc -Werror=date-time -c a.c\n").is_none());
     }
 
     #[test]

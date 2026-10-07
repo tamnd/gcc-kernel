@@ -216,7 +216,7 @@ fn repair_errors(dir: &Path) -> Result<(), String> {
         return Ok(());
     };
     let units = build::failing_units(&records, Path::new("/src"));
-    if units.first().is_none_or(|u| u.error.is_empty()) {
+    if units.iter().all(|u| u.error.is_empty()) {
         return Ok(());
     }
     let mut lines = String::new();
@@ -252,9 +252,10 @@ fn failing_unit(dir: &Path) -> Option<(build::FailedUnit, String)> {
         stored => records
             .as_deref()
             .and_then(|r| {
-                build::failing_units(r, Path::new("/src"))
-                    .into_iter()
-                    .next()
+                // The units come in name order, so the first that says why stands for them.
+                let units = build::failing_units(r, Path::new("/src"));
+                let said = units.iter().position(|u| !u.error.is_empty()).unwrap_or(0);
+                units.into_iter().nth(said)
             })
             .or(stored)?,
     };
