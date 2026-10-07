@@ -3,6 +3,8 @@
 # When a pin change lands on main, `gk pins changed` against the commit before it says what to run: a new kernel is searched on every tier 1 platform, and a new GCC column runs on the current stripe. A dispatch can instead name the gk command lines to run, one per line, as in `search 6.18.54 --platform arm64`. Everything runs niced, so rucc-kernel's runs on the same machines come first (09.8).
 #
 # At the end the store is packed and attached to the release `sweep-<date>`, and publish.yml is started to read it.
+#
+# Once a week the history clone that bisections read is brought up to date with `gk history update` (spec 03.5), on its own and not as part of a sweep.
 
 name: sweep
 
@@ -12,6 +14,8 @@ on:
     paths:
       - kernels.toml
       - gccs.toml
+  schedule:
+    - cron: "17 3 * * 0"
   workflow_dispatch:
     inputs:
       runs:
@@ -26,8 +30,25 @@ concurrency:
 permissions: {}
 
 jobs:
+  history:
+    name: history clone
+    if: github.event_name == 'schedule'
+    runs-on: [self-hosted, linux, gk]
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: update
+        run: |
+          cargo build --release --locked -q -p gk
+          nice ./target/release/gk history update
+
   sweep:
     name: incremental runs
+    if: github.event_name != 'schedule'
     runs-on: [self-hosted, linux, gk]
     timeout-minutes: 4320
     permissions:
