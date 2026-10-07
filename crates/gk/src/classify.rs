@@ -468,6 +468,10 @@ pub fn judge(repo: &Repo, catalog: &[Compiled<'_>], r: &CellRecord, f: &Failure)
                 .push(format!("{}: {}", c.signature.class, out.join(", ")));
         }
     }
+    // A pattern as wide as a panic matches outside its ranges on every cell another signature explains, and a finding only means something on a cell nothing explains.
+    if v.class.is_some() {
+        v.findings.clear();
+    }
     v
 }
 
@@ -812,6 +816,14 @@ kind = "miscompile-by-assumption"
 summary = "Tail call"
 gcc = ">=10"
 platform = ["x86_64"]
+
+[[signature]]
+class = "old-panic"
+rung = "L5"
+match = { first-error = 'Kernel panic' }
+kind = "miscompile"
+summary = "Any panic"
+gcc = "<5"
 "#,
         )
         .unwrap();
@@ -865,10 +877,14 @@ platform = ["x86_64"]
         };
         let v = judge(&repo, &catalog, &record("5.4.1", "10.1.0", "x86_64"), &f);
         assert_eq!(v.class.as_deref(), Some("gcc10-start-secondary"));
+        assert!(v.findings.is_empty());
         let v = judge(&repo, &catalog, &record("5.4.1", "10.1.0", "arm64"), &f);
         assert_eq!(
             v.findings,
-            ["gcc10-start-secondary: platform arm64 is not x86_64"]
+            [
+                "gcc10-start-secondary: platform arm64 is not x86_64",
+                "old-panic: gcc 10.1.0 is not <5"
+            ]
         );
     }
 

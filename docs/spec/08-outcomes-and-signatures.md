@@ -47,7 +47,7 @@ Fields:
 - `kind`, one of the kinds of 8.3;
 - `summary`, one sentence;
 - `fixed-by`, the kernel commits that made it go away, with first tag and stable branches, as in 01.4;
-- `gcc`, `binutils`, `platform`, `kernel`, ranges that limit where the signature can apply. A match outside them is flagged as a new finding, not classified.
+- `gcc`, `binutils`, `platform`, `kernel`, ranges that limit where the signature can apply. A match outside them is flagged as a new finding, not classified, when no other signature classifies the cell.
 
 `gk classify` runs every signature over every failed cell and writes `classes` into `cell.json`. Where a cell stored a failing unit with no error line, as cells run before gas's `Error:` lines counted did, and its compile.jsonl now finds one, it writes errors.jsonl again too, so a copy of the store without compile.jsonl still has the line. A cell may have more than one class when its `-k` run shows several (09.5), but its first error has exactly one or none. `gk triage` lists unclassified first errors, clustered by normalized text, largest cluster first. `gk explain K G P` prints the cell's class, the signature's summary and fix, and whether the fix is in the tree: a fix that is in the tree but the cell still fails means the signature is wrong or there is a second problem.
 
