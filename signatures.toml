@@ -255,6 +255,15 @@ kind = "host-tool"
 summary = "make found no configuration target in /src because the unpacked tree was taken out of the cache while the cell was starting on it, so the cell says nothing about the kernel or the compiler, and a search runs it again"
 
 [[signature]]
+class = "woody-depmod-kstrtab"
+rung = "L4"
+match = { first-error = 'depmod: \s+\S+_R(smp_)?[0-9a-f]{8}' }
+kind = "host-tool"
+summary = "Woody's depmod, from modutils 2.4.15, reads only the __kstrtab_ symbols that nm types ?, and the nm of later binutils, such as the 2.16.1 that comes with GCC 3.4.6, types them R, so every symbol a 2.4 module takes from the kernel is unresolved. The woody host now builds depmod from modutils 2.4.27"
+kernel = ">=2.4, <2.5"
+platform = ["i386"]
+
+[[signature]]
 class = "out-of-tree-include"
 rung = "L3"
 match = { first-error = 'arch/x86_64/pci/[a-z0-9]+\.c:\d+(:\d+)?: pci\.h: No such file or directory' }
