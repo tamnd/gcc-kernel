@@ -475,6 +475,27 @@ gcc = "<3.2"
 kernel = ">=2.6.0"
 
 [[signature]]
+class = "gcc3-vdso-plt-overlap"
+rung = "L3"
+match = { first-error = "vextern\\.h:\\d+: warning: .visibility. attribute directive ignored|vdso\\.so: section \\.\\w+ lma" }
+kind = "too-old"
+summary = "GCC 3.3 and older leave a .plt in the x86_64 vDSO that 2.6.23 adds, and the vDSO linker script pins .data at offset 0x900, which the .plt runs into, although 2.6.23 still asks for GCC 3.2 only"
+fixed-by = [ { commit = "c65916fe3586", first-tag = "v2.6.24-rc1", note = "drops the fixed 0x900 offset from the vDSO linker script" } ]
+gcc = "<3.4"
+kernel = ">=2.6.23, <2.6.24"
+platform = ["x86_64"]
+
+[[signature]]
+class = "gcc32-asm-constraint-concat"
+rung = "L3"
+match = { first-error = 'arch_hweight\.h:\d+: syntax error before string constant' }
+kind = "too-old"
+summary = "From 2.6.36 arch_hweight.h builds its asm output constraint by pasting \"=\" onto a macro string, which GCC 3.2 cannot parse, although the kernel still asks for 3.2 only"
+gcc = "<3.3"
+kernel = ">=2.6.36"
+platform = ["i386", "x86_64"]
+
+[[signature]]
 class = "gcc32-directive-in-macro-args"
 rung = "L3"
 match = { first-error = 'smpboot\.c:\d+: syntax error before "unsigned"' }
@@ -791,6 +812,28 @@ fixed-by = [ { commit = "d1526e2cda64", first-tag = "v2.6.20-rc2", note = "remov
 binutils = "<2.16"
 kernel = ">=2.6.18, <2.6.20"
 platform = ["i386", "x86_64"]
+
+[[signature]]
+class = "binutils-too-old-multiline-macro"
+rung = "L3"
+match = { first-error = "head\\.S:\\d+: Error: missing '\\)'" }
+kind = "binutils-too-old"
+summary = "2.6.22 spreads one PMDS() call in the x86_64 head.S over two lines, the newline ends up inside a .rept expression, and the GCC 3.2 and binutils 2.14 pair rejects it"
+fixed-by = [ { commit = "6e3515352bdd", first-tag = "v2.6.23-rc4", note = "puts the PMDS() call on one line" } ]
+binutils = "<2.16"
+kernel = ">=2.6.22, <2.6.23"
+platform = ["x86_64"]
+
+[[signature]]
+class = "binutils-216-user32-cs"
+rung = "L3"
+match = { first-error = 'ia32entry\.S:\d+: Error: too many positional arguments' }
+kind = "binutils-too-old"
+summary = "2.6.39 passes $__USER32_CS to the pushq_cfi macro, the define has spaces between its operators, and binutils 2.16 splits it into several macro arguments"
+fixed-by = [ { commit = "dd2897bf0f4d", first-tag = "v3.1-rc1", note = "removes the spaces from the __USER32_CS define" } ]
+binutils = "<2.17"
+kernel = ">=2.6.39, <3.1"
+platform = ["x86_64"]
 
 [[signature]]
 class = "binutils-x86-64-macro-redefined"

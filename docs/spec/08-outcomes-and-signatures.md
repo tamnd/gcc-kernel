@@ -86,6 +86,8 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc-min-32` | refusal | below 3.2 on 2.6.16 to 2.6.28 | L1 to L3 | policy from a136564 |
 | `gcc-below-min-on-26` | too-old | below 2.95 on 2.6.0 to 2.6.15, below 3.2 from 2.6.16 | L3 | none, it stops before the refusal is compiled |
 | `gcc32-directive-in-macro-args` | too-old | 3.2 on 2.6.26, x86 | L3 | 9cf4f298e29a |
+| `gcc3-vdso-plt-overlap` | too-old | below 3.4 on 2.6.23, x86_64 | L3 | c65916fe3586 |
+| `gcc32-asm-constraint-concat` | too-old | 3.2 from 2.6.36, x86 | L3 | none |
 | `gcc-pre-27-on-20` | too-old | below 2.7 on 2.0 | L3 | none |
 | `ifdef-0-in-10` | new-error | 3 and later on 1.0 | L3 | none, gone by 1.2 |
 | `gcc3-0-1-refused` | refusal | 3.0, 3.1 | L1 to L3 | policy from 6680598 |
@@ -145,6 +147,8 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io and aic79xx | L3 | none |
 | `binutils-too-old-assert` | binutils-* | binutils 2.14, x86, 2.6.27 to 2.6.30 | L3 | d2ba8b211bb8 |
 | `binutils-too-old-cfi` | binutils-* | binutils below 2.16, x86, 2.6.18 and 2.6.19 with the unwinder | L3 | d1526e2cda64 |
+| `binutils-too-old-multiline-macro` | binutils-* | binutils 2.14, x86_64, 2.6.22 | L3 | 6e3515352bdd |
+| `binutils-216-user32-cs` | binutils-* | binutils 2.16, x86_64, 2.6.39 and 3.0 | L3 | dd2897bf0f4d |
 | `binutils-x86-64-macro-redefined` | binutils-* | binutils 2.16 and later, x86_64, kernels before 2.6.11 | L3 | none, fixed before git |
 | `binutils-segment-mov` | binutils-* | binutils 2.17 and later, x86, kernels before 2.6.12 | L3 | fd51f666fa59 |
 | `binutils-range-ok-cmp` | binutils-* | binutils 2.20 and later, i386, kernels before 2.6.18 | L3 | 722f4f5b2600 |
