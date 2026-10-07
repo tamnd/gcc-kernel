@@ -249,11 +249,9 @@ fn no_unit(stopped: Option<String>, make: &str) -> String {
     }
     let says = |t: &str| t.lines().any(is_error_line);
     match stopped {
-        Some(s)
-            if says(&s)
-                || error_lines(make).is_empty()
-                || (!says(make) && !error_lines(&s).is_empty()) =>
-        {
+        // The lines kbuild stopped on start with whatever ran last, such as the mkcompile_h command, so the error among them is the one to name.
+        Some(s) if says(&s) => first_of(&s),
+        Some(s) if error_lines(make).is_empty() || (!says(make) && !error_lines(&s).is_empty()) => {
             s
         }
         _ => first_of(make),
@@ -911,6 +909,11 @@ gcc = "<5"
         let lds = "ld:arch/x86/kernel/vmlinux.lds:432: parse error\nmake[1]: *** [.tmp_vmlinux1] Error 1\n";
         assert_eq!(
             no_unit(None, lds),
+            "ld:arch/x86/kernel/vmlinux.lds:432: parse error"
+        );
+        let stopped = "/bin/sh /src/scripts/mkcompile_h include/linux/compile.h \\\ndnsdomainname: Unknown server error\nld:arch/x86/kernel/vmlinux.lds:432: parse error";
+        assert_eq!(
+            no_unit(Some(stopped.to_owned()), lds),
             "ld:arch/x86/kernel/vmlinux.lds:432: parse error"
         );
     }
