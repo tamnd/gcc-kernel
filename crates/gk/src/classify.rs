@@ -122,7 +122,7 @@ fn first_of(log: &str) -> String {
     )
 }
 
-/// The first bad line of a boot, from its `boot-N.json`: the panic, the first splat, or the time running out. Falls back to the first failed KUnit test, then to the last line of the console.
+/// The first bad line of a boot, from its `boot-N.json`: the panic, the first splat, the time running out, or the smoke checks that failed and count. Falls back to the first failed KUnit test, then to the last line of the console.
 fn first_bad_line(dir: &Path, log: &str, console: &str) -> String {
     let json = Path::new(log).with_extension("json");
     let outcome: serde_json::Value = std::fs::read_to_string(dir.join(json))
@@ -148,6 +148,28 @@ fn first_bad_line(dir: &Path, log: &str, console: &str) -> String {
     {
         let last = console.lines().rev().find(|l| !l.trim().is_empty());
         return format!("timed out after: {}", last.unwrap_or("nothing"));
+    }
+    let names = |key: &str| -> Vec<String> {
+        outcome
+            .get(key)
+            .and_then(|v| v.as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|v| v.as_str().map(str::to_owned))
+            .collect()
+    };
+    let excused = names("excused");
+    let failed: Vec<&str> = outcome
+        .get("checks")
+        .and_then(|c| c.as_array())
+        .into_iter()
+        .flatten()
+        .filter(|c| c.get("pass").and_then(serde_json::Value::as_bool) == Some(false))
+        .filter_map(|c| c.get("name").and_then(|n| n.as_str()))
+        .filter(|n| !excused.iter().any(|e| e == n))
+        .collect();
+    if !failed.is_empty() {
+        return format!("smoke checks failed: {}", failed.join(", "));
     }
     console
         .lines()
@@ -358,7 +380,9 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
                 .find(|s| !s.passed)
                 .map(|s| s.log.clone())
                 .unwrap_or_default();
-            f.console = std::fs::read_to_string(dir.join(&log)).unwrap_or_default();
+            // A failed L6 step points at `boot-N.json`, and the console is the `boot-N.log` beside it.
+            let console = Path::new(&log).with_extension("log");
+            f.console = std::fs::read_to_string(dir.join(&console)).unwrap_or_default();
             f.first_error = first_bad_line(dir, &log, &f.console);
         }
     }
@@ -935,6 +959,23 @@ gcc = "<5"
                 "arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table"
             );
         }
+    }
+
+    #[test]
+    fn a_failed_smoke_run_names_its_checks() {
+        let dir = std::env::temp_dir().join(format!("gk-smoke-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("boot-1.json"),
+            r#"{"checks": [{"name": "exec", "pass": true}, {"name": "cpus", "pass": false}, {"name": "kvm", "pass": false}], "excused": ["kvm"], "status": "fail"}"#,
+        )
+        .unwrap();
+        let console = "GK-CHECK cpus fail\nPower down.\n";
+        assert_eq!(
+            first_bad_line(&dir, "boot-1.json", console),
+            "smoke checks failed: cpus"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
