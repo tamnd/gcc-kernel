@@ -257,7 +257,7 @@ summary = "make found no configuration target in /src because the unpacked tree 
 [[signature]]
 class = "woody-depmod-kstrtab"
 rung = "L4"
-match = { first-error = '^depmod: \s+\S+_R(smp_)?[0-9a-f]{8}$' }
+match = { first-error = 'depmod: \s+\S+_R(smp_)?[0-9a-f]{8}' }
 kind = "host-tool"
 summary = "Woody's depmod, from modutils 2.4.15, reads only the __kstrtab_ symbols that nm types ?, and the nm of later binutils, such as the 2.16.1 that comes with GCC 3.4.6, types them R, so every symbol a 2.4 module takes from the kernel is unresolved. The woody host now builds depmod from modutils 2.4.27"
 kernel = ">=2.4, <2.5"
