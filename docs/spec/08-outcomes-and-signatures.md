@@ -71,8 +71,9 @@ Fields:
 | `out-of-tree` | the kernel cannot build under `O=`, which gk uses from 2.6 on, and builds in place | `-I arch/i386/pci` with a space on x86_64 2.6.5 to 2.6.8 |
 | `emulator` | the boot failed for a reason the L5k twin removes | wrong `-cpu` for the kernel's age |
 | `timeout` | over budget with no other signal | |
+| `kernel-bug` | the kernel fails the same way with every GCC that gets that far, so the bug is in the kernel | a 6.1.y backport of a 6.15 KUnit test that calls a NULL pointer |
 
-The kind decides what a failure means for rucc (11.6). A `refusal` or `blacklist` must be reproduced under the persona. A `miscompile` must not be. A `new-error` or `default-change` must be reproduced at the version it appeared. A `host-tool`, `out-of-tree` or `emulator` kind is a bug in gcc-kernel, not a finding.
+The kind decides what a failure means for rucc (11.6). A `refusal` or `blacklist` must be reproduced under the persona. A `miscompile` must not be. A `new-error` or `default-change` must be reproduced at the version it appeared. A `host-tool`, `out-of-tree` or `emulator` kind is a bug in gcc-kernel, not a finding. A `kernel-bug` is not a finding about GCC either, and rucc should expect the same failure.
 
 ## 8.4 The seed catalog
 
@@ -157,6 +158,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `tcg-tsc-clock` | emulator | any, i386, 2.6.0 to 2.6.17 under TCG on a loaded host | L6 | none, the clocksource code of 2.6.18 checks the TSC |
 | `tcg-ioapic-timer` | emulator | any, x86, under TCG on a loaded host | L5 | none, a boot that hits it is a rig problem |
 | `tcg-rtc-kunit-stall` | emulator | any, x86_64, 5.10 under TCG | L8 | 95c46336ab47, not on 5.10.y |
+| `stable61-longest-symbol` | kernel-bug | any, 6.1.188 and later on 6.1.y, x86 | L7 | none on 6.1.y yet |
 | `out-of-tree-include` | out-of-tree | any, x86_64, 2.6.5 to 2.6.8 | L3 | none, fixed before git in 2.6.9 |
 | `too-old-asm-goto` | too-old | below 4.5 | L3 | the kernel's `CC_HAS_ASM_GOTO` probe and, from 4.20 on x86, the requirement |
 | `too-old-generic` | too-old | below 4.9 | L3 | policy from 6ec4476ac825 |
