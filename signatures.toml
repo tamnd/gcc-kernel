@@ -388,6 +388,17 @@ gcc = ">=4.4"
 kernel = ">=2.6.23, <2.6.25"
 
 [[signature]]
+class = "gcc43-no-unit-at-a-time"
+rung = "L3"
+match = { first-error = 'inlining failed in call to .*function body not available' }
+kind = "new-error"
+summary = "i386 builds with -fno-unit-at-a-time up to 2.6.15, and in that mode GCC 4.3 cannot inline an always_inline function whose prototype came first, such as smp_local_timer_interrupt, task_curr and generic_write_checks"
+fixed-by = [ { commit = "9ab34fe76114", first-tag = "v2.6.16-rc1", note = "keeps -fno-unit-at-a-time for GCC 3 only" } ]
+gcc = ">=4.3"
+kernel = "<2.6.16"
+platform = ["i386"]
+
+[[signature]]
 class = "gcc7-format-werror"
 rung = "L3"
 match = { first-error = '\[-Werror=(?:format-truncation|format-overflow|int-in-bool-context)=?\]' }
