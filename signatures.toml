@@ -570,6 +570,15 @@ gcc = ">=8"
 platform = ["x86_64", "i386"]
 
 [[signature]]
+class = "stable-objtool-fred-reboot"
+rung = "L8"
+match = { first-error = 'objtool: fred_sysvec_reboot\(\)\+0x[0-9a-f]+: unreachable instruction' }
+kind = "objtool"
+summary = "5.15.168 brought the fred_ entry wrappers to the 5.15 stable line, and the objtool of 5.15 finds an unreachable instruction in fred_sysvec_reboot with every GCC from 8 to 14, so the stable backport and not GCC is at fault"
+kernel = ">=5.15.168, <5.16"
+platform = ["x86_64"]
+
+[[signature]]
 class = "gcc14-objtool-endbr"
 rung = "L4..L8"
 match = { first-error = 'objtool: [^\n]*(?:ENDBR|falls through to next function)' }
@@ -596,6 +605,26 @@ match = { first-error = "no such 386 instruction: `lfence'" }
 kind = "binutils-too-old"
 summary = "binutils 2.10 and older do not know lfence, which i386 uses from 2.6.5, so the egcs and GCC 2.95 bundles stop there"
 binutils = "<2.12"
+platform = ["i386"]
+
+[[signature]]
+class = "binutils-too-old-incbin"
+rung = "L3"
+match = { first-error = "Unknown pseudo-op:  `.incbin'" }
+kind = "binutils-too-old"
+summary = "gas learned .incbin in binutils 2.12, which 2.6 asks for, and the i386 vsyscall.S includes the vDSO with it, so the GCC 2.95 and 3.0 bundles with binutils 2.10.1 and 2.11.2 stop there"
+binutils = "<2.12"
+kernel = ">=2.6"
+platform = ["i386"]
+
+[[signature]]
+class = "binutils-too-old-281"
+rung = "L3"
+match = { first-error = "no such 386 instruction: `fxsave'|operands given don.t match any known 386 instruction" }
+kind = "binutils-too-old"
+summary = "binutils 2.8.1 in the egcs bundle knows neither fxsave, which process.c uses from 2.6.5, nor the operand forms entry.S uses by 2.6.13, while 2.6 asks for binutils 2.12"
+binutils = "<2.9"
+kernel = ">=2.6"
 platform = ["i386"]
 
 [[signature]]
@@ -635,6 +664,17 @@ kind = "binutils-assembler"
 summary = "binutils 2.16 refuses the macro that x86_64 entry.S defines twice, up to 2.6.10"
 binutils = ">=2.16"
 kernel = "<2.6.11"
+platform = ["x86_64"]
+
+[[signature]]
+class = "binutils-size-undefined"
+rung = "L3"
+match = { first-error = '\.size expression for copy_user_generic_c does not evaluate to a constant' }
+kind = "binutils-assembler"
+summary = "3022d734a54c in 2.6.19 renamed copy_user_generic_c in the x86_64 copy_user.S and left its END behind, and gas from binutils 2.21 refuses a .size for a symbol that is not defined, where 2.20 let it pass"
+fixed-by = [ { commit = "ad2fc2cd9253", first-tag = "v2.6.27-rc1", note = "rewrites copy_user_64.S without the stale END" } ]
+binutils = ">=2.21"
+kernel = ">=2.6.19, <2.6.27"
 platform = ["x86_64"]
 
 [[signature]]
