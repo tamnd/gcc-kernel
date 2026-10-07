@@ -47,7 +47,7 @@ make = "3.77"
 
 [[host]]
 name = "gk-host-woody"
-image = "ghcr.io/tamnd/gcc-kernel/gk-host-woody@sha256:0ac40eddb79b5b17d55bb86f22ae747981af7c219971d60b36a800b49bcde318"
+image = "ghcr.io/tamnd/gcc-kernel/gk-host-woody@sha256:fbf1c44a10cc38d5d4a5e90d8cc5e5b88e503fd2aebd223ae1c714b18fa477dd"
 kind = "host"
 base = "debian/eol:woody"
 arches = ["i386"]
