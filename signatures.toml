@@ -412,6 +412,28 @@ kernel = "<2.6.4"
 platform = ["i386"]
 
 [[signature]]
+class = "gcc42-proxy-pda"
+rung = "L3"
+match = { first-error = "undefined reference to `_proxy_pda'" }
+kind = "new-error"
+summary = "The 2.6.19 x86_64 PDA macros name a dummy _proxy_pda variable only as an asm operand, which nothing defines, and from GCC 4.2 the optimizer can turn the operand into a real reference, so the link fails"
+fixed-by = [ { commit = "1bac3b383a93", first-tag = "v2.6.20-rc1", note = "defines _proxy_pda as zero in the linker script" } ]
+gcc = ">=4.2"
+kernel = ">=2.6.19, <2.6.20"
+platform = ["x86_64"]
+
+[[signature]]
+class = "gcc48-mutex-slowpath-unused"
+rung = "L3"
+match = { first-error = "undefined reference to `__mutex_(un)?lock_slowpath'" }
+kind = "new-error"
+summary = "The x86_64 mutex fastpath calls the static slowpath functions only from inline asm, GCC 4.8 drops them as unused while 4.5 kept them, and the link fails"
+fixed-by = [ { commit = "7918baa55514", first-tag = "v2.6.29-rc1", note = "marks the slowpath functions __used" } ]
+gcc = ">=4.8"
+kernel = ">=2.6.16, <2.6.29"
+platform = ["x86_64"]
+
+[[signature]]
 class = "gcc48-ptrace-asmregparm"
 rung = "L3"
 match = { first-error = "ptrace\\.c:\\d+(:\\d+)?: error: conflicting types for 'syscall_trace_enter'" }
