@@ -327,10 +327,25 @@ pub fn disk_full(dir: &Path) -> bool {
         .any(|f| std::fs::read_to_string(dir.join(f)).is_ok_and(|text| text.contains(DISK_FULL)))
 }
 
-/// Whether the cell in `dir` stopped for a reason of the machine's rather than of the cell's: over the budget, or out of disk.
+/// Whether the build in `dir` failed with no make error in its log. A build that fails on its own merits leaves make's `***` line behind, so one without it was stopped from outside, as when docker could not write to a full disk or the container died.
+#[must_use]
+pub fn cut_short(dir: &Path) -> bool {
+    let Some(json) = std::fs::read_to_string(dir.join("build.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+    else {
+        return false;
+    };
+    let flag = |k: &str| json.get(k).and_then(serde_json::Value::as_bool);
+    flag("configured") == Some(true)
+        && flag("built") == Some(false)
+        && !crate::classify::log_text(dir, "make.log").contains("*** ")
+}
+
+/// Whether the cell in `dir` stopped for a reason of the machine's rather than of the cell's: over the budget, out of disk, or cut short.
 #[must_use]
 pub fn rig_failed(dir: &Path) -> bool {
-    over_budget(dir) || disk_full(dir)
+    over_budget(dir) || disk_full(dir) || cut_short(dir)
 }
 
 /// Why a build stopped, when no failed unit explains it.
@@ -471,6 +486,26 @@ mod tests {
         std::fs::write(dir.join("errors.jsonl"), "{\"unit\":\"mm/slub.o\",\"stderr\":\"fatal error: error writing to /tmp/ccALpihd.s: No space left on device\"}\n").unwrap();
         assert!(disk_full(&dir));
         assert!(rig_failed(&dir));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_failed_build_with_no_make_error_was_cut_short() {
+        let dir = std::env::temp_dir().join(format!("gk-cut-short-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(!cut_short(&dir));
+        let json = serde_json::json!({ "configured": true, "built": false });
+        std::fs::write(dir.join("build.json"), json.to_string()).unwrap();
+        let log = "  CC      init/main.o\n  CC      init/do_mounts.o\n";
+        std::fs::write(dir.join("make.log"), log).unwrap();
+        assert!(cut_short(&dir));
+        assert!(rig_failed(&dir));
+        std::fs::write(dir.join("make.log"), "init/main.c:9:1: error: 'y' undeclared\nmake[1]: *** [init/main.o] Error 1\nmake: *** [init] Error 2\n").unwrap();
+        assert!(!cut_short(&dir));
+        let json = serde_json::json!({ "configured": true, "built": true });
+        std::fs::write(dir.join("build.json"), json.to_string()).unwrap();
+        std::fs::write(dir.join("make.log"), "  LD      vmlinux\n").unwrap();
+        assert!(!cut_short(&dir));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
