@@ -331,7 +331,7 @@ match = { first-error = 'code model kernel does not support PIC mode' }
 kind = "default-change"
 summary = "Debian and Ubuntu GCC 6 and later build PIE by default, which the kernel's code model rejects"
 fixed-by = [
-  { commit = "8ae94224c9d7", first-tag = "v4.9-rc6", stable = ["3.12", "3.16", "4.8"] },
+  { commit = "8ae94224c9d7", first-tag = "v4.9-rc6", stable = ["3.12", "3.16", "4.8"], bisected = true },
   { commit = "c6a385539175", first-tag = "v4.9-rc6", stable = ["3.12", "3.16", "4.8"] },
 ]
 gcc = ">=6"
