@@ -251,9 +251,7 @@ fn no_unit(stopped: Option<String>, make: &str) -> String {
     match stopped {
         // The lines kbuild stopped on start with whatever ran last, such as the mkcompile_h command, so the error among them is the one to name.
         Some(s) if says(&s) => first_of(&s),
-        Some(s)
-            if error_lines(make).is_empty() || (!says(make) && !error_lines(&s).is_empty()) =>
-        {
+        Some(s) if error_lines(make).is_empty() || (!says(make) && !error_lines(&s).is_empty()) => {
             s
         }
         _ => first_of(make),
