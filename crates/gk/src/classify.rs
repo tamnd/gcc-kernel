@@ -64,7 +64,10 @@ fn is_error_line(l: &str) -> bool {
             || l.contains("modpost:")
             || l.contains("undefined reference")
             || l.contains("multiple definition")
-            || l.contains("LOAD segment with RWX"))
+            || l.contains("LOAD segment with RWX")
+            // An old GCC's `serial.c:538:8: macro names must be identifiers`, with a file and a line so that `Kernel: bzImage is ready` does not count.
+            || (build::old_style_error(l)
+                && l.split_once(": ").is_some_and(|(place, _)| place.contains(':'))))
 }
 
 /// The error line that names the target make first gave up on, as `arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table` before `*** [arch/x86/entry/thunk_64.o] Error 1`. Under `-j` that says more than the lines kbuild stopped on, which are whatever the other jobs printed last.
@@ -902,6 +905,12 @@ platform = ["x86_64"]
         std::fs::write(dir.join("make.log"), "fs/a.c:1: error: x\n").unwrap();
         assert_eq!(build_log(&dir), "fs/a.c:1: error: x\n");
         std::fs::remove_dir_all(&dir).unwrap();
+        let dep = "In file included from mem.c:10:\nsched.h:238:8: warning: extra tokens\nserial.c:538:8: macro names must be identifiers\n/src/Makefile:12: recipe for target 'dep' failed\nmake[2]: *** [dep] Error 1\nIn file included from psaux.c:29:\n";
+        assert_eq!(
+            error_lines(dep),
+            ["serial.c:538:8: macro names must be identifiers"]
+        );
+        assert!(error_lines("Kernel: arch/x86/boot/bzImage is ready  (#1)\n").is_empty());
     }
 
     #[test]

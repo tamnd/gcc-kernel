@@ -297,7 +297,7 @@ fn unit_error(stderr: &str) -> String {
 }
 
 /// Whether a line is an old GCC's `file:line: message` or `tool: message` that is not a warning or a note.
-fn old_style_error(l: &str) -> bool {
+pub(crate) fn old_style_error(l: &str) -> bool {
     let Some((place, rest)) = l.split_once(": ") else {
         return false;
     };
@@ -309,6 +309,8 @@ fn old_style_error(l: &str) -> bool {
         && !file.contains(' ')
         && numbers
         && !rest.starts_with("warning")
+        && !rest.starts_with("Warning")
+        && !rest.starts_with("recipe for target")
         && !rest.starts_with("note")
         && !rest.starts_with("In function")
         && !rest.starts_with("At top level")

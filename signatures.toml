@@ -362,9 +362,9 @@ kernel = ">=2.6.0"
 [[signature]]
 class = "gcc-pre-27-on-20"
 rung = "L3"
-match = { first-error = 'Invalid option|GCC is too old' }
+match = { first-error = 'Invalid option .align-loops' }
 kind = "too-old"
-summary = "2.0 asks for GCC 2.7.2, and 2.5.8 does not know -malign-loops and stops on the #error in init/main.c"
+summary = "2.0 asks for GCC 2.7.2, and 2.5.8 does not know -malign-loops"
 gcc = "<2.7"
 kernel = ">=2.0, <2.1"
 
@@ -373,8 +373,8 @@ class = "ifdef-0-in-10"
 rung = "L3"
 match = { first-error = 'macro names must be identifiers' }
 kind = "new-error"
-summary = "1.0 has an #ifdef 0 in drivers/char/serial.c, which GCC 2.5.8 passed over and the cpp of later GCC refuses"
-gcc = ">=4.1"
+summary = "1.0 has an #ifdef 0 in drivers/char/serial.c, which GCC 2.5.8 passed over and the cpp of GCC 3 and later refuses"
+gcc = ">=3"
 kernel = "<1.1"
 
 [[signature]]
