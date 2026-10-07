@@ -124,7 +124,7 @@ impl Fix {
 }
 
 /// The kinds of spec 08.3, apart from the `binutils-` family.
-pub const KINDS: [&str; 15] = [
+pub const KINDS: [&str; 16] = [
     "refusal",
     "blacklist",
     "new-error",
@@ -140,6 +140,7 @@ pub const KINDS: [&str; 15] = [
     "out-of-tree",
     "emulator",
     "timeout",
+    "kernel-bug",
 ];
 
 /// A set of versions, written as alternatives joined by `|`, each a list of bounds joined by `,`.

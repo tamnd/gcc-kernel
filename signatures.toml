@@ -291,6 +291,15 @@ kernel = ">=5.10, <5.11"
 platform = ["x86_64"]
 
 [[signature]]
+class = "stable61-longest-symbol"
+rung = "L7..L8"
+match = { first-error = 'BUG: kernel NULL pointer dereference', console = 'test_longest_symbol_kallsyms: test_longest_symbol kallsyms: kprobe registered' }
+kind = "kernel-bug"
+summary = "6.1.188 took the longest-symbol KUnit test from 6.15. On 6.1 the kallsyms lookup of the 511 character symbol comes back empty, and test_longest_symbol_kallsyms calls it anyway, so every GCC from 8.5.0 to 16.2.0 jumps to address 0 in every KUnit boot. 6.6, 6.12 and 6.18 carry the same test and pass it"
+kernel = ">=6.1.188, <6.2"
+platform = ["x86_64", "i386"]
+
+[[signature]]
 class = "out-of-tree-include"
 rung = "L3"
 match = { first-error = 'arch/x86_64/pci/[a-z0-9]+\.c:\d+(:\d+)?: pci\.h: No such file or directory' }
