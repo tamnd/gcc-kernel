@@ -379,10 +379,21 @@ pub fn cut_short(dir: &Path) -> bool {
         && !logs.iter().any(|text| text.contains("*** "))
 }
 
-/// Whether the cell in `dir` stopped for a reason of the machine's rather than of the cell's: over the budget, out of disk, or cut short.
+/// Whether the cell in `dir` found no kernel tree at `/src`, where make knew no configuration target at all, which every kernel's Makefile has. A tree taken out of the cache while a cell was starting on it leaves that behind.
+#[must_use]
+pub fn tree_gone(dir: &Path) -> bool {
+    ["probe-config.log", "config.log"].iter().any(|f| {
+        std::fs::read_to_string(dir.join(f)).is_ok_and(|text| {
+            text.lines()
+                .any(|l| l.contains("*** No rule to make target '") && l.contains("config'"))
+        })
+    })
+}
+
+/// Whether the cell in `dir` stopped for a reason of the machine's rather than of the cell's: over the budget, out of disk, cut short, or with its tree gone.
 #[must_use]
 pub fn rig_failed(dir: &Path) -> bool {
-    over_budget(dir) || disk_full(dir) || cut_short(dir)
+    over_budget(dir) || disk_full(dir) || cut_short(dir) || tree_gone(dir)
 }
 
 /// Why a build stopped, when no failed unit explains it.
@@ -523,6 +534,27 @@ mod tests {
         std::fs::write(dir.join("errors.jsonl"), "{\"unit\":\"mm/slub.o\",\"stderr\":\"fatal error: error writing to /tmp/ccALpihd.s: No space left on device\"}\n").unwrap();
         assert!(disk_full(&dir));
         assert!(rig_failed(&dir));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_cell_that_found_no_tree_is_the_rigs_failure() {
+        let dir = std::env::temp_dir().join(format!("gk-tree-gone-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let log = dir.join("probe-config.log");
+        std::fs::write(
+            &log,
+            "make: *** No rule to make target 'menuconfig'.  Stop.\n",
+        )
+        .unwrap();
+        assert!(tree_gone(&dir));
+        assert!(rig_failed(&dir));
+        std::fs::write(
+            &log,
+            "make: *** [Makefile:12: include/config/auto.conf] Error 1\n",
+        )
+        .unwrap();
+        assert!(!tree_gone(&dir));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

@@ -337,8 +337,9 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
             let text = std::fs::read_to_string(dir.join(log)).unwrap_or_default();
             let mut lines: Vec<&str> = r.probe.why.iter().map(String::as_str).collect();
             lines.extend(
-                text.lines()
-                    .filter(|l| l.contains("error") || l.starts_with("***")),
+                text.lines().filter(|l| {
+                    l.contains("error") || l.starts_with("***") || l.contains(": *** ")
+                }),
             );
             f.first_error = lines.join("\n");
         }
@@ -859,6 +860,25 @@ gcc = "<5"
             signatures,
             ..Repo::default()
         }
+    }
+
+    #[test]
+    fn a_config_probe_keeps_makes_own_error() {
+        let dir = std::env::temp_dir().join(format!("gk-probe-config-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("probe-config.log"),
+            "make: Entering directory '/src'\nmake: Leaving directory '/src'\nmake: *** No rule to make target 'defconfig'.  Stop.\n",
+        )
+        .unwrap();
+        let mut r = record("6.12.111", "14.2.0", "arm64");
+        r.probe.step = "defconfig".into();
+        let f = failure(&dir, &r).unwrap();
+        assert_eq!(
+            f.first_error,
+            "make: *** No rule to make target 'defconfig'.  Stop."
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
