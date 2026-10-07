@@ -402,6 +402,16 @@ kernel = "<2.6.9"
 platform = ["x86_64", "i386"]
 
 [[signature]]
+class = "gcc4-incomplete-array-fb"
+rung = "L3"
+match = { first-error = 'fb\.h:\d+(:\d+)?: error: array type has incomplete element type' }
+kind = "new-error"
+summary = "GCC 4.0 refuses the vesa_modes array that fb.h declares before struct fb_videomode in 2.6.9 and 2.6.10, which the x86_64 ia32 ioctl code includes. 2.6.11 moved the declaration below the struct"
+gcc = ">=4"
+kernel = ">=2.6.9, <2.6.11"
+platform = ["x86_64", "i386"]
+
+[[signature]]
 class = "gcc48-printk-regparm"
 rung = "L3"
 match = { first-error = "spinlock\\.h:\\d+(:\\d+)?: error: conflicting types for 'printk'" }
@@ -484,6 +494,17 @@ fixed-by = [ { commit = "c65916fe3586", first-tag = "v2.6.24-rc1", note = "drops
 gcc = "<3.4"
 kernel = ">=2.6.23, <2.6.24"
 platform = ["x86_64"]
+
+[[signature]]
+class = "gcc34-this-ip-label"
+rung = "L3"
+match = { first-error = "undefined reference to `\\.L\\d+'" }
+kind = "too-old"
+summary = "From 2.6.31 con_init in vt.c calls kzalloc, and the inline kmalloc of slub_def.h passes _THIS_IP_, the address of a local label, to its trace call. GCC 3.4 drops the label from the init text and keeps the reference, so the link fails. GCC 3.3 and 4.0 build it. 2.6.38 moved the trace calls out of the inline functions"
+fixed-by = [ { commit = "4a92379bdfb4", first-tag = "v2.6.38-rc1", note = "moves the SLUB trace calls into slub.c, so no inline kmalloc takes _THIS_IP_" } ]
+gcc = ">=3.4, <4"
+kernel = ">=2.6.31, <2.6.38"
+platform = ["i386", "x86_64"]
 
 [[signature]]
 class = "gcc32-asm-constraint-concat"
@@ -843,9 +864,9 @@ platform = ["x86_64"]
 [[signature]]
 class = "binutils-too-old-bignum"
 rung = "L3"
-match = { first-error = 'bignum invalid', unit = 'drivers/(?:net/s2io|scsi/aic7xxx)|arch/i386/kernel/cpu/perfctr-watchdog' }
+match = { first-error = 'bignum invalid', unit = 'drivers/(?:net/s2io|scsi/aic7xxx)|arch/i386/kernel/cpu/perfctr-watchdog|arch/x86/kernel/cpu/mcheck/mce-severity' }
 kind = "binutils-too-old"
-summary = "binutils 2.14 rejects the 64 bit constants the s2io and aic79xx drivers write, on i386 from 2.6.7, and in 2.6.22 the perfctr watchdog reaches it first"
+summary = "binutils 2.14 rejects the 64 bit constants the s2io and aic79xx drivers write, on i386 from 2.6.7, and in 2.6.22 the perfctr watchdog and in 2.6.33 the MCE severity table reach it first"
 binutils = "<2.16"
 platform = ["i386"]
 

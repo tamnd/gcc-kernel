@@ -87,6 +87,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc-below-min-on-26` | too-old | below 2.95 on 2.6.0 to 2.6.15, below 3.2 from 2.6.16 | L3 | none, it stops before the refusal is compiled |
 | `gcc32-directive-in-macro-args` | too-old | 3.2 on 2.6.26, x86 | L3 | 9cf4f298e29a |
 | `gcc3-vdso-plt-overlap` | too-old | below 3.4 on 2.6.23, x86_64 | L3 | c65916fe3586 |
+| `gcc34-this-ip-label` | too-old | 3.4 on 2.6.31 to 2.6.37, x86 | L3 | 4a92379bdfb4 |
 | `gcc32-asm-constraint-concat` | too-old | 3.2 from 2.6.36, x86 | L3 | none |
 | `gcc-pre-27-on-20` | too-old | below 2.7 on 2.0 | L3 | none |
 | `ifdef-0-in-10` | new-error | 3 and later on 1.0 | L3 | none, gone by 1.2 |
@@ -98,6 +99,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc3-0-1-refused` | refusal | 3.0, 3.1 | L1 to L3 | policy from 6680598 |
 | `arm-gcc3-below-33` | refusal | 3.0 to 3.2, arm | L1 | policy from a136564 |
 | `gcc4-incomplete-array` | new-error | 4 and later on 2.6.0 to 2.6.8, x86 | L3 | none, fixed before git in 2.6.9 |
+| `gcc4-incomplete-array-fb` | new-error | 4 and later on 2.6.9 and 2.6.10, x86 | L3 | none, fixed before git in 2.6.11 |
 | `gcc48-printk-regparm` | new-error | 4.8 and later on 2.6.0 to 2.6.3, i386 | L3 | none, fixed before git in 2.6.4 |
 | `gcc42-proxy-pda` | new-error | 4.2 and later on 2.6.19, x86_64 | L3 | 1bac3b383a93 |
 | `gcc48-mutex-slowpath-unused` | new-error | 4.8 and later on 2.6.16 to 2.6.28, x86_64 | L3 | 7918baa55514 |
@@ -149,7 +151,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `binutils-too-old-incbin` | binutils-* | binutils below 2.12, i386, 2.6 | L3 | none, the kernel asks for 2.12 |
 | `binutils-too-old-281` | binutils-* | binutils 2.8.1, i386, 2.6 | L3 | none, the kernel asks for 2.12 |
 | `binutils-too-old-sysexit` | binutils-* | binutils 2.14, x86_64 | L3 | none |
-| `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io, aic79xx and the 2.6.22 perfctr watchdog | L3 | none |
+| `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io, aic79xx, the 2.6.22 perfctr watchdog and the 2.6.33 MCE severity table | L3 | none |
 | `elf-zsystem-on-10` | binutils-* | any ELF binutils on 1.0 | L3 | none, 1.2 takes ELF |
 | `binutils-too-old-assert` | binutils-* | binutils 2.14, x86, 2.6.27 to 2.6.30 | L3 | d2ba8b211bb8 |
 | `binutils-too-old-cfi` | binutils-* | binutils below 2.16, x86, 2.6.18 and 2.6.19 with the unwinder | L3 | d1526e2cda64 |
