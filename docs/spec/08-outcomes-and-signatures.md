@@ -95,6 +95,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `asm-goto-miscompile` | miscompile | 4.5 to 4.8.1 | L5 to L7 | 3f0116c, a9f180345f53 |
 | `gcc46-m-elf-i386` | new-error | 4.6 and later on kernels before 2.6.37, i386 and x86_64 | L3 | de2a8cf98ecd |
 | `gcc44-setup-dil` | new-error | 4.4 and later on 2.6.23 and 2.6.24 | L3 | 811a0fff5d6e |
+| `gcc43-no-unit-at-a-time` | new-error | 4.3 and later, i386, kernels before 2.6.16 | L3 | 9ab34fe76114 |
 | `arm-gcc48-pr58854` | blacklist | 4.8.0 to 4.8.2, arm | L1 | policy from 7fc150543c73, removed in 5.8 |
 | `arm-gcc47-ice-migrate` | ice | 4.7 to 4.8, arm | L3 | `ICE_noinline`, removed in 5.8 |
 | `gcc49-load-balance` | miscompile | 4.9.0, 4.9.1 | L5 to L7 | 2062afb4f804 |
