@@ -182,6 +182,16 @@ gcc = ">=10"
 platform = ["x86_64", "i386"]
 
 [[signature]]
+class = "gcc15-counted-by-kunit"
+rung = "L7"
+match = { first-error = 'KUnit run \d+: .*\boverflow\b', console = 'DEFINE_FLEX_test: EXPECTATION FAILED' }
+kind = "miscompile-by-assumption"
+summary = "GCC 15 is the first GCC with __counted_by, and with it __builtin_dynamic_object_size of a DEFINE_FLEX struct takes the counter in, so the overflow KUnit suite's DEFINE_FLEX_test sees 12 where it expects 8"
+fixed-by = [ { commit = "04e403e6627d", first-tag = "v6.15-rc1", note = "tests the struct and the flexible array sizes apart, not on 6.12.y" } ]
+gcc = ">=15"
+kernel = "<6.15"
+
+[[signature]]
 class = "gcc15-union-padding"
 rung = "L5..L7"
 match = { first-error = 'Kernel panic|BUG:|Oops|general protection fault|Unable to handle kernel|KASAN:|UBSAN:' }
@@ -354,11 +364,22 @@ platform = ["i386", "x86_64"]
 [[signature]]
 class = "gcc-below-min-on-26"
 rung = "L3"
-match = { first-error = 'parse error before|Invalid option' }
+match = { first-error = 'parse error before|Invalid option|Unrecognized option' }
 kind = "too-old"
 summary = "A GCC below the minimum of 2.6, 2.95 up to 2.6.15 and 3.2 from 2.6.16, stops on a flag it does not know or a header it cannot parse before the refusal in init/main.c or compiler.h is compiled. GCC 3.0 and 3.1 count as below it throughout, as the kernel never trusted them"
 gcc = "<3.2"
 kernel = ">=2.6.0"
+
+[[signature]]
+class = "gcc32-directive-in-macro-args"
+rung = "L3"
+match = { first-error = 'smpboot\.c:\d+: syntax error before "unsigned"' }
+kind = "too-old"
+summary = "cb3c8b9003f1 in 2.6.26 put an #ifdef CONFIG_X86_64 inside the arguments of the startup_ipi_hook macro in smpboot.c, which the preprocessor of GCC 3.2 cannot take, although 2.6.26 still asks for 3.2 only"
+fixed-by = [ { commit = "9cf4f298e29a", first-tag = "v2.6.27-rc1", note = "uses stack_start on x86_64 too, so the #ifdef goes" } ]
+gcc = "<3.3"
+kernel = ">=2.6.26, <2.6.27"
+platform = ["i386", "x86_64"]
 
 [[signature]]
 class = "gcc-pre-27-on-20"
