@@ -83,6 +83,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc-296-frame-pointer` | refusal | 2.96 | L1 | removed with gcc-2 checks, a136564 |
 | `gcc-min-32` | refusal | below 3.2 on 2.6.16 to 2.6.28 | L1 to L3 | policy from a136564 |
 | `gcc-below-min-on-26` | too-old | below 2.95 on 2.6.0 to 2.6.15, below 3.2 from 2.6.16 | L3 | none, it stops before the refusal is compiled |
+| `gcc32-directive-in-macro-args` | too-old | 3.2 on 2.6.26, x86 | L3 | 9cf4f298e29a |
 | `gcc-pre-27-on-20` | too-old | below 2.7 on 2.0 | L3 | none |
 | `ifdef-0-in-10` | new-error | 3 and later on 1.0 | L3 | none, gone by 1.2 |
 | `gcc3-0-1-refused` | refusal | 3.0, 3.1 | L1 | policy from 6680598 |
@@ -127,6 +128,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `stable-objtool-fred-reboot` | objtool | 8 to 14, 5.15.168 and later on 5.15, x86_64 | L8 | none yet, a stable backport |
 | `gnu23-bool` | default-change | 15 | L3 | b3bee1e7c3f2, ee2ab467bddf, 8ba14d9f490a, 3b8b80e99376, 947d5d036c78, 5a821e2d69e2, 7cbb015e2d3d, 0f4ae7c6ecb8 |
 | `gcc15-union-padding` | miscompile-by-assumption | 15 | L5 to L7, if anywhere | dce4aab8441d, c15253494fd9 |
+| `gcc15-counted-by-kunit` | miscompile-by-assumption | 15 and later, kernels before 6.15 | L7 | 04e403e6627d |
 | `gcc15-unterminated-string` | new-warning-werror | 15 | L3 | d5d45a7f2619, 9d7a0577c9db |
 | `gcc16-modpost-ipa-init` | modpost | 16 | L4 | 4c9ad387aa2d |
 | `gcc16-unused-but-set` | new-warning-werror | 16 | L3 | 97fb54d86d21, 729a2e8e9ac4 |
