@@ -120,8 +120,8 @@ pub struct Setup {
     pub config: &'static str,
     /// The target the configuration step starts from.
     pub target: String,
-    /// The options added before the fragment, from a file in `configs/`.
-    pub extra: Option<PathBuf>,
+    /// The options added before the fragment, from files in `configs/`: the configuration's own, then the platform's for that configuration when it has one, as `configs/tiny.i386`.
+    pub extra: Vec<PathBuf>,
     /// The platform's own options, added after the fragment, from `configs/platform.<name>` when the platform has one.
     pub platform_fragment: Option<PathBuf>,
     /// The boot image, relative to `arch/<ARCH>/boot`, or `vmlinux` at the top of the tree.
@@ -223,7 +223,16 @@ impl Setup {
         let arch = p.arch_for(&version).unwrap_or_default().to_owned();
         let defconfig = p.defconfig_for(&version).unwrap_or_default().to_owned();
         let target = config_target(target, &defconfig, &version)?;
-        let extra = extra.map(|f| repo.root.join(f));
+        // The platform's file sits next to the configuration's, so a platform with none keeps the digest it had.
+        let extra: Vec<PathBuf> = extra
+            .map(|f| repo.root.join(f))
+            .into_iter()
+            .flat_map(|f| {
+                let own = f.with_extension(&p.name);
+                [Some(f), Some(own).filter(|o| o.is_file())]
+            })
+            .flatten()
+            .collect();
         let image_name = p.image_for(&version).unwrap_or_default().to_owned();
         let bundle = forge::manifest(&g.id, &p.triple)?;
         // A distribution's binutils is its package, which the bundle's digest covers through the hashes it records.
