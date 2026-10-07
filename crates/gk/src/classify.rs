@@ -46,7 +46,21 @@ impl Failure {
 
 /// The lines of a build log that say something went wrong, in the order they came.
 fn error_lines(log: &str) -> Vec<&str> {
-    log.lines().filter(|l| is_error_line(l)).collect()
+    let lines: Vec<&str> = log.lines().filter(|l| is_error_line(l)).collect();
+    if !lines.is_empty() {
+        return lines;
+    }
+    log.lines().filter(|l| is_old_error_line(l)).collect()
+}
+
+/// An old GCC's `serial.c:538:8: macro names must be identifiers`, which has no error in it. It counts only in a log with no other error line, where a line cut off as `export.h:55:22: fatal er` cannot be one, and it needs a file and a line so that `Kernel: bzImage is ready` does not count.
+fn is_old_error_line(l: &str) -> bool {
+    !l.starts_with("make:")
+        && !l.starts_with("make[")
+        && !l.starts_with('#')
+        && !l.starts_with("  ")
+        && build::old_style_error(l)
+        && l.split_once(": ").is_some_and(|(place, _)| place.contains(':'))
 }
 
 fn is_error_line(l: &str) -> bool {
@@ -64,10 +78,7 @@ fn is_error_line(l: &str) -> bool {
             || l.contains("modpost:")
             || l.contains("undefined reference")
             || l.contains("multiple definition")
-            || l.contains("LOAD segment with RWX")
-            // An old GCC's `serial.c:538:8: macro names must be identifiers`, with a file and a line so that `Kernel: bzImage is ready` does not count.
-            || (build::old_style_error(l)
-                && l.split_once(": ").is_some_and(|(place, _)| place.contains(':'))))
+            || l.contains("LOAD segment with RWX"))
 }
 
 /// The error line that names the target make first gave up on, as `arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table` before `*** [arch/x86/entry/thunk_64.o] Error 1`. Under `-j` that says more than the lines kbuild stopped on, which are whatever the other jobs printed last.
@@ -235,8 +246,15 @@ fn no_unit(stopped: Option<String>, make: &str) -> String {
     if let Some(line) = gave_up_on(make) {
         return line;
     }
+    let says = |t: &str| t.lines().any(is_error_line);
     match stopped {
-        Some(s) if !error_lines(&s).is_empty() || error_lines(make).is_empty() => s,
+        Some(s)
+            if says(&s)
+                || error_lines(make).is_empty()
+                || (!says(make) && !error_lines(&s).is_empty()) =>
+        {
+            s
+        }
         _ => first_of(make),
     }
 }
@@ -311,7 +329,11 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
                 f.command = command;
             } else {
                 // A log cut short ends where it was cut, often mid-line, so its last lines say nothing of why it stopped.
-                let stopped = if build::cut_short(dir) { None } else { stopped(dir) };
+                let stopped = if build::cut_short(dir) {
+                    None
+                } else {
+                    stopped(dir)
+                };
                 f.first_error = no_unit(stopped, &build_log(dir));
             }
         }
@@ -913,6 +935,12 @@ platform = ["x86_64"]
             ["serial.c:538:8: macro names must be identifiers"]
         );
         assert!(error_lines("Kernel: arch/x86/boot/bzImage is ready  (#1)\n").is_empty());
+        let make = "a.c:(.text+0x0): multiple definition of `f'\nmake[1]: *** [x] Error 2\n";
+        let cut = "make -f x\n/src/include/linux/export.h:55:22: fatal er";
+        assert_eq!(
+            no_unit(Some(cut.to_owned()), make),
+            "a.c:(.text+0x0): multiple definition of `f'"
+        );
     }
 
     #[test]
