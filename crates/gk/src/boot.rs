@@ -1132,8 +1132,14 @@ mod tests {
     #[test]
     fn a_warning_a_few_lines_off_is_the_same_splat() {
         let a = "WARNING: drivers/gpu/drm/drm_connector.c:232";
-        assert!(same_splat(a, "WARNING: drivers/gpu/drm/drm_connector.c:234"));
-        assert!(!same_splat(a, "WARNING: drivers/gpu/drm/drm_connector.c:260"));
+        assert!(same_splat(
+            a,
+            "WARNING: drivers/gpu/drm/drm_connector.c:234"
+        ));
+        assert!(!same_splat(
+            a,
+            "WARNING: drivers/gpu/drm/drm_connector.c:260"
+        ));
         assert!(!same_splat(a, "WARNING: drivers/gpu/drm/drm_rect.c:232"));
         assert!(same_splat("UBSAN: x in lib/x.c:3:9", "UBSAN: x in lib/x.c:3:9"));
         assert!(!same_splat("UBSAN: x in lib/x.c:3:9", "UBSAN: x in lib/x.c:3:8"));
