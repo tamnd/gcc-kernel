@@ -984,8 +984,12 @@ gcc = "<5"
             cluster_key("vt.c:(.init.text+0x5ebc): undefined reference to `.L895'")
         );
         assert_eq!(
-            cluster_key("/tmp/ccHgwK9q.s: Error: .size expression for f does not evaluate to a constant"),
-            cluster_key("/tmp/ccgphHwh.s: Error: .size expression for f does not evaluate to a constant")
+            cluster_key(
+                "/tmp/ccHgwK9q.s: Error: .size expression for f does not evaluate to a constant"
+            ),
+            cluster_key(
+                "/tmp/ccgphHwh.s: Error: .size expression for f does not evaluate to a constant"
+            )
         );
     }
 
