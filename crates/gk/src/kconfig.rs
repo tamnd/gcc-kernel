@@ -207,7 +207,7 @@ CONFIG_GCC_VERSION=80500
             let fragment = parse_fragment(&std::fs::read_to_string(&path).unwrap());
             let name = path.file_name().unwrap().to_string_lossy();
             // The eras before 2.6 have no devtmpfs, tmpfs or sysfs to ask for.
-            let least = if name == "tiny.gk" || name.starts_with("platform.") {
+            let least = if name.starts_with("tiny.") || name.starts_with("platform.") {
                 1
             } else if [
                 "fragment.X1",

@@ -1,0 +1,2 @@
+# What an arm tinyconfig+gk or allnoconfig+gk cell adds after configs/tiny.gk (spec 07.2). gk-init reads the clock with clock_gettime and nanosleep, which on a 32-bit kernel are the 32-bit time_t calls, and both targets switch those off.
+CONFIG_COMPAT_32BIT_TIME=y
