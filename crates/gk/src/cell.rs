@@ -881,6 +881,7 @@ fn boot_once(
     dir: &Path,
     suite: &str,
     stem: &str,
+    uniprocessor: bool,
 ) -> Result<boot::Outcome, String> {
     boot::run(
         repo,
@@ -891,6 +892,7 @@ fn boot_once(
             suite,
             dir,
             stem,
+            uniprocessor,
         },
     )
 }
@@ -902,6 +904,7 @@ fn boots(
     image: &Path,
     cell_dir: &Path,
     kunit: bool,
+    uniprocessor: bool,
     objtool: &[String],
 ) -> Result<Booted, String> {
     let mut steps = Vec::new();
@@ -912,7 +915,7 @@ fn boots(
     let mut kunit_seconds = 0.0;
     for n in 1..=BOOTS {
         let stem = format!("boot-{n}");
-        let o = boot_once(repo, s, image, cell_dir, "smoke", &stem)?;
+        let o = boot_once(repo, s, image, cell_dir, "smoke", &stem, uniprocessor)?;
         steps.push(Step {
             rung: Rung::Booted.to_string(),
             passed: o.booted(),
@@ -936,7 +939,7 @@ fn boots(
         }
         if kunit && rung == Rung::Smoke {
             let stem = format!("kunit-{n}");
-            let k = boot_once(repo, s, image, cell_dir, "kunit", &stem)?;
+            let k = boot_once(repo, s, image, cell_dir, "kunit", &stem, uniprocessor)?;
             kunit_seconds += k.seconds;
             kunit_splats.push(k.splats.iter().map(|l| boot::splat_key(l)).collect());
             suites.push(if k.ended() && k.panic.is_none() {
@@ -1546,10 +1549,12 @@ pub fn run(
                 reached = Rung::Linked;
                 image_sha256 = net::sha256_file(&image).unwrap_or_default();
                 if s.boots {
-                    let kunit = std::fs::read_to_string(out.join(".config"))
-                        .is_ok_and(|c| c.lines().any(|l| l == "CONFIG_KUNIT=y"));
+                    let dot = std::fs::read_to_string(out.join(".config")).unwrap_or_default();
+                    let kunit = dot.lines().any(|l| l == "CONFIG_KUNIT=y");
+                    // The machine always has two CPUs, and a kernel built without SMP can only count one.
+                    let uniprocessor = dot.lines().any(|l| l == "# CONFIG_SMP is not set");
                     let objtool = objtool_warnings(&cell_dir);
-                    let b = boots(repo, s, &image, &cell_dir, kunit, &objtool)?;
+                    let b = boots(repo, s, &image, &cell_dir, kunit, uniprocessor, &objtool)?;
                     steps.extend(b.steps);
                     reached = b.rungs.iter().copied().min().unwrap_or(Rung::Linked);
                     flaky = b.rungs.windows(2).any(|w| w[0] != w[1]);
