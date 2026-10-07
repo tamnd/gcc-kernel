@@ -88,7 +88,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc32-directive-in-macro-args` | too-old | 3.2 on 2.6.26, x86 | L3 | 9cf4f298e29a |
 | `gcc-pre-27-on-20` | too-old | below 2.7 on 2.0 | L3 | none |
 | `ifdef-0-in-10` | new-error | 3 and later on 1.0 | L3 | none, gone by 1.2 |
-| `gcc3-0-1-refused` | refusal | 3.0, 3.1 | L1 | policy from 6680598 |
+| `gcc3-0-1-refused` | refusal | 3.0, 3.1 | L1 to L3 | policy from 6680598 |
 | `arm-gcc3-below-33` | refusal | 3.0 to 3.2, arm | L1 | policy from a136564 |
 | `gcc4-incomplete-array` | new-error | 4 and later on 2.6.0 to 2.6.8, x86 | L3 | none, fixed before git in 2.6.9 |
 | `gcc48-printk-regparm` | new-error | 4.8 and later on 2.6.0 to 2.6.3, i386 | L3 | none, fixed before git in 2.6.4 |

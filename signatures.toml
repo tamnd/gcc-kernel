@@ -38,10 +38,10 @@ gcc = "=2.96"
 
 [[signature]]
 class = "gcc3-0-1-refused"
-rung = "L1"
+rung = "L1..L3"
 match = { first-error = 'too old|please upgrade' }
 kind = "refusal"
-summary = "From 2.6.29 the kernel refuses GCC 3.0 and 3.1"
+summary = "From 2.6.29 the kernel refuses GCC 3.0 and 3.1 in compiler-gcc3.h, which the probe does not always reach, so the refusal can wait for L3"
 fixed-by = [ { commit = "6680598", note = "the refusal is the policy" } ]
 gcc = "=3.0 | =3.1"
 kernel = ">=2.6.29"
@@ -468,9 +468,9 @@ platform = ["i386", "x86_64"]
 [[signature]]
 class = "gcc-below-min-on-26"
 rung = "L3"
-match = { first-error = 'parse error before|Invalid option|Unrecognized option' }
+match = { first-error = 'parse error before|Invalid option|Unrecognized option|bad value \(\w+\) for -march' }
 kind = "too-old"
-summary = "A GCC below the minimum of 2.6, 2.95 up to 2.6.15 and 3.2 from 2.6.16, stops on a flag it does not know or a header it cannot parse before the refusal in init/main.c or compiler.h is compiled. GCC 3.0 and 3.1 count as below it throughout, as the kernel never trusted them"
+summary = "A GCC below the minimum of 2.6, 2.95 up to 2.6.15 and 3.2 from 2.6.16, stops on a flag it does not know, such as -march=athlon for egcs, or a header it cannot parse before the refusal in init/main.c or compiler.h is compiled. GCC 3.0 and 3.1 count as below it throughout, as the kernel never trusted them"
 gcc = "<3.2"
 kernel = ">=2.6.0"
 
