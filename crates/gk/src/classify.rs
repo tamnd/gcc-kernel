@@ -864,7 +864,10 @@ platform = ["x86_64"]
             "(.text+0x1b): multiple definition of `tty_kref_get'; init/main.o:main.c:(.text+0x1b): first defined here"
         );
         let lds = "ld:arch/x86/kernel/vmlinux.lds:432: parse error\nmake[1]: *** [.tmp_vmlinux1] Error 1\n";
-        assert_eq!(no_unit(None, lds), "ld:arch/x86/kernel/vmlinux.lds:432: parse error");
+        assert_eq!(
+            no_unit(None, lds),
+            "ld:arch/x86/kernel/vmlinux.lds:432: parse error"
+        );
     }
 
     #[test]

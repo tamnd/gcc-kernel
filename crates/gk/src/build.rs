@@ -296,7 +296,11 @@ fn old_style_error(l: &str) -> bool {
     let (Some(file), Some(line), Some(rest)) = (parts.next(), parts.next(), parts.next()) else {
         return false;
     };
-    let rest = rest.trim_start();
+    // A newer GCC puts a column after the line.
+    let rest = rest
+        .trim_start_matches(|c: char| c.is_ascii_digit())
+        .trim_start_matches(':')
+        .trim_start();
     !file.is_empty()
         && !file.contains(' ')
         && !line.is_empty()
