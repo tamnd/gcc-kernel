@@ -525,6 +525,64 @@ gcc = ">=3"
 kernel = "<1.1"
 
 [[signature]]
+class = "museum-asm-impossible"
+rung = "L3"
+match = { first-error = "fixed or forbidden register (\\d+ \\(\\w+\\) )?was spilled|Invalid .asm. statement|inconsistent operand constraints in an .asm." }
+kind = "new-error"
+summary = "The inline asm of 1.0 and 1.2 lists input registers as clobbered, which GCC 2.5 let through, and GCC 2.7 and later cannot find registers for it"
+gcc = ">=2.7"
+kernel = "<2.0"
+platform = ["i386"]
+
+[[signature]]
+class = "gcc28-refused-on-20"
+rung = "L3"
+match = { first-error = 'Remove this if you have applied the gcc 2\.8/egcs patches' }
+kind = "refusal"
+summary = "2.0 refuses egcs and GCC 2.8 and later in linux/types.h, which only tests __GNUC_MINOR__ >= 8 because its __GNUC_MAJOR is a typo, so GCC 2.95 is refused and GCC 3.0 gets through"
+kernel = ">=2.0, <2.1"
+platform = ["i386"]
+
+[[signature]]
+class = "gcc-below-min-on-22"
+rung = "L3"
+match = { first-error = 'parse error before|Invalid option' }
+kind = "too-old"
+summary = "2.2 asks for GCC 2.7.2, and 2.5.8 cannot parse the section attributes in its headers"
+gcc = "<2.7"
+kernel = ">=2.2, <2.3"
+platform = ["i386"]
+
+[[signature]]
+class = "gcc-below-min-on-24"
+rung = "L3"
+match = { first-error = 'parse error before|Invalid option' }
+kind = "too-old"
+summary = "2.4 asks for GCC 2.95 or egcs 1.1.2, and GCC 2.7 knows neither -fno-strict-aliasing nor -march, and cannot parse its headers"
+gcc = ">=2.0, <2.9"
+kernel = ">=2.4, <2.5"
+platform = ["i386"]
+
+[[signature]]
+class = "gcc3-ipi-count-on-22"
+rung = "L3"
+match = { first-error = "smp\\.c:\\d+: conflicting types for .ipi_count." }
+kind = "new-error"
+summary = "2.2 declares ipi_count as unsigned long in asm/smp.h and defines it volatile in smp.c, which GCC 2.95 let through and GCC 3 refuses"
+gcc = ">=3"
+kernel = ">=2.2, <2.3"
+platform = ["i386"]
+
+[[signature]]
+class = "elf-zsystem-on-10"
+rung = "L3"
+match = { first-error = 'Non-GCC header|-o zSystem' }
+kind = "binutils-layout"
+summary = "tools/build in 1.0 wants an a.out zSystem and says Non-GCC header of the ELF one that every bundled binutils links, while 1.2 takes ELF"
+kernel = "<1.1"
+platform = ["i386"]
+
+[[signature]]
 class = "gcc44-setup-dil"
 rung = "L3"
 match = { first-error = "bad register name `%dil'" }
@@ -785,9 +843,9 @@ platform = ["x86_64"]
 [[signature]]
 class = "binutils-too-old-bignum"
 rung = "L3"
-match = { first-error = 'bignum invalid', unit = 'drivers/(?:net/s2io|scsi/aic7xxx)' }
+match = { first-error = 'bignum invalid', unit = 'drivers/(?:net/s2io|scsi/aic7xxx)|arch/i386/kernel/cpu/perfctr-watchdog' }
 kind = "binutils-too-old"
-summary = "binutils 2.14 rejects the 64 bit constants the s2io and aic79xx drivers write, on i386 from 2.6.7"
+summary = "binutils 2.14 rejects the 64 bit constants the s2io and aic79xx drivers write, on i386 from 2.6.7, and in 2.6.22 the perfctr watchdog reaches it first"
 binutils = "<2.16"
 platform = ["i386"]
 
