@@ -60,6 +60,8 @@ pub struct Boot<'a> {
     pub dir: &'a Path,
     /// Their file name without the extension, as `boot` for `boot.log` and `boot.json`.
     pub stem: &'a str,
+    /// Whether the kernel was configured without SMP, as tinyconfig is on x86, so it only ever sees one of the CPUs the machine has.
+    pub uniprocessor: bool,
 }
 
 /// One `GK-CHECK` line.
@@ -587,6 +589,9 @@ pub fn run(repo: &Repo, b: &Boot<'_>) -> Result<Outcome, String> {
     );
     let mut outcome = Outcome::new(command.clone(), qemu, init.digest);
     outcome.excused = excused(b.version);
+    if b.uniprocessor {
+        outcome.excused.push("cpus".into());
+    }
     let clock = Instant::now();
     let budget = Duration::from_secs(u64::from(if b.suite == "kunit" {
         b.platform.budget.kunit_seconds()
@@ -803,6 +808,7 @@ pub fn command(repo: &Repo, args: &[String]) -> Result<bool, String> {
             suite: &suite,
             dir: &dir,
             stem: "boot",
+            uniprocessor: false,
         },
     )?;
     let passed = o.checks.iter().filter(|c| c.pass).count();
