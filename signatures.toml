@@ -281,6 +281,16 @@ summary = "check_timer() gives the PIT a few jiffies to tick through the IO-APIC
 platform = ["x86_64", "i386"]
 
 [[signature]]
+class = "tcg-rtc-kunit-stall"
+rung = "L8"
+match = { first-error = 'rcu: INFO: rcu_sched (self-detected stall on CPU|detected stalls on CPUs/tasks)' }
+kind = "emulator"
+summary = "5.10 runs every KUnit suite in the smoke boot, and rtc_time64_to_tm_test_date_range walks 160,000 years without a break, which under TCG takes longer than the 21 second RCU stall timeout. Every GCC that boots 5.10.270 on x86_64 stalls in the same test, so the cell says nothing about GCC"
+fixed-by = [ { commit = "95c46336ab47", first-tag = "v6.10-rc1", note = "splits the test and marks the 160,000 year range slow, not on 5.10.y" } ]
+kernel = ">=5.10, <5.11"
+platform = ["x86_64"]
+
+[[signature]]
 class = "out-of-tree-include"
 rung = "L3"
 match = { first-error = 'arch/x86_64/pci/[a-z0-9]+\.c:\d+(:\d+)?: pci\.h: No such file or directory' }

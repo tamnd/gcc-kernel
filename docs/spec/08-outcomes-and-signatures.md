@@ -156,6 +156,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `woody-depmod-kstrtab` | host-tool | binutils after 2.12, 2.4 on the woody host, i386 | L4 | none, the woody host now builds depmod from modutils 2.4.27 |
 | `tcg-tsc-clock` | emulator | any, i386, 2.6.0 to 2.6.17 under TCG on a loaded host | L6 | none, the clocksource code of 2.6.18 checks the TSC |
 | `tcg-ioapic-timer` | emulator | any, x86, under TCG on a loaded host | L5 | none, a boot that hits it is a rig problem |
+| `tcg-rtc-kunit-stall` | emulator | any, x86_64, 5.10 under TCG | L8 | 95c46336ab47, not on 5.10.y |
 | `out-of-tree-include` | out-of-tree | any, x86_64, 2.6.5 to 2.6.8 | L3 | none, fixed before git in 2.6.9 |
 | `too-old-asm-goto` | too-old | below 4.5 | L3 | the kernel's `CC_HAS_ASM_GOTO` probe and, from 4.20 on x86, the requirement |
 | `too-old-generic` | too-old | below 4.9 | L3 | policy from 6ec4476ac825 |
