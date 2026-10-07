@@ -73,8 +73,8 @@ match = { first-error = 'linux/compiler-gcc(\d+)\.h: No such file or directory' 
 kind = "refusal"
 summary = "Kernels 2.6.29 to 4.1 include one header per GCC major version and have none for this one"
 fixed-by = [
-  { commit = "cb984d101b30", first-tag = "v4.2-rc1", stable = ["3.10"] },
-  { commit = "71458cfc782e", first-tag = "v3.18-rc1", stable = ["3.10", "3.13"], note = "adds compiler-gcc5.h only" },
+  { commit = "cb984d101b30", first-tag = "v4.2-rc1", stable = ["3.10"], bisected = true },
+  { commit = "71458cfc782e", first-tag = "v3.18-rc1", stable = ["3.10", "3.13"], note = "adds compiler-gcc5.h only", bisected = true },
 ]
 gcc = ">=5"
 kernel = ">=2.6.29, <=4.1"
@@ -86,7 +86,7 @@ match = { first-error = 'no compiler-gcc\.h file for this gcc version' }
 kind = "refusal"
 summary = "2.6.12 to 2.6.28 stop on any GCC major above 4 in compiler.h"
 fixed-by = [
-  { commit = "f153b82", first-tag = "v2.6.29-rc1", note = "changes the refusal into a missing header" },
+  { commit = "f153b82121b0", first-tag = "v2.6.29-rc1", note = "changes the refusal into a missing header", bisected = true },
   { commit = "cb984d101b30", first-tag = "v4.2-rc1", stable = ["3.10"] },
 ]
 gcc = ">=5"
@@ -109,7 +109,7 @@ rung = "L1"
 match = { first-error = 'compiler is too old|please use 4\.6' }
 kind = "refusal"
 summary = "4.19 to 5.7 need GCC 4.6"
-fixed-by = [ { commit = "cafa0010cd51", note = "the minimum is the policy" } ]
+fixed-by = [ { commit = "cafa0010cd51", note = "the minimum is the policy", bisected = true } ]
 gcc = "<4.6"
 kernel = ">=4.19, <5.8"
 

@@ -271,18 +271,38 @@ pub fn failing_units(records: &[CompileRecord], tree: &Path) -> Vec<FailedUnit> 
         .filter(|r| is_unit(r) && !r.succeeded())
         .map(|r| FailedUnit {
             unit: unit_source(r, tree),
-            error: r
-                .stderr
-                .lines()
-                .find(|l| l.contains("error") || l.contains("Error:"))
-                .unwrap_or_default()
-                .trim()
-                .to_owned(),
+            error: unit_error(&r.stderr),
         })
         .collect();
     units.sort_by(|a, b| a.unit.cmp(&b.unit));
     units.dedup_by(|a, b| a.unit == b.unit);
     units
+}
+
+/// The error line of a unit's stderr. GCC before 3.3 printed an error as `file:line: message` with no `error:` in it, so when no line says error, the first such line that is not a warning counts.
+fn unit_error(stderr: &str) -> String {
+    stderr
+        .lines()
+        .find(|l| l.contains("error") || l.contains("Error:"))
+        .or_else(|| stderr.lines().find(|l| old_style_error(l)))
+        .unwrap_or_default()
+        .trim()
+        .to_owned()
+}
+
+/// Whether a line is an old GCC's `file:line: message` that is not a warning or a note.
+fn old_style_error(l: &str) -> bool {
+    let mut parts = l.splitn(3, ':');
+    let (Some(file), Some(line), Some(rest)) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    let rest = rest.trim_start();
+    !file.is_empty()
+        && !file.contains(' ')
+        && !line.is_empty()
+        && line.bytes().all(|b| b.is_ascii_digit())
+        && !rest.starts_with("warning")
+        && !rest.starts_with("note")
 }
 
 /// The last lines of a log that say why kbuild stopped: not make's own lines, and not kbuild's indented progress lines.
@@ -487,6 +507,23 @@ mod tests {
         assert!(disk_full(&dir));
         assert!(rig_failed(&dir));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn an_old_gcc_error_has_no_error_in_it() {
+        let gcc2 = "init/main.c: In function `checksetup':\ninit/main.c:224: fixed or forbidden register was spilled.\nThis may be due to a compiler bug or to impossible asm\n";
+        assert_eq!(
+            unit_error(gcc2),
+            "init/main.c:224: fixed or forbidden register was spilled."
+        );
+        let warned = "In file included from sched.c:12:\n/out/include/linux/sys.h:145: warning: function declaration isn't a prototype\n/out/include/asm/io.h:82: inconsistent operand constraints in an `asm'\n";
+        assert_eq!(
+            unit_error(warned),
+            "/out/include/asm/io.h:82: inconsistent operand constraints in an `asm'"
+        );
+        let new = "/src/a.c:3:1: warning: x\n/src/a.c:9:2: error: y undeclared\n";
+        assert_eq!(unit_error(new), "/src/a.c:9:2: error: y undeclared");
+        assert_eq!(unit_error("/src/a.c:3:1: warning: x\n"), "");
     }
 
     #[test]
