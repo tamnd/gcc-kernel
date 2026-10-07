@@ -10,7 +10,7 @@ Whether the era GCC of each era works for every kernel in it (spec 11.2), for ru
 | M3 | E2 | 2.3 | gcc-2.95.3 | 1 | 1 | 0 | 0 |
 | M4 | E3 | 2.5 | gcc-3.3.6 | 38 | 7 | 31 | 0 |
 | M5 | E4 | 2.6.16 | gcc-4.1.2 | 20 | 12 | 8 | 0 |
-| M6 | E4 | 2.6.26 | gcc-4.3.5 | 32 | 29 | 1 | 2 |
+| M6 | E4 | 2.6.26 | gcc-4.3.5 | 41 | 37 | 1 | 3 |
 | M7 | E5 | 3.0 | gcc-4.7.2 | 7 | 0 | 0 | 7 |
 | M8 | E6 | 3.18 | gcc-4.9.2 | 1 | 0 | 0 | 1 |
 | M9 | E7 | 4.2 | gcc-6.3.0 | 6 | 0 | 0 | 6 |
@@ -18,7 +18,7 @@ Whether the era GCC of each era works for every kernel in it (spec 11.2), for ru
 | M11 | E8 | 5.5 | debian-bullseye-gcc-10 | 3 | 0 | 2 | 1 |
 | M12 | E9 | 5.12 | debian-bullseye-gcc-10 | 3 | 0 | 2 | 1 |
 | M13 | E10 | 5.18 | gcc-12.2.0 | 13 | 4 | 5 | 4 |
-| M14 | E11 | 6.15 | gcc-14.2.0 | 12 | 2 | 4 | 6 |
+| M14 | E11 | 6.15 | gcc-14.2.0 | 13 | 2 | 5 | 6 |
 
 ## Proposed changes to personas.toml
 
@@ -49,7 +49,7 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 - 2.6.6 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
 - 2.6.7 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
 - 2.6.8 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
-- 2.6.9 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.9 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and the nearest working column is gcc-3.2.3.
 - 2.6.10 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
 - 2.6.11 on x86_64 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.12 on x86_64 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
@@ -78,6 +78,7 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 - 7.2.8 on arm64 (defconfig+gk): gcc-14.2.0 fails at L2, and no column works.
 - 6.18.54 on x86_64 (defconfig+gk): gcc-14.2.0 runs at L7, and the nearest working column is gcc-14.4.0.
 - 7.2.8 on x86_64 (defconfig+gk): gcc-14.2.0 runs at L7, and the nearest working column is gcc-14.4.0.
+- 7.2.9 on x86_64 (tinyconfig+gk): gcc-14.2.0 builds at L5, and no column works.
 
 ## M0, from 1.0, era GCC gcc-2.5.8
 
@@ -102,7 +103,7 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 
 | Kernel | Platform | Configuration | Era column | Era cell | Working set | Nearest working column |
 |---|---|---|---|:-:|---|---|
-| 2.4.37.11 | i386 | defconfig+gk | gcc-2.95.3 | 🟩 | gcc-2.95.3 to gcc-3.1.1 |  |
+| 2.4.37.11 | i386 | defconfig+gk | gcc-2.95.3 | 🟩 | gcc-2.95.3 to gcc-4.1.2 |  |
 
 ## M4, from 2.5, era GCC gcc-3.3.6
 
@@ -136,7 +137,7 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 2.6.6 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.7 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.8 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
-| 2.6.9 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.9 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | gcc-3.2.3 | gcc-3.2.3 |
 | 2.6.10 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.11 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.11.12 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟩 | gcc-3.2.3 to gcc-3.3.6 |  |
@@ -180,14 +181,19 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 2.6.27 | i386 | defconfig+gk | gcc-4.3.5 | 🟥 | gcc-3.3.6 to gcc-4.0.4 | gcc-4.0.4 |
 | 2.6.27.62 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.28 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
-| 2.6.28.10 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.3.6 |  |
+| 2.6.28.10 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.4.7 |  |
 | 2.6.29 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.4.6 to gcc-4.3.6 |  |
-| 2.6.29.6 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.4.7 |  |
+| 2.6.29.6 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.30 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.4.6 to gcc-4.3.5 |  |
+| 2.6.30.10 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.31 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
+| 2.6.31.14 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 | 2.6.32 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.2.4 to gcc-4.3.5 |  |
+| 2.6.32.71 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 | 2.6.33 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.1.2 to gcc-4.5.4 |  |
+| 2.6.33.20 | i386 | defconfig+gk | gcc-4.3.5 |  | gcc-4.1.2 to gcc-4.5.4 |  |
 | 2.6.34 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.4.7 |  |
+| 2.6.34.15 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.3.5 |  |
 | 2.6.35 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 | 2.6.36 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 | 2.6.37 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.3.5 |  |
@@ -198,14 +204,18 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 2.6.28 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.28.10 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.2.4 to gcc-4.5.4 |  |
 | 2.6.29 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
+| 2.6.29.6 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
+| 2.6.30.10 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.31 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.4.7 |  |
+| 2.6.31.14 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.4.7 |  |
 | 2.6.32 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.3.5 |  |
 | 2.6.32.71 | x86_64 | defconfig+gk | gcc-4.3.5 |  | empty |  |
 | 2.6.33 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
-| 2.6.34 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.4.7 |  |
+| 2.6.33.20 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
+| 2.6.34 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 | 2.6.35 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.1.2 to gcc-4.3.6 |  |
 | 2.6.35.14 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.3.5 |  |
-| 2.6.36 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.3.5 |  |
+| 2.6.36 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.3.6 |  |
 | 2.6.38 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.3.5 to gcc-4.5.4 |  |
 | 2.6.39 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 
@@ -274,13 +284,13 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 6.1.189 | i386 | defconfig+gk | gcc-12.2.0 |  | empty |  |
 | 6.6.157 | i386 | defconfig+gk | gcc-12.2.0 | 🟥 | empty |  |
 | 6.6.158 | i386 | defconfig+gk | gcc-12.2.0 |  | empty |  |
-| 6.12.111 | i386 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-10.5.0 to gcc-14.4.0 |  |
+| 6.12.111 | i386 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-8.5.0 to gcc-14.4.0 |  |
 | 6.12.112 | i386 | defconfig+gk | gcc-12.2.0 |  | empty |  |
 | 6.1.188 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟧 | empty |  |
 | 6.1.189 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟨 | empty |  |
-| 6.6.157 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-11.5.0 to gcc-16.2.0 |  |
+| 6.6.157 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-8.5.0 to gcc-16.2.0 |  |
 | 6.6.158 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟥 | empty |  |
-| 6.12.111 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-11.5.0 to gcc-14.4.0 |  |
+| 6.12.111 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-8.5.0 to gcc-14.4.0 |  |
 | 6.12.112 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟩 | gcc-12.2.0 |  |
 
 ## M14, from 6.15, era GCC gcc-14.2.0
@@ -296,6 +306,7 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 6.18.55 | i386 | defconfig+gk | gcc-14.2.0 |  | empty |  |
 | 7.2.8 | i386 | defconfig+gk | gcc-14.2.0 | 🟩 | gcc-8.5.0 to gcc-16.2.0 |  |
 | 7.2.9 | i386 | defconfig+gk | gcc-14.2.0 |  | empty |  |
-| 6.18.54 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | gcc-10.5.0 to gcc-16.2.0 | gcc-14.4.0 |
+| 6.18.54 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | gcc-8.5.0 to gcc-16.2.0 | gcc-14.4.0 |
 | 6.18.55 | x86_64 | defconfig+gk | gcc-14.2.0 |  | empty |  |
 | 7.2.8 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | gcc-8.5.0 to gcc-16.2.0 | gcc-14.4.0 |
+| 7.2.9 | x86_64 | tinyconfig+gk | gcc-14.2.0 | 🟧 | empty |  |

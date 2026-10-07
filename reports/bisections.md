@@ -2,7 +2,7 @@
 
 Every `fixed-by` commit of the failure catalog is confirmed by bisecting between a kernel the signature matches and one it does not, with the signature's GCC (spec 03.5 and 08.2). When the bisection finds another commit, the bisected commit wins and the signature is corrected. A signature can name several commits, one for each place the kernel had to change, and a bisection confirms the one its range and platform reach. Written by `gk publish` from `signatures.toml` and the bisections in the result store.
 
-5 bisections in the store. 3 of the 53 signatures with a fixing commit have at least one of their commits confirmed.
+5 bisections in the store. 3 of the 66 signatures with a fixing commit have at least one of their commits confirmed.
 
 ## Signatures
 
@@ -10,7 +10,7 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 |---|---|---|---|---|
 | gcc-min-32 | L1..L3 | refusal | `a136564` |  |
 | gcc-296-frame-pointer | L1 | refusal | `a136564` |  |
-| gcc3-0-1-refused | L1 | refusal | `6680598` |  |
+| gcc3-0-1-refused | L1..L3 | refusal | `6680598` |  |
 | arm-gcc3-below-33 | L1 | refusal | `a136564` |  |
 | gcc41-weak | L1 | blacklist | `f9d1425` |  |
 | no-compiler-header | L1 | refusal | `cb984d101b30` `71458cfc782e` | `cb984d101b30` `71458cfc782e` |
@@ -23,18 +23,26 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | asm-goto-miscompile | L5..L7 | miscompile | `3f0116c` `a9f180345f53` |  |
 | gcc49-load-balance | L5..L7 | miscompile | `2062afb4f804` |  |
 | gcc10-start-secondary | L5 | miscompile-by-assumption | `a9a3ed1eff36` |  |
+| gcc15-counted-by-kunit | L7 | miscompile-by-assumption | `04e403e6627d` |  |
 | gcc15-union-padding | L5..L7 | miscompile-by-assumption | `dce4aab8441d` |  |
 | arm-gcc47-ice-migrate | L3 | ice | `6ec4476ac825` |  |
 | too-old-asm-goto | L3 | too-old | `e501ce957a78` |  |
 | too-old-generic | L3 | too-old | `6ec4476ac825` |  |
+| tcg-rtc-kunit-stall | L8 | emulator | `95c46336ab47` |  |
 | distro-ssp | L3 | default-change | `34c162f79e37` `eb2cafa1d902` |  |
 | distro-pie | L3 | default-change | `8ae94224c9d7` `c6a385539175` |  |
 | distro-cf-protection | L3 | default-change | `29be86d7f9cb` |  |
 | fno-common | L3 | default-change | `e33a814e772c` |  |
-| gnu11-extern-inline | L3 | default-change | `14bfc987e395` `8f375e10ee47` `51b97e354ba9` |  |
+| gnu11-extern-inline | L3 | default-change | `e2afe67453e5` `14bfc987e395` `8f375e10ee47` `51b97e354ba9` |  |
 | gnu23-bool | L3 | default-change | `b3bee1e7c3f2` `ee2ab467bddf` `8ba14d9f490a` `3b8b80e99376` `947d5d036c78` `5a821e2d69e2` `7cbb015e2d3d` `0f4ae7c6ecb8` |  |
+| gcc42-proxy-pda | L3 | new-error | `1bac3b383a93` |  |
+| gcc48-mutex-slowpath-unused | L3 | new-error | `7918baa55514` |  |
+| gcc48-ptrace-asmregparm | L3 | new-error | `1b4ac2a935aa` |  |
 | gcc46-m-elf-i386 | L3 | new-error | `de2a8cf98ecd` |  |
+| gcc3-vdso-plt-overlap | L3 | too-old | `c65916fe3586` |  |
+| gcc32-directive-in-macro-args | L3 | too-old | `9cf4f298e29a` |  |
 | gcc44-setup-dil | L3 | new-error | `811a0fff5d6e` |  |
+| gcc43-no-unit-at-a-time | L3 | new-error | `9ab34fe76114` |  |
 | gcc7-format-werror | L3 | new-warning-werror | `bd664f6b3e37` |  |
 | gcc8-packed-not-aligned | L3 | new-warning-werror | `321cb0308a9e` |  |
 | gcc8-attribute-alias | L3 | new-warning-werror | `bee20031772a` |  |
@@ -51,6 +59,11 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | gcc8-objtool-cold | L4..L8 | objtool | `13810435b9a7` |  |
 | gcc8-objtool-switch | L4..L8 | objtool | `fd35c88b7441` |  |
 | gcc16-modpost-ipa-init | L4 | modpost | `4c9ad387aa2d` |  |
+| binutils-too-old-assert | L3 | binutils-too-old | `d2ba8b211bb8` |  |
+| binutils-too-old-cfi | L3 | binutils-too-old | `d1526e2cda64` |  |
+| binutils-too-old-multiline-macro | L3 | binutils-too-old | `6e3515352bdd` |  |
+| binutils-216-user32-cs | L3 | binutils-too-old | `dd2897bf0f4d` |  |
+| binutils-size-undefined | L3 | binutils-assembler | `ad2fc2cd9253` |  |
 | binutils-segment-mov | L3 | binutils-assembler | `fd51f666fa59` |  |
 | binutils-range-ok-cmp | L3 | binutils-assembler | `722f4f5b2600` |  |
 | binutils-plt32 | L4..L5 | binutils-relocation | `b21ebf2fb4cd` |  |
