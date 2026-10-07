@@ -569,6 +569,9 @@ pub fn classify(repo: &Repo, write: bool) -> Result<String, String> {
 pub fn cluster_key(first_error: &str) -> String {
     build::error_key(first_error).unwrap_or_else(|| {
         let line = first_error.lines().next().unwrap_or("(nothing)");
+        // An offset such as `+0x3a74` has letters in it, which would split one error into a cluster per offset.
+        let hex = Regex::new(r"0x[0-9a-fA-F]+").expect("a valid pattern");
+        let line = hex.replace_all(line, "0");
         let mut out = String::new();
         for c in line.chars() {
             if c.is_ascii_digit() {
@@ -972,6 +975,10 @@ gcc = "<5"
         assert_eq!(
             cluster_key("timed out after: [ 12.5] x"),
             "timed out after: [ N.N] x"
+        );
+        assert_eq!(
+            cluster_key("vt.c:(.init.text+0x3a74): undefined reference to `.L1598'"),
+            cluster_key("vt.c:(.init.text+0x5ebc): undefined reference to `.L895'")
         );
     }
 
