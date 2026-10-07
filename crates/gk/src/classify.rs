@@ -572,6 +572,9 @@ pub fn cluster_key(first_error: &str) -> String {
         // An offset such as `+0x3a74` has letters in it, which would split one error into a cluster per offset.
         let hex = Regex::new(r"0x[0-9a-fA-F]+").expect("a valid pattern");
         let line = hex.replace_all(line, "0");
+        // GCC hands gas a temporary file such as `/tmp/ccHgwK9q.s`, a new name on every run.
+        let tmp = Regex::new(r"\bcc[0-9A-Za-z]{6}\.s\b").expect("a valid pattern");
+        let line = tmp.replace_all(&line, "cc.s");
         let mut out = String::new();
         for c in line.chars() {
             if c.is_ascii_digit() {
@@ -979,6 +982,10 @@ gcc = "<5"
         assert_eq!(
             cluster_key("vt.c:(.init.text+0x3a74): undefined reference to `.L1598'"),
             cluster_key("vt.c:(.init.text+0x5ebc): undefined reference to `.L895'")
+        );
+        assert_eq!(
+            cluster_key("/tmp/ccHgwK9q.s: Error: .size expression for f does not evaluate to a constant"),
+            cluster_key("/tmp/ccgphHwh.s: Error: .size expression for f does not evaluate to a constant")
         );
     }
 
