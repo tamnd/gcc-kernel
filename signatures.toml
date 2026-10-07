@@ -1,6 +1,6 @@
 # The failure catalog of spec 08. Every failed cell is run through these by `gk classify`.
 #
-# A signature applies to a cell that failed at one of its rungs when every pattern of `match` finds something in the matching part of the cell: `first-error` (the refusal, the first error of the first failing unit, or the first bad console line), `unit`, `console`, `config` or `command`. The patterns are Rust regular expressions. The ranges `gcc`, `binutils` and `kernel` are versions joined by `,` for all and `|` for any, and `platform` is a list. A cell that matches the patterns but falls outside the ranges is reported as a new finding instead of being classified.
+# A signature applies to a cell that failed at one of its rungs when every pattern of `match` finds something in the matching part of the cell: `first-error` (the refusal, the first error of the first failing unit, or the first bad console line), `unit`, `console`, `config` or `command`. The patterns are Rust regular expressions. The ranges `gcc`, `binutils` and `kernel` are versions joined by `,` for all and `|` for any, and `platform` is a list. A cell that matches the patterns but falls outside the ranges is reported as a new finding instead of being classified, unless another signature classifies it.
 #
 # The seed is spec 08.4. Where a fix is a policy the kernel kept, `fixed-by` names the commit with no tag. The runtime signatures (L5 to L7) are wide on purpose until real cells narrow them.
 #
