@@ -321,8 +321,7 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
         ),
     ] {
         let text = text.map_err(|e| e.to_string())? + "\n";
-        std::fs::write(dir.join(name), text)
-            .map_err(|e| format!("writing matrix/{name}: {e}"))?;
+        std::fs::write(dir.join(name), text).map_err(|e| format!("writing matrix/{name}: {e}"))?;
     }
     let reports = repo.root.join("reports");
     let mut written = Vec::new();

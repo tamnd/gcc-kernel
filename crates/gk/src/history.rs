@@ -13,6 +13,9 @@ use std::fmt::Write as _;
 /// Platform, configuration and kernel.
 type RowKey<'a> = (&'a str, &'a str, Version);
 
+/// A GCC column by version, then its name, platform and configuration.
+type ColumnKey<'a> = (Version, &'a str, &'a str, &'a str);
+
 /// The rows of the matrix: the newest cell per GCC column, in GCC version order.
 fn rows<'a>(repo: &Repo, m: &'a Matrix) -> BTreeMap<RowKey<'a>, Vec<(Version, &'a Entry)>> {
     let mut newest: BTreeMap<(RowKey<'a>, &'a str), &'a Entry> = BTreeMap::new();
@@ -285,7 +288,11 @@ pub struct KernelRange {
 fn upstream<'a>(repo: &Repo, m: &'a Matrix) -> BTreeMap<RowKey<'a>, Vec<(Version, &'a Entry)>> {
     let mut out = rows(repo, m);
     for cells in out.values_mut() {
-        cells.retain(|(_, e)| repo.gccs.get(&e.gcc).is_some_and(|g| g.flavor == "upstream"));
+        cells.retain(|(_, e)| {
+            repo.gccs
+                .get(&e.gcc)
+                .is_some_and(|g| g.flavor == "upstream")
+        });
     }
     out.retain(|_, cells| !cells.is_empty());
     out
@@ -352,7 +359,7 @@ pub fn frontiers(repo: &Repo, m: &Matrix) -> Frontiers {
 /// The kernel range of every column.
 #[must_use]
 pub fn ranges(repo: &Repo, m: &Matrix) -> Ranges {
-    let mut by: BTreeMap<(Version, &str, &str, &str), Vec<(&Version, bool)>> = BTreeMap::new();
+    let mut by: BTreeMap<ColumnKey<'_>, Vec<(&Version, bool)>> = BTreeMap::new();
     let rows = upstream(repo, m);
     for ((platform, config, kernel), cells) in &rows {
         for (v, e) in cells {
@@ -466,7 +473,10 @@ mod tests {
         assert_eq!(row.columns, 5);
         let r = ranges(&repo, &m);
         let twelve = r.columns.iter().find(|c| c.gcc == "gcc-12.5.0").unwrap();
-        assert_eq!((twelve.oldest.as_ref(), twelve.works, twelve.ran), (None, 0, 1));
+        assert_eq!(
+            (twelve.oldest.as_ref(), twelve.works, twelve.ran),
+            (None, 0, 1)
+        );
     }
 
     #[test]
