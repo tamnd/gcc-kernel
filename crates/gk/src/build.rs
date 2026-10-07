@@ -531,7 +531,10 @@ mod tests {
             "/out/include/asm/io.h:82: inconsistent operand constraints in an `asm'"
         );
         let option = "cc1: Invalid option `-fno-strict-aliasing'\n";
-        assert_eq!(unit_error(option), "cc1: Invalid option `-fno-strict-aliasing'");
+        assert_eq!(
+            unit_error(option),
+            "cc1: Invalid option `-fno-strict-aliasing'"
+        );
         assert_eq!(unit_error("init/main.c: In function `start_kernel':\n"), "");
         let new = "/src/a.c:3:1: warning: x\n/src/a.c:9:2: error: y undeclared\n";
         assert_eq!(unit_error(new), "/src/a.c:9:2: error: y undeclared");
