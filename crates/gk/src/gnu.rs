@@ -17,7 +17,7 @@ pub struct Entry {
     pub date: String,
 }
 
-/// Parse an Apache directory listing. Each row has an `href` and then a date, and rows without a date, such as the parent link, are skipped.
+/// Parse a directory listing, the master site's Apache one or the mirror's nginx one. Each row has an `href` and then a date, and rows without a date, such as the parent link, are skipped. The master site writes `2026-08-07` in US Eastern time and the mirror `07-Aug-2026` in UTC, so a release made late in the evening there can show a day later on the mirror. Only a new pin takes its date from the listing, so that does not move the dates already pinned.
 #[must_use]
 pub fn parse_listing(html: &str) -> Vec<Entry> {
     let mut out = Vec::new();
@@ -37,6 +37,11 @@ pub fn parse_listing(html: &str) -> Vec<Entry> {
 }
 
 fn first_date(s: &str) -> Option<String> {
+    iso_date(s).or_else(|| nginx_date(s))
+}
+
+/// The first `YYYY-MM-DD` in `s`.
+fn iso_date(s: &str) -> Option<String> {
     let b = s.as_bytes();
     (0..b.len().saturating_sub(9)).find_map(|i| {
         let w = &b[i..i + 10];
@@ -48,6 +53,26 @@ fn first_date(s: &str) -> Option<String> {
             }
         });
         shape.then(|| s[i..i + 10].to_owned())
+    })
+}
+
+/// The first `DD-Mon-YYYY` in `s`, as `YYYY-MM-DD`.
+fn nginx_date(s: &str) -> Option<String> {
+    const MONTHS: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    let b = s.as_bytes();
+    (0..b.len().saturating_sub(10)).find_map(|i| {
+        let w = &s.get(i..i + 11)?;
+        let (day, rest) = w.split_at(2);
+        let month = rest.get(1..4)?;
+        let year = rest.get(5..)?;
+        let digits = |t: &str| t.bytes().all(|c| c.is_ascii_digit());
+        if !(digits(day) && digits(year) && rest.starts_with('-') && rest.get(4..5) == Some("-")) {
+            return None;
+        }
+        let m = MONTHS.iter().position(|x| *x == month)? + 1;
+        Some(format!("{year}-{m:02}-{day}"))
     })
 }
 
@@ -133,6 +158,18 @@ mod tests {
 <tr><td><a href="binutils-2.20.1a.tar.bz2">binutils-2.20.1a.tar.bz2</a></td><td align="right">2011-08-26 10:02  </td></tr>
 <tr><td><a href="binutils-2.20.1a.tar.bz2.sig">binutils-2.20.1a.tar.bz2.sig</a></td><td align="right">2011-08-26 10:02  </td></tr>
 <tr><td><a href="binutils-2.13.tar.bz2">binutils-2.13.tar.bz2</a></td><td align="right">2002-08-06 10:40  </td></tr>"#;
+
+    #[test]
+    fn the_mirror_listing_reads_the_same_way() {
+        let html = "<a href=\"../\">../</a>\n<a href=\"gcc-16.2.0/\">gcc-16.2.0/</a>                       07-Aug-2026 14:35       -\n";
+        assert_eq!(
+            parse_listing(html),
+            [Entry {
+                name: "gcc-16.2.0".to_owned(),
+                date: "2026-08-07".to_owned()
+            }]
+        );
+    }
 
     #[test]
     fn listings_read_as_names_and_dates() {
