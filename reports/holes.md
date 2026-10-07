@@ -13,7 +13,7 @@ A hole is a cell that does not work between two columns of the same row that do 
 | 2.6.16 | x86_64 | defconfig+gk | ubuntu-hardy-gcc-4.2 | 🟥 | L2 | distro-ssp |  |
 | 2.6.28 | x86_64 | defconfig+gk | gcc-3.4.6 | 🟧 | L4 | tcg-ioapic-timer |  |
 | 2.6.28 | x86_64 | defconfig+gk | gcc-4.3.6 | 🟧 | L4 | tcg-ioapic-timer |  |
-| 2.6.31 | x86_64 | defconfig+gk | gcc-3.4.6 | 🟥 | L2 | unclassified |  |
+| 2.6.31 | x86_64 | defconfig+gk | gcc-3.4.6 | 🟥 | L2 | gcc34-this-ip-label |  |
 | 6.6.157 | x86_64 | defconfig+gk | gcc-9.5.0 | 🟨⚠️ | L6 | unclassified | the boots disagreed |
 | 6.6.157 | x86_64 | defconfig+gk | gcc-10.5.0 | 🟨⚠️ | L6 | unclassified | the boots disagreed |
 | 6.6.157 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | L7 | gcc14-objtool-endbr |  |
