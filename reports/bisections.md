@@ -2,7 +2,7 @@
 
 Every `fixed-by` commit of the failure catalog is confirmed by bisecting between a kernel the signature matches and one it does not, with the signature's GCC (spec 03.5 and 08.2). When the bisection finds another commit, the bisected commit wins and the signature is corrected. A signature can name several commits, one for each place the kernel had to change, and a bisection confirms the one its range and platform reach. Written by `gk publish` from `signatures.toml` and the bisections in the result store.
 
-0 bisections in the store. 0 of the 52 signatures with a fixing commit have at least one of their commits confirmed.
+5 bisections in the store. 3 of the 53 signatures with a fixing commit have at least one of their commits confirmed.
 
 ## Signatures
 
@@ -13,10 +13,10 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | gcc3-0-1-refused | L1 | refusal | `6680598` |  |
 | arm-gcc3-below-33 | L1 | refusal | `a136564` |  |
 | gcc41-weak | L1 | blacklist | `f9d1425` |  |
-| no-compiler-header | L1 | refusal | `cb984d101b30` `71458cfc782e` |  |
-| compiler-h-gnuc-gt-4 | L1..L3 | refusal | `f153b82` `cb984d101b30` |  |
+| no-compiler-header | L1 | refusal | `cb984d101b30` `71458cfc782e` | `cb984d101b30` `71458cfc782e` |
+| compiler-h-gnuc-gt-4 | L1..L3 | refusal | `f153b82121b0` `cb984d101b30` | `f153b82121b0` `cb984d101b30` |
 | arm-gcc48-pr58854 | L1 | blacklist | `7fc150543c73` |  |
-| gcc-min-46 | L1 | refusal | `cafa0010cd51` |  |
+| gcc-min-46 | L1 | refusal | `cafa0010cd51` | `cafa0010cd51` |
 | gcc-min-49 | L1 | refusal | `6ec4476ac825` |  |
 | gcc-min-51 | L1 | refusal | `76ae847497bc` |  |
 | gcc-min-81 | L1 | refusal | `a3e8fe814ad1` `118c40b7b503` |  |
@@ -31,9 +31,10 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | distro-pie | L3 | default-change | `8ae94224c9d7` `c6a385539175` |  |
 | distro-cf-protection | L3 | default-change | `29be86d7f9cb` |  |
 | fno-common | L3 | default-change | `e33a814e772c` |  |
-| gnu11-extern-inline | L3 | default-change | `8f375e10ee47` `51b97e354ba9` |  |
+| gnu11-extern-inline | L3 | default-change | `14bfc987e395` `8f375e10ee47` `51b97e354ba9` |  |
 | gnu23-bool | L3 | default-change | `b3bee1e7c3f2` `ee2ab467bddf` `8ba14d9f490a` `3b8b80e99376` `947d5d036c78` `5a821e2d69e2` `7cbb015e2d3d` `0f4ae7c6ecb8` |  |
 | gcc46-m-elf-i386 | L3 | new-error | `de2a8cf98ecd` |  |
+| gcc44-setup-dil | L3 | new-error | `811a0fff5d6e` |  |
 | gcc7-format-werror | L3 | new-warning-werror | `bd664f6b3e37` |  |
 | gcc8-packed-not-aligned | L3 | new-warning-werror | `321cb0308a9e` |  |
 | gcc8-attribute-alias | L3 | new-warning-werror | `bee20031772a` |  |
@@ -63,4 +64,10 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 
 ## Runs
 
-No bisections yet.
+| Range | GCC | Platform | Judged by | Steps | First commit | Subject | In | Signature |
+|---|---|---|---|--:|---|---|---|---|
+| 2.6.28..2.6.29 | gcc-5.5.0 | x86_64 | L1 | 14 | `f153b82121b0` | Sanitize gcc version header includes | v2.6.29-rc1 | compiler-h-gnuc-gt-4 |
+| 3.17..3.18 | gcc-5.5.0 | x86_64 | L1 | 14 | `71458cfc782e` | kernel: add support for gcc 5 | v3.18-rc1 | no-compiler-header |
+| 4.1..4.2 | gcc-6.5.0 | x86_64 | L1 | 13 | `cb984d101b30` | compiler-gcc: integrate the various compiler-gcc[345].h files | v4.2-rc1 | no-compiler-header, compiler-h-gnuc-gt-4 |
+| 4.18..4.19 | gcc-4.5.4 | x86_64 | L1 | 14 | `cafa0010cd51` | Raise the minimum required gcc version to 4.6 | v4.19-rc1 | gcc-min-46 |
+| 5.2..5.3 | ubuntu-eoan-gcc-9 | x86_64 | L3 | 14 | `46f5c0cc3af0` | Merge branch 'perf-urgent-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip | v5.3-rc1 | none |

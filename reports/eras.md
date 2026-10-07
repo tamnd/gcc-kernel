@@ -8,9 +8,9 @@ Whether the era GCC of each era works for every kernel in it (spec 11.2), for ru
 | M1 | E0, E1 | 1.3 | gcc-2.7.2.3 | 1 | 1 | 0 | 0 |
 | M2 | E1 | 2.1 | gcc-2.7.2.3 | 1 | 1 | 0 | 0 |
 | M3 | E2 | 2.3 | gcc-2.95.3 | 1 | 1 | 0 | 0 |
-| M4 | E3 | 2.5 | gcc-3.3.6 | 32 | 4 | 28 | 0 |
+| M4 | E3 | 2.5 | gcc-3.3.6 | 38 | 7 | 31 | 0 |
 | M5 | E4 | 2.6.16 | gcc-4.1.2 | 20 | 12 | 8 | 0 |
-| M6 | E4 | 2.6.26 | gcc-4.3.5 | 23 | 20 | 1 | 2 |
+| M6 | E4 | 2.6.26 | gcc-4.3.5 | 32 | 29 | 1 | 2 |
 | M7 | E5 | 3.0 | gcc-4.7.2 | 7 | 0 | 0 | 7 |
 | M8 | E6 | 3.18 | gcc-4.9.2 | 1 | 0 | 0 | 1 |
 | M9 | E7 | 4.2 | gcc-6.3.0 | 6 | 0 | 0 | 6 |
@@ -18,7 +18,7 @@ Whether the era GCC of each era works for every kernel in it (spec 11.2), for ru
 | M11 | E8 | 5.5 | debian-bullseye-gcc-10 | 3 | 0 | 2 | 1 |
 | M12 | E9 | 5.12 | debian-bullseye-gcc-10 | 3 | 0 | 2 | 1 |
 | M13 | E10 | 5.18 | gcc-12.2.0 | 13 | 4 | 5 | 4 |
-| M14 | E11 | 6.15 | gcc-14.2.0 | 11 | 2 | 4 | 5 |
+| M14 | E11 | 6.15 | gcc-14.2.0 | 12 | 2 | 4 | 6 |
 
 ## Proposed changes to personas.toml
 
@@ -26,22 +26,25 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 
 - 1.0 on i386 (defconfig+gk): gcc-2.5.8 fails at L2, and no column works.
 - 2.6.1 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
-- 2.6.5 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.5 on i386 (defconfig+gk): gcc-3.3.6 builds at L5, and the nearest working column is gcc-3.2.3.
 - 2.6.6 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.7 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.8 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.9 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.10 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.11 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.11.12 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.12 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.12.6 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.13 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
+- 2.6.13.1 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.14 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.15 on i386 (defconfig+gk): gcc-3.3.6 builds at L4, and no column works.
 - 2.6.0 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
 - 2.6.1 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
 - 2.6.2 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
 - 2.6.3 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
-- 2.6.4 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
+- 2.6.4 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and the nearest working column is gcc-3.2.3.
 - 2.6.5 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
 - 2.6.6 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
 - 2.6.7 on x86_64 (defconfig+gk): gcc-3.3.6 fails at L2, and no column works.
@@ -109,23 +112,26 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 2.6.1 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.2 | i386 | defconfig+gk | gcc-3.3.6 | 🟩 | gcc-3.1.1 to gcc-3.3.6 |  |
 | 2.6.3 | i386 | defconfig+gk | gcc-3.3.6 | 🟩 | gcc-3.3.6 |  |
-| 2.6.4 | i386 | defconfig+gk | gcc-3.3.6 | 🟩 | gcc-3.3.6 |  |
-| 2.6.5 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.4 | i386 | defconfig+gk | gcc-3.3.6 | 🟩 | gcc-3.2.3 to gcc-3.4.6 |  |
+| 2.6.5 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | gcc-3.2.3 to gcc-3.4.6 | gcc-3.2.3 |
 | 2.6.6 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.7 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.8 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.9 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.10 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.11 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.11.12 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.12 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.12.6 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.13 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.13.1 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.14 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.15 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
 | 2.6.0 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.1 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.2 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.3 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
-| 2.6.4 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
+| 2.6.4 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | gcc-3.2.3 | gcc-3.2.3 |
 | 2.6.5 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.6 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.7 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
@@ -133,8 +139,11 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 2.6.9 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.10 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟥 | empty |  |
 | 2.6.11 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.11.12 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟩 | gcc-3.2.3 to gcc-3.3.6 |  |
 | 2.6.12 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.12.6 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟩 | gcc-3.2.3 to gcc-4.2.4 |  |
 | 2.6.13 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | empty |  |
+| 2.6.13.1 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟩 | gcc-3.2.3 to gcc-4.2.4 |  |
 | 2.6.14 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | gcc-4.0.4 to gcc-4.2.4 | gcc-4.0.4 |
 | 2.6.15 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | gcc-4.0.4 to gcc-4.2.4 | gcc-4.0.4 |
 
@@ -169,8 +178,11 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 |---|---|---|---|:-:|---|---|
 | 2.6.26 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.3.6 |  |
 | 2.6.27 | i386 | defconfig+gk | gcc-4.3.5 | 🟥 | gcc-3.3.6 to gcc-4.0.4 | gcc-4.0.4 |
+| 2.6.27.62 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.28 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
+| 2.6.28.10 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.3.6 |  |
 | 2.6.29 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.4.6 to gcc-4.3.6 |  |
+| 2.6.29.6 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.4.7 |  |
 | 2.6.30 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.4.6 to gcc-4.3.5 |  |
 | 2.6.31 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 | 2.6.32 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.2.4 to gcc-4.3.5 |  |
@@ -180,8 +192,11 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 2.6.36 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 | 2.6.37 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.3.5 |  |
 | 2.6.38 | i386 | defconfig+gk | gcc-4.3.5 |  | empty |  |
+| 2.6.39 | i386 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.26 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.3.5 |  |
+| 2.6.27.62 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.28 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
+| 2.6.28.10 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.2.4 to gcc-4.5.4 |  |
 | 2.6.29 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.5.4 |  |
 | 2.6.31 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-3.3.6 to gcc-4.4.7 |  |
 | 2.6.32 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.3.5 |  |
@@ -189,7 +204,10 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 2.6.33 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 | 2.6.34 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.4.7 |  |
 | 2.6.35 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.1.2 to gcc-4.3.6 |  |
+| 2.6.35.14 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.3.5 |  |
 | 2.6.36 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.3.5 |  |
+| 2.6.38 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.3.5 to gcc-4.5.4 |  |
+| 2.6.39 | x86_64 | defconfig+gk | gcc-4.3.5 | 🟩 | gcc-4.0.4 to gcc-4.5.4 |  |
 
 ## M7, from 3.0, era GCC gcc-4.7.2
 
@@ -272,6 +290,7 @@ Each line is a row where the era GCC does not work. One such row is evidence tha
 | 6.18.54 | arm64 | defconfig+gk | gcc-14.2.0 | 🟥 | empty |  |
 | 6.18.55 | arm64 | defconfig+gk | gcc-14.2.0 |  | empty |  |
 | 7.2.8 | arm64 | defconfig+gk | gcc-14.2.0 | 🟥 | empty |  |
+| 7.2.9 | arm64 | defconfig+gk | gcc-14.2.0 |  | empty |  |
 | 7.2.8 | arm64 | tinyconfig+gk | gcc-14.2.0 |  | empty |  |
 | 6.18.54 | i386 | defconfig+gk | gcc-14.2.0 | 🟩 | gcc-8.5.0 to gcc-16.2.0 |  |
 | 6.18.55 | i386 | defconfig+gk | gcc-14.2.0 |  | empty |  |

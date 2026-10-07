@@ -34,7 +34,7 @@ Kernels with a cell: 7 of 7. Of those, 6 run.
 
 ### arm64
 
-Kernels with a cell: 2 of 7. Of those, 0 run.
+Kernels with a cell: 3 of 7. Of those, 0 run.
 
 | Kernel | Line | Verdict | Rung | Warnings | First error |
 |---|---|---|---|--:|---|
@@ -44,7 +44,7 @@ Kernels with a cell: 2 of 7. Of those, 0 run.
 | 6.6.158 | longterm | not run | | | |
 | 6.12.112 | longterm | fails | L2 | 0 |  |
 | 6.18.55 | longterm | fails | L2 | 0 |  |
-| 7.2.9 | stable | not run | | | |
+| 7.2.9 | stable | fails | L2 | 0 |  |
 
 ### arm
 
