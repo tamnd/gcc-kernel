@@ -358,7 +358,7 @@ pub fn disk_full(dir: &Path) -> bool {
         .any(|f| std::fs::read_to_string(dir.join(f)).is_ok_and(|text| text.contains(DISK_FULL)))
 }
 
-/// Whether the build in `dir` failed with no make error in its log. A build that fails on its own merits leaves make's `***` line behind, so one without it was stopped from outside, as when docker could not write to a full disk or the container died.
+/// Whether the build in `dir` failed with no make error in its logs. A build that fails on its own merits leaves make's `***` line behind, in make.log or, for a museum tree, in the log of `make dep` or `make scripts`, so one without it was stopped from outside, as when docker could not write to a full disk or the container died. A cell whose logs were not kept cannot tell, and does not count.
 #[must_use]
 pub fn cut_short(dir: &Path) -> bool {
     let Some(json) = std::fs::read_to_string(dir.join("build.json"))
@@ -368,9 +368,15 @@ pub fn cut_short(dir: &Path) -> bool {
         return false;
     };
     let flag = |k: &str| json.get(k).and_then(serde_json::Value::as_bool);
+    let logs: Vec<String> = ["make.log", "dep.log", "scripts.log"]
+        .iter()
+        .map(|name| crate::classify::log_text(dir, name))
+        .filter(|text| !text.is_empty())
+        .collect();
     flag("configured") == Some(true)
         && flag("built") == Some(false)
-        && !crate::classify::log_text(dir, "make.log").contains("*** ")
+        && !logs.is_empty()
+        && !logs.iter().any(|text| text.contains("*** "))
 }
 
 /// Whether the cell in `dir` stopped for a reason of the machine's rather than of the cell's: over the budget, out of disk, or cut short.
@@ -565,6 +571,10 @@ mod tests {
         assert!(cut_short(&dir));
         assert!(rig_failed(&dir));
         std::fs::write(dir.join("make.log"), "init/main.c:9:1: error: 'y' undeclared\nmake[1]: *** [init/main.o] Error 1\nmake: *** [init] Error 2\n").unwrap();
+        assert!(!cut_short(&dir));
+        std::fs::remove_file(dir.join("make.log")).unwrap();
+        assert!(!cut_short(&dir));
+        std::fs::write(dir.join("dep.log"), "make[2]: *** [dep] Error 1\n").unwrap();
         assert!(!cut_short(&dir));
         let json = serde_json::json!({ "configured": true, "built": true });
         std::fs::write(dir.join("build.json"), json.to_string()).unwrap();

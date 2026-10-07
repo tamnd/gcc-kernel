@@ -310,7 +310,9 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
                 f.unit = unit.unit;
                 f.command = command;
             } else {
-                f.first_error = no_unit(stopped(dir), &build_log(dir));
+                // A log cut short ends where it was cut, often mid-line, so its last lines say nothing of why it stopped.
+                let stopped = if build::cut_short(dir) { None } else { stopped(dir) };
+                f.first_error = no_unit(stopped, &build_log(dir));
             }
         }
         "L4" => {
