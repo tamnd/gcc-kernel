@@ -501,7 +501,7 @@ rung = "L3"
 match = { first-error = "undefined reference to `\\.L\\d+'" }
 kind = "too-old"
 summary = "From 2.6.31 con_init in vt.c calls kzalloc, and the inline kmalloc of slub_def.h passes _THIS_IP_, the address of a local label, to its trace call. GCC 3.4 drops the label from the init text and keeps the reference, so the link fails. GCC 3.3 and 4.0 build it. 2.6.38 moved the trace calls out of the inline functions"
-fixed-by = [ { commit = "4a92379bdfb4", first-tag = "v2.6.38-rc1", note = "moves the SLUB trace calls into slub.c, so no inline kmalloc takes _THIS_IP_" } ]
+fixed-by = [ { commit = "4a92379bdfb4", first-tag = "v2.6.38-rc1", note = "moves the SLUB trace calls into slub.c, so no inline kmalloc takes _THIS_IP_. The bisection from 2.6.37 lands on a45b0616e7ee, the merge of slab/next into 2.6.37, because the branch sits on 2.6.37-rc1 and its own commits stop earlier on an entry_32.S assembler error. Of the six commits it brings, this is the only one that touches slub_def.h, and defconfig uses SLUB", bisected = true } ]
 gcc = ">=3.4, <4"
 kernel = ">=2.6.31, <2.6.38"
 platform = ["i386", "x86_64"]
