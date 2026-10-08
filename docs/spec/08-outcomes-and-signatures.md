@@ -82,8 +82,8 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | Class | Kind | GCC | Rung | Fixed by |
 |---|---|---|---|---|
 | `gcc-too-old-295` | refusal | below 2.95 | L1 to L3 | none, the refusal is the policy (2.6.0 to 2.6.15) |
-| `gcc-296-frame-pointer` | refusal | 2.96 | L1 | removed with gcc-2 checks, a136564 |
-| `gcc-min-32` | refusal | below 3.2 on 2.6.16 to 2.6.28 | L1 to L3 | policy from a136564 |
+| `gcc-296-frame-pointer` | refusal | 2.96 | L1 | check removed by fd285bb, which refuses all of GCC 2 instead |
+| `gcc-min-32` | refusal | below 3.2 on 2.6.16 to 2.6.28 | L1 to L3 | policy from fd285bb, found by bisection |
 | `gcc-below-min-on-26` | too-old | below 2.95 on 2.6.0 to 2.6.15, below 3.2 from 2.6.16 | L3 | none, it stops before the refusal is compiled |
 | `gcc32-directive-in-macro-args` | too-old | 3.2 on 2.6.26, x86 | L3 | 9cf4f298e29a |
 | `gcc3-vdso-plt-overlap` | too-old | below 3.4 on 2.6.23, x86_64 | L3 | c65916fe3586 |
