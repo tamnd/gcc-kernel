@@ -22,6 +22,12 @@ const STABLE: &str = "https://git.kernel.org/pub/scm/linux/kernel/git/stable/lin
 /// The most commits a bisection tests. 2.6.12 to 7.2 is about 1.4 million commits, which is 21 steps.
 const MAX_STEPS: usize = 40;
 
+/// Stretches of history that cannot build out of tree for a reason of their own, each as the commit that broke it and the one that fixed it. gk always builds with `O=`, so a bisection would skip such commits one at a time and could run out of steps among them. Every commit that has the first and not the second is skipped before the first step instead.
+const UNBUILDABLE: &[(&str, &str)] = &[
+    // "kbuild: create .kernelrelease at *config step" makes .kernelrelease in the source tree, where O= has no .config, until "kbuild: fix build with O=..". That is 1353 of the 5734 commits from 2.6.15 to 2.6.16.
+    ("2244cbd8a918", "8c7f75d3257f"),
+];
+
 /// The clone: `GK_HISTORY`, or `history/linux.git` in the cache.
 #[must_use]
 pub fn history_dir() -> PathBuf {
@@ -244,6 +250,71 @@ fn probe_rung(setup: &Setup, jobs: usize) -> Result<String, String> {
     Ok(if probe?.passes() { "L1" } else { "L0" }.into())
 }
 
+/// Mark the commits of [`UNBUILDABLE`] between the two ends as skipped: those that descend from the commit that broke the build and not from the one that fixed it. A stretch whose first commit the clone does not have is left alone.
+fn skip_unbuildable(history: &Path, old_tag: &str, new_tag: &str) -> Result<(), String> {
+    // Strict descendants of `c` between the ends.
+    let after = |c: &str| -> Result<std::collections::BTreeSet<String>, String> {
+        let list = git(
+            history,
+            &[
+                "rev-list",
+                &format!("--ancestry-path={c}"),
+                new_tag,
+                &format!("^{old_tag}"),
+                &format!("^{c}"),
+            ],
+        )?;
+        Ok(list.split_whitespace().map(str::to_owned).collect())
+    };
+    let between = |c: &str| {
+        git(history, &["merge-base", "--is-ancestor", old_tag, c]).is_ok()
+            && git(history, &["merge-base", "--is-ancestor", c, new_tag]).is_ok()
+    };
+    for (broke, fixed) in UNBUILDABLE {
+        let Ok(broke) = git(
+            history,
+            &[
+                "rev-parse",
+                "--verify",
+                "-q",
+                &format!("{broke}^{{commit}}"),
+            ],
+        ) else {
+            continue;
+        };
+        let broke = broke.trim();
+        let fixed = git(
+            history,
+            &["rev-parse", "--verify", &format!("{fixed}^{{commit}}")],
+        )?;
+        let fixed = fixed.trim();
+        let mut skip = after(broke)?;
+        if between(broke) {
+            skip.insert(broke.to_owned());
+        }
+        for c in after(fixed)? {
+            skip.remove(&c);
+        }
+        skip.remove(fixed);
+        if skip.is_empty() {
+            continue;
+        }
+        println!(
+            "skipping {} commits that have {} and not {}",
+            skip.len(),
+            &broke[..12],
+            &fixed[..12]
+        );
+        let skip: Vec<&str> = skip.iter().map(String::as_str).collect();
+        for chunk in skip.chunks(500) {
+            let mut args = vec!["bisect", "skip"];
+            args.extend(chunk);
+            git(history, &args)?;
+        }
+    }
+    Ok(())
+}
+
 /// Export a commit's tree into the cache.
 fn export(history: &Path, commit: &str) -> Result<PathBuf, String> {
     let tree = fetch::cache_dir()
@@ -372,6 +443,7 @@ fn bisect(
             &old_tag,
         ],
     )?;
+    skip_unbuildable(history, &old_tag, &new_tag)?;
     let mut tested = Vec::new();
     let mut first = None;
     for _ in 0..MAX_STEPS {
