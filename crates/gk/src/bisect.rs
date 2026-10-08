@@ -706,7 +706,8 @@ mod tests {
         assert!(text.contains("gcc-min-49"));
         let other = report_of(&repo, &[run("0123456789abcdef")]);
         assert!(other.contains("| none |"));
-        assert!(other.contains("| gcc-min-49 | L1 | refusal | `6ec4476ac825` |  |"));
+        // gcc-min-49 is marked bisected in signatures.toml, so the entry left open is too-old-generic, which names the same commit.
+        assert!(other.contains("| too-old-generic | L3 | too-old | `6ec4476ac825` |  |"));
     }
 
     #[test]
