@@ -755,7 +755,11 @@ mod tests {
             contained_in: "v5.8-rc1".into(),
             tested: Vec::new(),
         };
-        let text = report_of(&repo, &[run("6ec4476ac82512f09c94aff5972654b70f3772b2")], &BTreeMap::new());
+        let text = report_of(
+            &repo,
+            &[run("6ec4476ac82512f09c94aff5972654b70f3772b2")],
+            &BTreeMap::new(),
+        );
         assert!(text.contains("| gcc-min-49 | L1 | refusal | `6ec4476ac825` | `6ec4476ac825` |"));
         assert!(
             text.contains("`6ec4476ac825` | compiler.h: raise minimum \\| something | v5.8-rc1 |")
