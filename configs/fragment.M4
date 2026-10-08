@@ -12,6 +12,8 @@ CONFIG_SERIAL_8250_CONSOLE=y
 
 # What gk-init needs: an initramfs, device nodes, and the pseudo file systems it mounts. DEVTMPFS arrives in 2.6.32, after this era, so the boot rig's archive carries `/dev/null` itself and the merge notes these two as missing. They stay so every era asks for the same things.
 CONFIG_BLK_DEV_INITRD=y
+# Up to 2.6.16 BLK_DEV_INITRD depends on BLK_DEV_RAM=y, which i386's defconfig leaves out, so without this line the merge drops the initramfs and the kernel looks for a root device instead. 340e48e662dc in 2.6.17 removed the dependency.
+CONFIG_BLK_DEV_RAM=y
 CONFIG_DEVTMPFS=y
 CONFIG_DEVTMPFS_MOUNT=y
 CONFIG_TMPFS=y
