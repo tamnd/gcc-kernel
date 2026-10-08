@@ -251,7 +251,7 @@ fn export(history: &Path, commit: &str) -> Result<PathBuf, String> {
         .join(format!("git-{commit}"));
     let _ = std::fs::remove_dir_all(&tree);
     std::fs::create_dir_all(&tree).map_err(|e| format!("creating {}: {e}", tree.display()))?;
-    let archive = Command::new("git")
+    let mut archive = Command::new("git")
         .arg("-C")
         .arg(history)
         .args(["archive", "--format=tar", commit])
@@ -263,10 +263,12 @@ fn export(history: &Path, commit: &str) -> Result<PathBuf, String> {
         .arg("-")
         .arg("-C")
         .arg(&tree)
-        .stdin(archive.stdout.ok_or("git archive has no output")?)
+        .stdin(archive.stdout.take().ok_or("git archive has no output")?)
         .status()
         .map_err(|e| format!("running tar: {e}"))?;
-    if !status.success() {
+    // Waiting reaps git, which otherwise stays a zombie for the rest of a bisection, one per step.
+    let archived = archive.wait().is_ok_and(|s| s.success());
+    if !status.success() || !archived {
         let _ = std::fs::remove_dir_all(&tree);
         return Err(format!("exporting {commit} failed"));
     }
