@@ -738,7 +738,10 @@ mod tests {
             binutils: Some("binutils-2.14".into()),
             ..run("0123456789abcdef")
         };
-        assert!(report_of(&repo, &[with]).contains("| 5.7..5.8 | gcc-4.8.5 with binutils-2.14 | x86_64 |"));
+        assert!(
+            report_of(&repo, &[with])
+                .contains("| 5.7..5.8 | gcc-4.8.5 with binutils-2.14 | x86_64 |")
+        );
         // A record from before --binutils still reads.
         let old: Bisection = serde_json::from_str(
             r#"{"from":"5.7","to":"5.8","gcc":"gcc-4.8.5","platform":"x86_64","config":"defconfig+gk","rung":"L1","first":"0123","subject":"","contained_in":""}"#,
