@@ -129,7 +129,7 @@ rung = "L1"
 match = { first-error = 'not supported|too old|Minimum GCC version:\s+5\.1' }
 kind = "refusal"
 summary = "5.15 to 6.15 need GCC 5.1"
-fixed-by = [ { commit = "76ae847497bc", note = "the minimum is the policy" } ]
+fixed-by = [ { commit = "76ae847497bc", note = "the minimum is the policy", bisected = true } ]
 gcc = "<5.1"
 kernel = ">=5.15"
 
@@ -140,7 +140,7 @@ match = { first-error = 'not supported|too old|Minimum GCC version:\s+8\.1' }
 kind = "refusal"
 summary = "x86 from 6.15 and every architecture from 6.16 need GCC 8.1"
 fixed-by = [
-  { commit = "a3e8fe814ad1", note = "x86 only, from 6.15" },
+  { commit = "a3e8fe814ad1", note = "x86 only, from 6.15", bisected = true },
   { commit = "118c40b7b503", note = "every architecture, from 6.16, with binutils 2.30" },
 ]
 gcc = ">=5.1, <8.1"
@@ -522,7 +522,7 @@ rung = "L3"
 match = { first-error = 'smpboot\.c:\d+: syntax error before "unsigned"' }
 kind = "too-old"
 summary = "cb3c8b9003f1 in 2.6.26 put an #ifdef CONFIG_X86_64 inside the arguments of the startup_ipi_hook macro in smpboot.c, which the preprocessor of GCC 3.2 cannot take, although 2.6.26 still asks for 3.2 only"
-fixed-by = [ { commit = "9cf4f298e29a", first-tag = "v2.6.27-rc1", note = "uses stack_start on x86_64 too, so the #ifdef goes" } ]
+fixed-by = [ { commit = "9cf4f298e29a", first-tag = "v2.6.27-rc1", note = "uses stack_start on x86_64 too, so the #ifdef goes. A bisection of smpboot.o from 2.6.26 to 2.6.27 lands on 1c5b0eb66d74 in 2.6.27-rc4 instead, because c1f64a58003f had already brought build_mmio_read into io.h with its \"=\" \"q\" constraint, a second error GCC 3.2 hits in the same unit. Every commit before 1c5b0eb66d74 that the bisection tried already holds 9cf4f298e29a, and 1c5b0eb66d74 only changes that constraint, so the bisection says when smpboot.o builds again and not when this error went" } ]
 gcc = "<3.3"
 kernel = ">=2.6.26, <2.6.27"
 platform = ["i386", "x86_64"]
@@ -609,7 +609,7 @@ rung = "L3"
 match = { first-error = "bad register name `%dil'" }
 kind = "new-error"
 summary = "The byte accessors of the setup code take their operand with an r constraint, and GCC 4.4 can pick %dil for it, which the assembler refuses in 16-bit code"
-fixed-by = [ { commit = "811a0fff5d6e", first-tag = "v2.6.25-rc1" } ]
+fixed-by = [ { commit = "811a0fff5d6e", first-tag = "v2.6.25-rc1", bisected = true } ]
 gcc = ">=4.4"
 kernel = ">=2.6.23, <2.6.25"
 
@@ -952,7 +952,7 @@ rung = "L3"
 match = { first-error = "for `cmp'", unit = 'fs/binfmt_aout' }
 kind = "binutils-assembler"
 summary = "__range_ok in the i386 uaccess.h lets GCC put an immediate as the destination of cmpl, which binutils 2.20 and later refuse"
-fixed-by = [ { commit = "722f4f5b2600", first-tag = "v2.6.18-rc1" } ]
+fixed-by = [ { commit = "722f4f5b2600", first-tag = "v2.6.18-rc1", bisected = true } ]
 binutils = ">=2.20"
 kernel = "<2.6.18"
 platform = ["i386"]
