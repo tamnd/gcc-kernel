@@ -748,9 +748,10 @@ pub fn unit(s: &Setup, dir: &Path, object: &str, jobs: usize) -> Result<bool, St
     let source = object.rsplit_once('.').map_or(object, |(stem, _)| stem);
     if make(&["prepare"], "prepare.log", jobs)? != 0 {
         let log = std::fs::read_to_string(dir.join("prepare.log")).unwrap_or_default();
+        // A `#error` is the tree refusing the compiler, as compiler.h does for a GCC outside its range, so the unit does not build on this commit any more than when its own source fails.
         if log
             .lines()
-            .any(|l| l.contains(source) && l.contains("error"))
+            .any(|l| (l.contains(source) && l.contains("error")) || l.contains("#error"))
         {
             return Ok(false);
         }
