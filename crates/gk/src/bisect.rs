@@ -2,10 +2,10 @@
 //!
 //! The clone is a bare repository at `GK_HISTORY`, or `history/linux.git` in the cache. `gk history update` makes it from Linus's tree and adds the tags of the stable tree, which is enough to bisect anything from 2.6.12 on, mainline or stable. The history from before git joins it at G3.
 //!
-//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix. A bisection at L1 is of a refusal, and since L1 is the accept probe, each commit and each end runs the probe alone and leaves no cell. A bisection of a build failure can name the object that fails with `--unit`, and then each commit, and each end, builds that object alone and leaves no cell either.
+//! A bisection runs cells of the form (commit, G, P) with the row's configuration and host, judged by whether they reach a rung. It uses `git bisect --no-checkout` on the bare clone, so no work tree is kept: each commit's tree is exported with `git archive`, built, and removed. Commit cells go to the store like any other, with `git:` and the commit as the kernel digest, and `gk publish` leaves them out of the matrix. A commit whose cell misses keeps the first line of its first error in the record, so a bisection that lands on a merge can be read. A bisection at L1 is of a refusal, and since L1 is the accept probe, each commit and each end runs the probe alone and leaves no cell. A bisection of a build failure can name the object that fails with `--unit`, and then each commit, and each end, builds that object alone and leaves no cell either.
 
 use crate::cell::{self, CellRecord, Setup};
-use crate::{build, fetch, store};
+use crate::{build, classify, fetch, store};
 use gk_model::Version;
 use gk_model::repo::Repo;
 use serde::{Deserialize, Serialize};
@@ -133,6 +133,9 @@ struct Tested {
     version: String,
     rung: String,
     term: String,
+    /// Why a commit whose cell was built missed the rung: the first line of its first error. A bisection that ends on a merge is read with these, since a branch can miss for another reason than the one bisected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
 }
 
 /// The record a bisection leaves in the store under `bisections/`.
@@ -214,6 +217,14 @@ fn run_or_load(repo: &Repo, setup: &Setup, jobs: usize) -> Result<CellRecord, St
         return Err("the build failed for the machine's reasons and not the commit's".into());
     }
     Ok(record)
+}
+
+/// The first line of a failed cell's first error, cut to 300 characters, or `None` when the cell has none to show.
+fn first_error(setup: &Setup, r: &CellRecord) -> Option<String> {
+    let dir = store::cell_dir(&setup.coordinates.identity());
+    let f = classify::failure(&dir, r)?;
+    let line: String = f.first_error.lines().next()?.trim().chars().take(300).collect();
+    (!line.is_empty()).then_some(line)
 }
 
 /// The rung of a commit from the accept probe alone, `L1` or `L0`. L1 is the probe, so a bisection of a refusal builds nothing and stores no cell.
@@ -375,24 +386,31 @@ fn bisect(
                 if let Some(object) = &opts.unit {
                     unit_rung(&s, object, opts.jobs)
                 } else if rung == "L1" {
-                    probe_rung(&s, opts.jobs)
+                    probe_rung(&s, opts.jobs).map(|r| (r, None))
                 } else {
-                    run_or_load(repo, &s, opts.jobs).map(|r| r.rung)
+                    run_or_load(repo, &s, opts.jobs).map(|r| {
+                        let error = (!passes(&r.rung)).then(|| first_error(&s, &r)).flatten();
+                        (r.rung, error)
+                    })
                 }
             })
-            .map(|r| (version, r)),
+            .map(|(r, error)| (version, r, error)),
             None => Err("the Makefile has no version".into()),
         };
         let _ = std::fs::remove_dir_all(&tree);
         let said = match &outcome {
-            Ok((version, r)) => {
+            Ok((version, r, error)) => {
                 let t = term(passes(r));
                 println!("{} {:<10} {:<3} {t}", &commit[..12], version.as_str(), r);
+                if let Some(e) = error {
+                    println!("             {e}");
+                }
                 tested.push(Tested {
                     commit: commit.clone(),
                     version: version.as_str().to_owned(),
                     rung: r.clone(),
                     term: t.into(),
+                    error: error.clone(),
                 });
                 git(history, &["bisect", t])?
             }
@@ -608,6 +626,23 @@ mod tests {
         let other = report_of(&repo, &[run("0123456789abcdef")]);
         assert!(other.contains("| none |"));
         assert!(other.contains("| gcc-min-49 | L1 | refusal | `6ec4476ac825` |  |"));
+    }
+
+    #[test]
+    fn a_tested_commit_keeps_its_error_and_old_records_still_read() {
+        let old: Tested = serde_json::from_str(
+            r#"{"commit":"8165984acf82","version":"2.6.37","rung":"L2","term":"misses"}"#,
+        )
+        .unwrap();
+        assert_eq!(old.error, None);
+        let text = serde_json::to_string(&old).unwrap();
+        assert!(!text.contains("error"));
+        let new = Tested {
+            error: Some("entry_32.S:398: Error: too many positional arguments".into()),
+            ..old
+        };
+        let back: Tested = serde_json::from_str(&serde_json::to_string(&new).unwrap()).unwrap();
+        assert_eq!(back.error, new.error);
     }
 
     #[test]
