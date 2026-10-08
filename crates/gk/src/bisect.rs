@@ -223,7 +223,14 @@ fn run_or_load(repo: &Repo, setup: &Setup, jobs: usize) -> Result<CellRecord, St
 fn first_error(setup: &Setup, r: &CellRecord) -> Option<String> {
     let dir = store::cell_dir(&setup.coordinates.identity());
     let f = classify::failure(&dir, r)?;
-    let line: String = f.first_error.lines().next()?.trim().chars().take(300).collect();
+    let line: String = f
+        .first_error
+        .lines()
+        .next()?
+        .trim()
+        .chars()
+        .take(300)
+        .collect();
     (!line.is_empty()).then_some(line)
 }
 
@@ -384,7 +391,7 @@ fn bisect(
             .and_then(|s| if boot { s.booting(repo) } else { Ok(s) })
             .and_then(|s| {
                 if let Some(object) = &opts.unit {
-                    unit_rung(&s, object, opts.jobs)
+                    unit_rung(&s, object, opts.jobs).map(|r| (r, None))
                 } else if rung == "L1" {
                     probe_rung(&s, opts.jobs).map(|r| (r, None))
                 } else {
