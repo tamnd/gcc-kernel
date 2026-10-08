@@ -130,6 +130,8 @@ pub struct Options {
     pub jobs: usize,
     /// The one object to build instead of the whole kernel, for a failure at L3.
     pub unit: Option<String>,
+    /// The binutils laid over the GCC bundle's own, for a signature that comes from binutils, or `None` for the bundle's.
+    pub binutils: Option<String>,
 }
 
 /// One tested commit.
@@ -155,6 +157,8 @@ struct Bisection {
     rung: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     unit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    binutils: Option<String>,
     first: String,
     subject: String,
     contained_in: String,
@@ -172,6 +176,7 @@ fn release_rung(
     boot: bool,
 ) -> Result<String, String> {
     let setup = Setup::new(repo, kernel, gcc, platform, opts.config)?;
+    let setup = with_binutils(repo, setup, opts)?;
     let setup = if boot { setup.booting(repo)? } else { setup };
     if let Some(object) = &opts.unit {
         let rung = unit_rung(&setup, object, opts.jobs)?;
@@ -201,6 +206,14 @@ fn unit_rung(setup: &Setup, object: &str, jobs: usize) -> Result<String, String>
     let built = cell::unit(setup, &dir, object, jobs);
     let _ = std::fs::remove_dir_all(&dir);
     Ok(if built? { "L3" } else { "L2" }.into())
+}
+
+/// The cell with the bisection's binutils, when it names one.
+fn with_binutils(repo: &Repo, setup: Setup, opts: &Options) -> Result<Setup, String> {
+    match &opts.binutils {
+        Some(b) => setup.with_binutils(repo, b),
+        None => Ok(setup),
+    }
 }
 
 fn unit_term(rung: &str) -> &'static str {
@@ -462,6 +475,7 @@ fn bisect(
                 platform,
                 opts.config,
             )
+            .and_then(|s| with_binutils(repo, s, opts))
             .and_then(|s| if boot { s.booting(repo) } else { Ok(s) })
             .and_then(|s| {
                 if let Some(object) = &opts.unit {
@@ -544,6 +558,7 @@ fn bisect(
         config: opts.config.into(),
         rung,
         unit: opts.unit.clone(),
+        binutils: opts.binutils.clone(),
         first,
         subject,
         contained_in,
@@ -556,7 +571,15 @@ fn bisect(
         .as_ref()
         .map(|u| format!("-{}", u.replace('/', "_")))
         .unwrap_or_default();
-    let name = format!("{from}-{to}-{gcc}-{platform}-{}{unit}.json", opts.config);
+    let binutils = opts
+        .binutils
+        .as_ref()
+        .map(|b| format!("-{b}"))
+        .unwrap_or_default();
+    let name = format!(
+        "{from}-{to}-{gcc}{binutils}-{platform}-{}{unit}.json",
+        opts.config
+    );
     let json = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())? + "\n";
     std::fs::write(dir.join(&name), json).map_err(|e| format!("writing bisections/{name}: {e}"))?;
     Ok(())
@@ -650,7 +673,9 @@ fn report_of(repo: &Repo, runs: &[Bisection]) -> String {
             "| {}..{} | {} | {} | {} | {} | `{}` | {} | {} | {} |",
             b.from,
             b.to,
-            b.gcc,
+            b.binutils
+                .as_ref()
+                .map_or_else(|| b.gcc.clone(), |u| format!("{} with {u}", b.gcc)),
             b.platform,
             b.unit
                 .as_ref()
@@ -693,6 +718,7 @@ mod tests {
             config: "defconfig+gk".into(),
             rung: "L1".into(),
             unit: None,
+            binutils: None,
             first: first.into(),
             subject: "compiler.h: raise minimum | something".into(),
             contained_in: "v5.8-rc1".into(),
@@ -708,6 +734,20 @@ mod tests {
         assert!(other.contains("| none |"));
         // gcc-min-49 is marked bisected in signatures.toml, so the entry left open is too-old-generic, which names the same commit.
         assert!(other.contains("| too-old-generic | L3 | too-old | `6ec4476ac825` |  |"));
+        let with = Bisection {
+            binutils: Some("binutils-2.14".into()),
+            ..run("0123456789abcdef")
+        };
+        assert!(
+            report_of(&repo, &[with])
+                .contains("| 5.7..5.8 | gcc-4.8.5 with binutils-2.14 | x86_64 |")
+        );
+        // A record from before --binutils still reads.
+        let old: Bisection = serde_json::from_str(
+            r#"{"from":"5.7","to":"5.8","gcc":"gcc-4.8.5","platform":"x86_64","config":"defconfig+gk","rung":"L1","first":"0123","subject":"","contained_in":""}"#,
+        )
+        .unwrap();
+        assert_eq!(old.binutils, None);
     }
 
     #[test]

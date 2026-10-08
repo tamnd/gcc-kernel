@@ -94,10 +94,11 @@ commands:
   history    history update: clone Linus's tree into the history clone, or bring it up to date,
              with the tags of the stable tree
   bisect-kernel
-             bisect-kernel K1 K2 G --platform P [--config C] [--rung R] [--jobs N]: the first commit
+             bisect-kernel K1 K2 G --platform P [--config C] [--binutils B] [--rung R] [--jobs N]: the first commit
              between two releases where the cell of G changes whether it reaches rung R, which is
              the higher rung of the two ends when R is not given. With --unit OBJECT, such as
              drivers/gpu/drm/i915/i915_gem.o, each commit builds that object alone instead
+             of the kernel. With --binutils B, each cell uses that binutils over the GCC bundle's own.
   store      list the cells in the result store, or:
              store show ID, store check, store pack FILE.tar.zst
   ladder     print the outcome ladder and the verdict each rung earns
@@ -242,6 +243,7 @@ fn bisect_command(args: &[String]) -> ExitCode {
         rung: None,
         jobs: std::thread::available_parallelism().map_or(8, std::num::NonZero::get),
         unit: None,
+        binutils: None,
     };
     let mut platform = None;
     let mut names = Vec::new();
@@ -252,6 +254,7 @@ fn bisect_command(args: &[String]) -> ExitCode {
             "--platform" => platform = Some(value(&mut it)),
             "--rung" => opts.rung = Some(value(&mut it).to_uppercase()),
             "--unit" => opts.unit = Some(value(&mut it)),
+            "--binutils" => opts.binutils = Some(value(&mut it)),
             "--config" => match cell::config_named(&value(&mut it)) {
                 Ok(c) => opts.config = c.0,
                 Err(e) => {
@@ -271,7 +274,7 @@ fn bisect_command(args: &[String]) -> ExitCode {
     }
     let (Some(platform), [from, to, gcc]) = (platform, names.as_slice()) else {
         eprintln!(
-            "usage: gk bisect-kernel K1 K2 G --platform P [--config C] [--rung R | --unit OBJECT] [--jobs N]"
+            "usage: gk bisect-kernel K1 K2 G --platform P [--config C] [--binutils B] [--rung R | --unit OBJECT] [--jobs N]"
         );
         return ExitCode::from(2);
     };
