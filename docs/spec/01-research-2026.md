@@ -65,7 +65,7 @@ Trunk is GCC 17.0 and is not a column (04.2).
 | 2.2 | 2.7.2.3 or EGCS 1.1.2 | documentation. The Makefile of late 2.2 prefers `kgcc` or `gcc272` from `PATH` |
 | 2.4.0 | EGCS 1.1.2 (`2.91.66`) | `#error` below 2.91. The documented minimum moved to 2.95.3 during 2.4 **(which point release is unverified)** |
 | 2.6.0 to 2.6.15 | 2.95.3 | `init/main.c`: `#error` "Sorry, your GCC is too old. It builds incorrect kernels." below 2.95, and an `#error` for 2.96 with `CONFIG_FRAME_POINTER` |
-| 2.6.16 to 4.18 | 3.2 | a136564 "remove gcc-2 checks", v2.6.16-rc1. 3.0 and 3.1 refused from 2.6.29 by 6680598 (`compiler-gcc3.h`), and by `GCC_VERSION < 30200` in `compiler-gcc.h` from 4.2 |
+| 2.6.16 to 4.18 | 3.2 | fd285bb "Abandon gcc-2.95.x", v2.6.16-rc1, found by bisection, then a136564 "remove gcc-2 checks" in the same cycle. 3.0 and 3.1 refused from 2.6.29 by 6680598 (`compiler-gcc3.h`), and by `GCC_VERSION < 30200` in `compiler-gcc.h` from 4.2 |
 | 4.19 to 5.7 | 4.6 | cafa0010cd51, `#if GCC_VERSION < 40600` |
 | 5.8 to 5.14 | 4.9 | 5429ef62bcf3 (4.8, v5.8-rc1), then 6ec4476ac825 (4.9, v5.8-rc5, for `_Generic`) |
 | 5.12 on | same | aec6c60a01d3 moves the check into Kconfig (`scripts/cc-version.sh`, "Sorry, this compiler is not supported."). `scripts/min-tool-version.sh` follows, dated 5.13 **(unverified)** |

@@ -23,7 +23,7 @@ rung = "L1..L3"
 match = { first-error = 'your compiler is too old/not recognized|your GCC is too old\. It builds incorrect kernels' }
 kind = "refusal"
 summary = "2.6.16 to 2.6.28 refuse anything below GCC 3.2, in compiler.h for GCC 2 and egcs and in init/main.c or compiler.h for 3.0 and 3.1"
-fixed-by = [ { commit = "a136564", first-tag = "v2.6.16-rc1", note = "the refusal is the policy" } ]
+fixed-by = [ { commit = "fd285bb54d8a", first-tag = "v2.6.16-rc1", note = "drops compiler-gcc2.h, so compiler.h refuses GCC 2; the refusal is the policy. a1365647022e, which removes the other gcc-2 checks, comes after it", bisected = true } ]
 gcc = "<3.2"
 kernel = ">=2.6.16, <2.6.29"
 
@@ -33,7 +33,7 @@ rung = "L1"
 match = { first-error = 'frame pointer', config = '(?m)^CONFIG_FRAME_POINTER=y' }
 kind = "refusal"
 summary = "2.6.0 to 2.6.15 refuse GCC 2.96 when frame pointers are on"
-fixed-by = [ { commit = "a136564", first-tag = "v2.6.16-rc1", note = "removes the gcc-2 checks" } ]
+fixed-by = [ { commit = "fd285bb54d8a", first-tag = "v2.6.16-rc1", note = "removes the frame pointer check from init/main.c, and from then on compiler.h refuses every GCC 2. Read from the diff, since there is no GCC 2.96 column to bisect with" } ]
 gcc = "=2.96"
 
 [[signature]]
