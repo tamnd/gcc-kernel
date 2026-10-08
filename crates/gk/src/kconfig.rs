@@ -227,7 +227,14 @@ CONFIG_GCC_VERSION=80500
                 "{} is nearly empty",
                 path.display()
             );
-            assert!(fragment.iter().all(|(_, v)| v == "y" || v == "n"));
+            // A switch, or a number such as the RAM disk sizes of fragment.M5.
+            assert!(
+                fragment.iter().all(|(_, v)| v == "y"
+                    || v == "n"
+                    || (!v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()))),
+                "{} asks for a value that is not y, n or a number",
+                path.display()
+            );
         }
     }
 
