@@ -271,11 +271,22 @@ fn skip_unbuildable(history: &Path, old_tag: &str, new_tag: &str) -> Result<(), 
             && git(history, &["merge-base", "--is-ancestor", c, new_tag]).is_ok()
     };
     for (broke, fixed) in UNBUILDABLE {
-        let Ok(broke) = git(history, &["rev-parse", "--verify", "-q", &format!("{broke}^{{commit}}")]) else {
+        let Ok(broke) = git(
+            history,
+            &[
+                "rev-parse",
+                "--verify",
+                "-q",
+                &format!("{broke}^{{commit}}"),
+            ],
+        ) else {
             continue;
         };
         let broke = broke.trim();
-        let fixed = git(history, &["rev-parse", "--verify", &format!("{fixed}^{{commit}}")])?;
+        let fixed = git(
+            history,
+            &["rev-parse", "--verify", &format!("{fixed}^{{commit}}")],
+        )?;
         let fixed = fixed.trim();
         let mut skip = after(broke)?;
         if between(broke) {
