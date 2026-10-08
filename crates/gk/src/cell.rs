@@ -49,7 +49,7 @@ fn config_target(target: &str, defconfig: &str, version: &Version) -> Result<Str
     Ok(if target.is_empty() { defconfig } else { target }.to_owned())
 }
 
-/// The make target that settles a `.config` after a fragment is laid over it. `olddefconfig` came in 3.7. Before that, `oldconfig` asks about each new symbol, and with no input it takes the default, which is the same thing. Before 1.2 there is neither, as Configure only asks questions and never reads a `.config`, so there the fragment is not laid over at all and what it asks for and did not get is only noted.
+/// The make target that settles a `.config` after a fragment is laid over it. `olddefconfig` came in 3.7. Before that, `oldconfig` asks about each new symbol, and an empty answer takes the default, which is the same thing. Before 1.2 there is neither, as Configure only asks questions and never reads a `.config`, so there the fragment is not laid over at all and what it asks for and did not get is only noted.
 fn settle_target(version: &Version) -> Option<&'static str> {
     if version.series(2) < [1, 2].to_vec() {
         None
@@ -423,6 +423,17 @@ impl Setup {
                 "sh",
                 "-C",
                 "/out",
+            ]);
+        } else if settle_target(&self.version) == Some("oldconfig") {
+            // oldconfig takes the default when its input ends, except in the 2.6.16 cycle, whose conf stops with "Console input is closed" at the first new symbol. A tree between releases often has a defconfig behind its Kconfig, so it has new symbols even with no fragment. An empty line is the default too, and every conf takes it.
+            cmd.args([
+                "sh",
+                "-c",
+                "yes '' | make \"$@\"",
+                "sh",
+                "-C",
+                "/src",
+                "O=/out",
             ]);
         } else {
             cmd.args(["make", "-C", "/src", "O=/out"]);
