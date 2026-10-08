@@ -703,6 +703,9 @@ fn configure(s: &Setup, out: &Path, make: &MakeStep<'_>) -> Result<(bool, Vec<St
 pub fn unit(s: &Setup, dir: &Path, object: &str, jobs: usize) -> Result<bool, String> {
     let out = dir.join("out");
     let _ = std::fs::remove_dir_all(&out);
+    for l in ["config.log", "fragment.log"] {
+        let _ = std::fs::remove_file(dir.join(l));
+    }
     std::fs::create_dir_all(&out).map_err(|e| format!("creating {}: {e}", out.display()))?;
     let seconds = s.build_seconds();
     let make = |args: &[&str], log: &str, jobs: usize| {
@@ -716,7 +719,17 @@ pub fn unit(s: &Setup, dir: &Path, object: &str, jobs: usize) -> Result<bool, St
         })
     };
     if !configure(s, &out, &make)?.0 {
-        return Err(format!("{} does not configure", s.version));
+        // The fragment step runs only when the first one passed, so its log names the step that failed.
+        let log = ["fragment.log", "config.log"]
+            .into_iter()
+            .map(|l| dir.join(l))
+            .find(|p| p.is_file())
+            .unwrap_or_else(|| dir.join("config.log"));
+        return Err(format!(
+            "{} does not configure: {}",
+            s.version,
+            tail_of(&log).join(" | ")
+        ));
     }
     if scripts_race(&s.tree) && make(&["scripts"], "scripts.log", 1)? != 0 {
         return Err("make scripts failed".into());
