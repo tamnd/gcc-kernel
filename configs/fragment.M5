@@ -14,6 +14,9 @@ CONFIG_SERIAL_8250_CONSOLE=y
 CONFIG_BLK_DEV_INITRD=y
 # Up to 2.6.16 BLK_DEV_INITRD depends on BLK_DEV_RAM=y, which i386's defconfig leaves out, so without this line the merge drops the initramfs and the kernel looks for a root device instead. 340e48e662dc in 2.6.17 removed the dependency.
 CONFIG_BLK_DEV_RAM=y
+# Turning the RAM disk on makes its two options new, and the conf of 2.6.16, unlike every other 2.6 release from 2.6.12 on, stops with "Console input is closed" when oldconfig has a question and no input. These are their Kconfig defaults, so it has nothing to ask.
+CONFIG_BLK_DEV_RAM_COUNT=16
+CONFIG_BLK_DEV_RAM_SIZE=4096
 CONFIG_DEVTMPFS=y
 CONFIG_DEVTMPFS_MOUNT=y
 CONFIG_TMPFS=y
