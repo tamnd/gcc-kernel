@@ -490,7 +490,7 @@ rung = "L3"
 match = { first-error = "vextern\\.h:\\d+: warning: .visibility. attribute directive ignored|vdso\\.so: section \\.\\w+ lma" }
 kind = "too-old"
 summary = "GCC 3.3 and older leave a .plt in the x86_64 vDSO that 2.6.23 adds, and the vDSO linker script pins .data at offset 0x900, which the .plt runs into, although 2.6.23 still asks for GCC 3.2 only"
-fixed-by = [ { commit = "c65916fe3586", first-tag = "v2.6.24-rc1", note = "drops the fixed 0x900 offset from the vDSO linker script" } ]
+fixed-by = [ { commit = "c65916fe3586", first-tag = "v2.6.24-rc1", note = "drops the fixed 0x900 offset from the vDSO linker script", bisected = true } ]
 gcc = "<3.4"
 kernel = ">=2.6.23, <2.6.24"
 platform = ["x86_64"]
@@ -619,7 +619,7 @@ rung = "L3"
 match = { first-error = 'inlining failed in call to .*function body not available' }
 kind = "new-error"
 summary = "i386 builds with -fno-unit-at-a-time up to 2.6.15, and in that mode GCC 4.3 cannot inline an always_inline function whose prototype came first, such as smp_local_timer_interrupt, task_curr and generic_write_checks"
-fixed-by = [ { commit = "9ab34fe76114", first-tag = "v2.6.16-rc1", note = "keeps -fno-unit-at-a-time for GCC 3 only" } ]
+fixed-by = [ { commit = "9ab34fe76114", first-tag = "v2.6.16-rc1", note = "keeps -fno-unit-at-a-time for GCC 3 only", bisected = true } ]
 gcc = ">=4.3"
 kernel = "<2.6.16"
 platform = ["i386"]
