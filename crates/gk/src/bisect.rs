@@ -22,6 +22,12 @@ const STABLE: &str = "https://git.kernel.org/pub/scm/linux/kernel/git/stable/lin
 /// The most commits a bisection tests. 2.6.12 to 7.2 is about 1.4 million commits, which is 21 steps.
 const MAX_STEPS: usize = 40;
 
+/// Stretches of history that cannot build out of tree for a reason of their own, each as the commit that broke it and the one that fixed it. gk always builds with `O=`, so a bisection would skip such commits one at a time and could run out of steps among them. Every commit that has the first and not the second is skipped before the first step instead.
+const UNBUILDABLE: &[(&str, &str)] = &[
+    // "kbuild: create .kernelrelease at *config step" makes .kernelrelease in the source tree, where O= has no .config, until "kbuild: fix build with O=..". 551 commits of the 2.6.16 cycle.
+    ("2244cbd8a918", "8c7f75d3257f"),
+];
+
 /// The clone: `GK_HISTORY`, or `history/linux.git` in the cache.
 #[must_use]
 pub fn history_dir() -> PathBuf {
@@ -244,6 +250,40 @@ fn probe_rung(setup: &Setup, jobs: usize) -> Result<String, String> {
     Ok(if probe?.passes() { "L1" } else { "L0" }.into())
 }
 
+/// Mark the commits of [`UNBUILDABLE`] between the two ends as skipped. A stretch whose first commit the clone does not have is left alone.
+fn skip_unbuildable(history: &Path, old_tag: &str, new_tag: &str) -> Result<(), String> {
+    for (broke, fixed) in UNBUILDABLE {
+        if git(history, &["cat-file", "-e", &format!("{broke}^{{commit}}")]).is_err() {
+            continue;
+        }
+        let list = git(
+            history,
+            &[
+                "rev-list",
+                &format!("--ancestry-path={broke}"),
+                new_tag,
+                &format!("^{old_tag}"),
+                &format!("^{fixed}"),
+                &format!("^{broke}^@"),
+            ],
+        )?;
+        let commits: Vec<&str> = list.split_whitespace().collect();
+        if commits.is_empty() {
+            continue;
+        }
+        println!(
+            "skipping {} commits from {broke} that lack {fixed}",
+            commits.len()
+        );
+        for chunk in commits.chunks(500) {
+            let mut args = vec!["bisect", "skip"];
+            args.extend(chunk);
+            git(history, &args)?;
+        }
+    }
+    Ok(())
+}
+
 /// Export a commit's tree into the cache.
 fn export(history: &Path, commit: &str) -> Result<PathBuf, String> {
     let tree = fetch::cache_dir()
@@ -372,6 +412,7 @@ fn bisect(
             &old_tag,
         ],
     )?;
+    skip_unbuildable(history, &old_tag, &new_tag)?;
     let mut tested = Vec::new();
     let mut first = None;
     for _ in 0..MAX_STEPS {
