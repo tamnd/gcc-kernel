@@ -9,6 +9,7 @@ use crate::{build, classify, fetch, store};
 use gk_model::Version;
 use gk_model::repo::Repo;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -606,11 +607,35 @@ fn same_commit(fix: &str, full: &str) -> bool {
 
 /// `reports/bisections.md`: which fixing commits of the catalog a bisection has confirmed, and every bisection in the store with what it found.
 #[must_use]
-pub fn report(repo: &Repo) -> String {
-    report_of(repo, &stored())
+pub fn report(repo: &Repo, m: &crate::publish::Matrix) -> String {
+    report_of(repo, &stored(), &failing(m))
 }
 
-fn report_of(repo: &Repo, runs: &[Bisection]) -> String {
+/// How many cells of the matrix each class has, counting only the newest run of each coordinate, since a rerun can clear an old failure.
+fn failing(m: &crate::publish::Matrix) -> BTreeMap<String, usize> {
+    let mut newest: BTreeMap<(&str, &str, &str, &str, &str), &crate::publish::Entry> =
+        BTreeMap::new();
+    for e in &m.cells {
+        let key = (
+            e.kernel.as_str(),
+            e.gcc.as_str(),
+            e.binutils.as_str(),
+            e.platform.as_str(),
+            e.config.as_str(),
+        );
+        let slot = newest.entry(key).or_insert(e);
+        if e.started > slot.started {
+            *slot = e;
+        }
+    }
+    let mut out = BTreeMap::new();
+    for e in newest.values().filter(|e| !e.class.is_empty()) {
+        *out.entry(e.class.clone()).or_insert(0) += 1;
+    }
+    out
+}
+
+fn report_of(repo: &Repo, runs: &[Bisection], cells: &BTreeMap<String, usize>) -> String {
     let mut out = String::from(
         "# Bisections\n\nEvery `fixed-by` commit of the failure catalog is confirmed by bisecting between a kernel the signature matches and one it does not, with the signature's GCC (spec 03.5 and 08.2). When the bisection finds another commit, the bisected commit wins and the signature is corrected. A signature can name several commits, one for each place the kernel had to change, and a bisection confirms the one its range and platform reach. Written by `gk publish` from `signatures.toml` and the bisections in the result store.\n\n",
     );
@@ -626,9 +651,14 @@ fn report_of(repo: &Repo, runs: &[Bisection]) -> String {
         .iter()
         .filter(|s| s.fixed_by.iter().any(|f| confirmed(&f.commit, f.bisected)))
         .count();
+    let unseen = with_fix
+        .iter()
+        .filter(|s| !s.fixed_by.iter().any(|f| confirmed(&f.commit, f.bisected)))
+        .filter(|s| !cells.contains_key(&s.class))
+        .count();
     let _ = write!(
         out,
-        "{} bisections in the store. {done} of the {} signatures with a fixing commit have at least one of their commits confirmed.\n\n## Signatures\n\n| Signature | Rung | Kind | Fixing commits | Confirmed |\n|---|---|---|---|---|\n",
+        "{} bisections in the store. {done} of the {} signatures with a fixing commit have at least one of their commits confirmed. {unseen} of the others match no cell of the matrix yet, so there is no failing kernel to bisect from until one does. Cells counts the newest run of each coordinate that the signature matches.\n\n## Signatures\n\n| Signature | Rung | Kind | Fixing commits | Confirmed | Cells |\n|---|---|---|---|---|--:|\n",
         runs.len(),
         with_fix.len()
     );
@@ -646,12 +676,13 @@ fn report_of(repo: &Repo, runs: &[Bisection]) -> String {
             .collect();
         let _ = writeln!(
             out,
-            "| {} | {} | {} | {} | {} |",
+            "| {} | {} | {} | {} | {} | {} |",
             s.class,
             s.rung,
             s.kind,
             commits.join(" "),
-            found.join(" ")
+            found.join(" "),
+            cells.get(&s.class).copied().unwrap_or(0)
         );
     }
     out.push_str("\n## Runs\n\n");
@@ -724,13 +755,13 @@ mod tests {
             contained_in: "v5.8-rc1".into(),
             tested: Vec::new(),
         };
-        let text = report_of(&repo, &[run("6ec4476ac82512f09c94aff5972654b70f3772b2")]);
+        let text = report_of(&repo, &[run("6ec4476ac82512f09c94aff5972654b70f3772b2")], &BTreeMap::new());
         assert!(text.contains("| gcc-min-49 | L1 | refusal | `6ec4476ac825` | `6ec4476ac825` |"));
         assert!(
             text.contains("`6ec4476ac825` | compiler.h: raise minimum \\| something | v5.8-rc1 |")
         );
         assert!(text.contains("gcc-min-49"));
-        let other = report_of(&repo, &[run("0123456789abcdef")]);
+        let other = report_of(&repo, &[run("0123456789abcdef")], &BTreeMap::new());
         assert!(other.contains("| none |"));
         // gcc-min-49 is marked bisected in signatures.toml, so the entry left open is too-old-generic, which names the same commit.
         assert!(other.contains("| too-old-generic | L3 | too-old | `6ec4476ac825` |  |"));
@@ -739,15 +770,46 @@ mod tests {
             ..run("0123456789abcdef")
         };
         assert!(
-            report_of(&repo, &[with])
+            report_of(&repo, &[with], &BTreeMap::new())
                 .contains("| 5.7..5.8 | gcc-4.8.5 with binutils-2.14 | x86_64 |")
         );
+        let counted = report_of(
+            &repo,
+            &[],
+            &BTreeMap::from([("too-old-generic".to_owned(), 3)]),
+        );
+        assert!(counted.contains("| too-old-generic | L3 | too-old | `6ec4476ac825` |  | 3 |"));
         // A record from before --binutils still reads.
         let old: Bisection = serde_json::from_str(
             r#"{"from":"5.7","to":"5.8","gcc":"gcc-4.8.5","platform":"x86_64","config":"defconfig+gk","rung":"L1","first":"0123","subject":"","contained_in":""}"#,
         )
         .unwrap();
         assert_eq!(old.binutils, None);
+    }
+
+    #[test]
+    fn a_rerun_that_cleared_a_failure_is_not_counted() {
+        let cell = |kernel: &str, started: u64, class: &str| {
+            serde_json::from_value::<crate::publish::Entry>(serde_json::json!({
+                "cell": format!("{kernel}-{started}"), "kernel": kernel, "gcc": "gcc-4.8.5",
+                "binutils": "binutils-2.25.1", "platform": "x86_64", "config": "defconfig+gk",
+                "host": "", "rung": "L2", "verdict": "fails", "class": class, "runs": 1,
+                "gk": "", "date": "", "started": started, "seconds": 0.0, "machine": ""
+            }))
+            .unwrap()
+        };
+        let m = crate::publish::Matrix {
+            schema: crate::publish::SCHEMA,
+            cells: vec![
+                cell("2.6.28", 1, "gcc48-mutex-slowpath-unused"),
+                cell("2.6.28", 2, ""),
+                cell("2.6.27", 1, "gcc48-mutex-slowpath-unused"),
+            ],
+        };
+        assert_eq!(
+            failing(&m),
+            BTreeMap::from([("gcc48-mutex-slowpath-unused".to_owned(), 1)])
+        );
     }
 
     #[test]
