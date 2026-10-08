@@ -9,7 +9,7 @@ Recent kernels come first, because that is where rucc is going. Old kernels are 
 <!-- gk:status:begin -->
 ## Status
 
-This section is written by `gk publish` from [matrix/matrix.json](matrix/matrix.json) and is replaced every time the results are published. Last published 2026-10-07, with 2406 cells in the matrix.
+This section is written by `gk publish` from [matrix/matrix.json](matrix/matrix.json) and is replaced every time the results are published. Last published 2026-10-08, with 2406 cells in the matrix.
 
 ### Progress
 
