@@ -180,21 +180,35 @@ fn first_bad_line(dir: &Path, log: &str, console: &str) -> String {
         .to_owned()
 }
 
-/// What kept a cell from L7, from `kunit.json`: the graded suites that failed, or the lack of a reference to grade against.
-fn kunit(dir: &Path, console: &str) -> String {
+/// What kept a cell from L7, from `kunit.json`, with the console of the run it names: the graded suites that failed in the run that failed the fewest, or the lack of a reference to grade against. A run cut short by a timeout or a stall fails every suite it never reached, so the run with the fewest failures is the one that names the broken suite.
+fn kunit(dir: &Path) -> (String, String) {
+    let log = |run: usize| {
+        std::fs::read_to_string(dir.join(format!("kunit-{}.log", run + 1))).unwrap_or_default()
+    };
     let Some(k) = std::fs::read_to_string(dir.join("kunit.json"))
         .ok()
         .and_then(|t| serde_json::from_str::<crate::cell::KunitRecord>(&t).ok())
     else {
-        return first_bad_line(dir, "kunit-1.log", console);
+        let console = log(0);
+        return (first_bad_line(dir, "kunit-1.log", &console), console);
     };
-    if let Some((run, suites)) = k.failed.iter().enumerate().find(|(_, f)| !f.is_empty()) {
-        return format!("KUnit run {}: {} failed", run + 1, suites.join(", "));
+    if let Some((run, suites)) = k
+        .failed
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| !f.is_empty())
+        .min_by_key(|(_, f)| f.len())
+    {
+        return (
+            format!("KUnit run {}: {} failed", run + 1, suites.join(", ")),
+            log(run),
+        );
     }
+    let console = log(0);
     if k.reference.is_empty() {
-        return "no reference cell to grade KUnit against".into();
+        return ("no reference cell to grade KUnit against".into(), console);
     }
-    first_bad_line(dir, "kunit-1.log", console)
+    (first_bad_line(dir, "kunit-1.log", &console), console)
 }
 
 /// What kept a cell that reached L7 from L8: the first `objtool` warning, then the first smoke splat, then the first new KUnit splat.
@@ -384,8 +398,7 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
         }
         "L8" => f.first_error = unclean(dir),
         "L7" if r.steps.iter().any(|s| !s.passed && s.log == "kunit.json") => {
-            f.console = std::fs::read_to_string(dir.join("kunit-1.log")).unwrap_or_default();
-            f.first_error = kunit(dir, &f.console);
+            (f.first_error, f.console) = kunit(dir);
         }
         _ => {
             let log = r
@@ -992,6 +1005,31 @@ gcc = "<5"
                 "arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table"
             );
         }
+    }
+
+    #[test]
+    fn a_kunit_run_that_stalled_does_not_hide_the_broken_suite() {
+        let dir = std::env::temp_dir().join(format!("gk-kunit-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("kunit.json"),
+            r#"{"runs": 3, "reference": "sha256:ab", "graded": ["hash", "overflow"], "failed": [["hash", "overflow"], ["overflow"], ["overflow"]], "suites": []}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("kunit-1.log"),
+            "rcu: INFO: rcu_preempt detected stalls\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("kunit-2.log"),
+            "DEFINE_FLEX_test: EXPECTATION FAILED\n",
+        )
+        .unwrap();
+        let (first, console) = kunit(&dir);
+        assert_eq!(first, "KUnit run 2: overflow failed");
+        assert!(console.contains("DEFINE_FLEX_test"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
