@@ -1,4 +1,4 @@
-//! `reports/eras.md` and `reports/holes.md`, which `gk publish` writes from the matrix (spec 11.2 and 08.5), and `matrix/frontiers.json` and `matrix/ranges.json`, the same rows read the other two ways (spec 02.6 and 10.2).
+//! `reports/eras.md`, `reports/question-10.md` and `reports/holes.md`, which `gk publish` writes from the matrix (spec 11.2 and 08.5), and `matrix/frontiers.json` and `matrix/ranges.json`, the same rows read the other two ways (spec 02.6 and 10.2).
 //!
 //! Both read the newest cell at every crossing of a kernel, a GCC column, a platform and a configuration, so a rerun replaces the cell it reran. A row is every cell of one kernel on one platform and configuration, in GCC version order, and its working set is the columns whose cell works.
 
@@ -68,7 +68,7 @@ fn nearest<'a>(cells: &[(Version, &'a Entry)], want: &Version) -> Option<&'a Ent
 pub fn eras(repo: &Repo, m: &Matrix) -> String {
     let rows = rows(repo, m);
     let mut out = String::from(
-        "# Eras\n\nWhether the era GCC of each era works for every kernel in it (spec 11.2), for rucc-kernel's `personas.toml`. Each row is the newest cell of every GCC column run on one kernel, platform and configuration, and the working set runs from the oldest column that works to the newest. Where the era GCC does not work, the nearest working column is the fallback persona, and a person decides, because the persona also has to match what the era's distributions shipped. Written by `gk publish` from `matrix/matrix.json`.\n",
+        "# Eras\n\nWhether the era GCC of each era works for every kernel in it (spec 11.2), for rucc-kernel's `personas.toml`. Each row is the newest cell of every GCC column run on one kernel, platform and configuration, and the working set runs from the oldest column that works to the newest. Where the era GCC does not work, the nearest working column is the fallback persona, and a person decides, because the persona also has to match what the era's distributions shipped. The kernel plan's open question 10, which 3.x and 4.x branches a later GCC can build, has its own report in [question-10.md](question-10.md). Written by `gk publish` from `matrix/matrix.json`.\n",
     );
     let mut proposals = Vec::new();
     let mut summary = String::from(
@@ -284,6 +284,85 @@ pub struct KernelRange {
     pub ran: usize,
 }
 
+/// `reports/question-10.md`: the kernel plan's open question 10, which 3.x and 4.x stable branches a later GCC can build (spec 11.2). A branch is answered by the row of its last point, and a later GCC is the era GCC of any era after the branch's own.
+#[must_use]
+pub fn question_10(repo: &Repo, m: &Matrix) -> String {
+    let rows = rows(repo, m);
+    let last: Vec<&Version> = repo
+        .kernels
+        .in_set("last-points")
+        .into_iter()
+        .map(|k| &k.version)
+        .filter(|v| matches!(v.series(1)[0], 3 | 4))
+        .collect();
+    let mut table = String::from(
+        "| Branch | Last point | Platform | Configuration | Era | Era GCC | Newest working column | Later era GCCs that work | Later era GCCs that do not |\n|---|---|---|---|---|---|---|---|---|\n",
+    );
+    let (mut answered, mut later, mut own) = (BTreeMap::new(), 0, 0);
+    for ((platform, config, kernel), cells) in &rows {
+        if !last.contains(&kernel) {
+            continue;
+        }
+        let Some(n) = repo.eras.eras.iter().rposition(|e| e.from <= *kernel) else {
+            continue;
+        };
+        let era = &repo.eras.eras[n];
+        let triple = repo
+            .platforms
+            .get(platform)
+            .map(|p| p.triple.clone())
+            .unwrap_or_default();
+        let column = era_column(repo, &era.gcc, &triple).unwrap_or_default();
+        let (mut good, mut bad): (Vec<String>, Vec<String>) = (Vec::new(), Vec::new());
+        for e in &repo.eras.eras[n + 1..] {
+            let Some(c) = era_column(repo, &e.gcc, &triple) else {
+                continue;
+            };
+            if c == column || good.contains(&c) || bad.contains(&c) {
+                continue;
+            }
+            match cells.iter().find(|(_, x)| x.gcc == c) {
+                Some((_, x)) if x.verdict == "works" => good.push(c),
+                Some(_) => bad.push(c),
+                None => {}
+            }
+        }
+        if !good.is_empty() {
+            later += 1;
+        } else if !bad.is_empty() {
+            own += 1;
+        }
+        let newest = range(cells).map_or_else(|| "none".to_owned(), |(_, b)| b.gcc.clone());
+        let series = kernel.series(2);
+        *answered.entry(series.clone()).or_insert(0) += 1;
+        let _ = writeln!(
+            table,
+            "| {}.{} | {kernel} | {platform} | {config} | {} | {column} | {newest} | {} | {} |",
+            series[0],
+            series[1],
+            era.name,
+            good.join(", "),
+            bad.join(", ")
+        );
+    }
+    let mut out = String::from(
+        "# Open question 10\n\nThe kernel plan's open question 10 asks which 3.x and 4.x stable branches a later GCC can build. This report answers it from the matrix (spec 11.2). Each branch is read at its last point, and a later GCC is the era GCC of any era after the branch's own, as the column that stands for it on the platform. A row counts the newest cell of every GCC column run on the last point, so the answer grows as the frontier searches of G2 reach more branches. Written by `gk publish` from `matrix/matrix.json`.\n\n",
+    );
+    let _ = writeln!(
+        out,
+        "Rows for a last point so far: {}, covering {} of the {} branches from 3.0 to 4.20. A later era's GCC builds the last point in {later} of them. In {own} every later era GCC that ran fails, so the branch stays with its own era's GCC or an older one. The rest have no later era GCC cell yet.\n",
+        answered.values().sum::<usize>(),
+        answered.len(),
+        last.len()
+    );
+    if answered.is_empty() {
+        out.push_str("No last point of a 3.x or 4.x branch has a row yet.\n");
+    } else {
+        out.push_str(&table);
+    }
+    out
+}
+
 /// The upstream cells of each row, which are the only ones W(K, P) counts.
 fn upstream<'a>(repo: &Repo, m: &'a Matrix) -> BTreeMap<RowKey<'a>, Vec<(Version, &'a Entry)>> {
     let mut out = rows(repo, m);
@@ -477,6 +556,28 @@ mod tests {
             (twelve.oldest.as_ref(), twelve.works, twelve.ran),
             (None, 0, 1)
         );
+    }
+
+    #[test]
+    fn a_last_point_built_by_a_later_era_gcc_answers_question_10() {
+        let repo = Repo::load(Path::new("../..")).unwrap();
+        let k: Version = "3.0.101".parse().unwrap();
+        let n = repo.eras.eras.iter().rposition(|e| e.from <= k).unwrap();
+        let own = era_column(&repo, &repo.eras.eras[n].gcc, "x86_64-linux-gnu").unwrap();
+        let next = era_column(&repo, &repo.eras.eras[n + 1].gcc, "x86_64-linux-gnu").unwrap();
+        let m = Matrix {
+            schema: 1,
+            cells: vec![
+                cell("3.0.101", &own, "works"),
+                cell("3.0.101", &next, "works"),
+                cell("3.0.101", "gcc-16.2.0", "fails"),
+                cell("3.1", &next, "works"),
+            ],
+        };
+        let text = question_10(&repo, &m);
+        assert!(text.contains("Rows for a last point so far: 1, covering 1 of the 41 branches from 3.0 to 4.20. A later era's GCC builds the last point in 1 of them. In 0 "));
+        assert!(text.contains(&format!("| 3.0 | 3.0.101 | x86_64 | defconfig+gk | {} | {own} | {next} | {next}", repo.eras.eras[n].name)));
+        assert!(!text.contains("| 3.1 |"));
     }
 
     #[test]

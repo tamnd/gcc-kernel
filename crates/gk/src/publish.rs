@@ -4,7 +4,7 @@
 //!
 //! The status section of `README.md` is rewritten too, between its markers (see [`crate::status`]).
 //!
-//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one colored square per cell. The era check and the holes go to `reports/eras.md` and `reports/holes.md`, and the frontier of every row and the kernel range of every column to `matrix/frontiers.json` and `matrix/ranges.json` (see [`crate::history`]).
+//! The heat maps go to `reports/matrix-<platform>.md`: a table per configuration, a row per kernel that has a cell, a column per GCC that targets the platform, and one colored square per cell. The era check, the answer to the kernel plan's open question 10 and the holes go to `reports/eras.md`, `reports/question-10.md` and `reports/holes.md`, and the frontier of every row and the kernel range of every column to `matrix/frontiers.json` and `matrix/ranges.json` (see [`crate::history`]).
 
 use crate::cell::CellRecord;
 use crate::classify::{self, Compiled};
@@ -347,6 +347,7 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
         ),
         ("reports/eras.md", crate::history::eras(repo, &m)),
         ("reports/holes.md", crate::history::holes(repo, &m)),
+        ("reports/question-10.md", crate::history::question_10(repo, &m)),
         ("reports/bisections.md", crate::bisect::report(repo, &m)),
     ] {
         std::fs::create_dir_all(&reports)
