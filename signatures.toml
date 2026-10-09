@@ -586,9 +586,9 @@ platform = ["i386"]
 [[signature]]
 class = "gcc-below-min-on-22"
 rung = "L3"
-match = { first-error = 'parse error before|Invalid option' }
+match = { first-error = 'parse error before|Invalid option|Unknown pseudo-op:\s+`\.section' }
 kind = "too-old"
-summary = "2.2 asks for GCC 2.7.2, and 2.5.8 cannot parse the section attributes in its headers"
+summary = "2.2 asks for GCC 2.7.2. GCC 2.5.8 cannot parse the section attributes in its headers, and GCC 2.6.3 gets past them only to hand the .section directives its inline asm writes to the a.out assembler of its bundle, which has no .section"
 gcc = "<2.7"
 kernel = ">=2.2, <2.3"
 platform = ["i386"]
@@ -862,6 +862,16 @@ kernel = ">=2.6"
 platform = ["i386"]
 
 [[signature]]
+class = "binutils-too-old-subsection"
+rung = "L3"
+match = { first-error = 'Unknown pseudo-op:\s+`\.subsection' }
+kind = "binutils-too-old"
+summary = "The LOCK_SECTION_START of spinlock.h in 2.4.37.11 moves the contended paths of its locks out of line with .subsection 1, which the gas of binutils 2.8.1 in the egcs 1.1.2 bundle does not know, while 2.4 asks for binutils 2.9.1.0.25"
+binutils = "<2.9"
+kernel = ">=2.4, <2.5"
+platform = ["i386"]
+
+[[signature]]
 class = "binutils-too-old-281"
 rung = "L3"
 match = { first-error = "no such 386 instruction: `fxsave'|operands given don.t match any known 386 instruction" }
@@ -949,7 +959,7 @@ rung = "L3"
 match = { first-error = '\.size expression for copy_user_generic_c does not evaluate to a constant' }
 kind = "binutils-assembler"
 summary = "3022d734a54c in 2.6.19 renamed copy_user_generic_c in the x86_64 copy_user.S and left its END behind, and gas from binutils 2.21 refuses a .size for a symbol that is not defined, where 2.20 let it pass"
-fixed-by = [ { commit = "ad2fc2cd9253", first-tag = "v2.6.27-rc1", note = "rewrites copy_user_64.S without the stale END" } ]
+fixed-by = [ { commit = "ad2fc2cd9253", first-tag = "v2.6.27-rc1", note = "rewrites copy_user_64.S without the stale END. A bisection of the whole build first landed on ad1f8bf073e1, which only drops two lines about tg3 firmware from firmware/Makefile, and the bisection of copy_user_64.o alone lands here", bisected = true } ]
 binutils = ">=2.21"
 kernel = ">=2.6.19, <2.6.27"
 platform = ["x86_64"]
