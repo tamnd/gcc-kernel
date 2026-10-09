@@ -283,10 +283,34 @@ platform = ["x86_64"]
 
 [[signature]]
 class = "tcg-ioapic-timer"
-rung = "L5"
-match = { first-error = "IO-APIC \\+ timer doesn't work" }
+rung = "L5..L7"
+match = { console = "IO-APIC \\+ timer doesn't work" }
 kind = "emulator"
-summary = "check_timer() gives the PIT a few jiffies to tick through the IO-APIC, and under TCG on a loaded host the vCPU can miss that window. It shows in one boot of three, on kernels from 2.6.5 to 6.1 with GCCs from 3.1 to 12 that boot cleanly in the other two, so the cell says nothing about GCC"
+summary = "check_timer() gives the PIT a few jiffies to tick through the IO-APIC, and under TCG on a loaded host the vCPU can miss that window. It shows in one boot of three, on kernels from 2.6.5 to 6.12 with GCCs from 3.1 to 12 that boot cleanly in the other two, so the cell says nothing about GCC. A KUnit boot can lose it too, as one of 6.12.112 tinyconfig with GCC 11.5 on x86_64 did"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "tcg-rcu-timer-wakeup"
+rung = "L5..L7"
+match = { console = "kthread timer wakeup didn't happen for \\d+ jiffies" }
+kind = "emulator"
+summary = "RCU's grace period kthread slept on a timer that never fired while both CPUs sat idle in the halt loop, so the timer interrupt went missing under TCG on a loaded host. Seen in one boot of three of 6.12.111 with GCC 12.5 on x86_64, which booted cleanly in the other two, so the cell says nothing about GCC"
+platform = ["x86_64", "i386"]
+
+[[signature]]
+class = "qemu-assertion"
+rung = "L5..L7"
+match = { console = 'qemu-system-[a-z0-9_]+: [^ ]+:\d+: [a-z0-9_]+: Assertion .* failed' }
+kind = "emulator"
+summary = "QEMU itself stopped on a failed assertion, so the guest did not get to finish. Seen once, in the third KUnit run of 6.6.157 with GCC 9.5 on x86_64, where iotlb_to_section in system/physmem.c found a section index past the end of its map. The other two runs passed, so the cell says nothing about GCC"
+
+[[signature]]
+class = "tcg-drm-mm-frag-timing"
+rung = "L7"
+match = { first-error = '^KUnit run \d+: drm_mm failed$', console = 'drm_test_mm_frag: EXPECTATION FAILED' }
+kind = "emulator"
+summary = "drm_test_mm_frag times 10000 and then 20000 fragmented inserts and fails when the second takes more than four times the first, which a loaded host running TCG can cause on its own. It took one KUnit run of 6.6.157 with GCC 10.5 on x86_64, and the other two passed. 6.12 no longer has the test"
+kernel = ">=6.6, <6.12"
 platform = ["x86_64", "i386"]
 
 [[signature]]
