@@ -233,12 +233,13 @@ Over 7.2.8.
 
 | Step | Kernels | Symbols that change |
 |---|--:|--:|
-| 5.5.0 to 6.3.0 | 1 | 8 |
-| 6.3.0 to 6.5.0 | 1 | 9 |
-| 6.5.0 to 7.5.0 | 1 | 5 |
-| 7.5.0 to 8.3.0 | 1 | 9 |
-| 8.3.0 to 8.5.0 | 3 | 2 |
+| 5.5.0 to 6.3.0 | 2 | 8 |
+| 6.3.0 to 6.5.0 | 2 | 9 |
+| 6.5.0 to 7.5.0 | 2 | 5 |
+| 7.5.0 to 8.3.0 | 2 | 9 |
+| 8.3.0 to 8.5.0 | 4 | 2 |
 | 8.5.0 to 9.5.0 | 3 | 4 |
+| 8.5.0 to 12.2.0 | 1 | 18 |
 | 9.5.0 to 10.5.0 | 3 | 2 |
 | 10.5.0 to 11.5.0 | 3 | 10 |
 | 11.5.0 to 12.2.0 | 3 | 11 |
@@ -252,30 +253,30 @@ Over 7.2.8.
 
 ### 5.5.0 to 6.3.0
 
-Over 6.12.112.
+Over 6.6.158 and 6.12.112.
 
 | Symbol | Kernels | 5.5.0 | 6.3.0 |
 |---|---|---|---|
 | AS_VERSION | all | 22901 | 22800 |
 | AS_WRUSS | all | y | (absent) |
-| CC_HAS_NAMED_AS | all | (absent) | y |
+| CC_HAS_NAMED_AS | 6.12.112 | (absent) | y |
 | CC_HAS_SANCOV_TRACE_PC | all | (absent) | y |
 | KCOV | all | (absent) | n |
 | LD_VERSION | all | 22901 | 22800 |
-| USE_X86_SEG_SUPPORT | all | (absent) | y |
+| USE_X86_SEG_SUPPORT | 6.12.112 | (absent) | y |
 | X86_USER_SHADOW_STACK | all | n | (absent) |
 
 ### 6.3.0 to 6.5.0
 
-Over 6.12.112.
+Over 6.6.158 and 6.12.112.
 
 | Symbol | Kernels | 6.3.0 | 6.5.0 |
 |---|---|---|---|
 | AS_GFNI | all | (absent) | y |
 | AS_TPAUSE | all | (absent) | y |
-| AS_VAES | all | (absent) | y |
+| AS_VAES | 6.12.112 | (absent) | y |
 | AS_VERSION | all | 22800 | 23101 |
-| AS_VPCLMULQDQ | all | (absent) | y |
+| AS_VPCLMULQDQ | 6.12.112 | (absent) | y |
 | AS_WRUSS | all | (absent) | y |
 | CC_HAS_RETURN_THUNK | all | (absent) | y |
 | LD_VERSION | all | 22800 | 23101 |
@@ -283,7 +284,7 @@ Over 6.12.112.
 
 ### 6.5.0 to 7.5.0
 
-Over 6.12.112.
+Over 6.6.158 and 6.12.112.
 
 | Symbol | Kernels | 6.5.0 | 7.5.0 |
 |---|---|---|---|
@@ -295,7 +296,7 @@ Over 6.12.112.
 
 ### 7.5.0 to 8.3.0
 
-Over 6.12.112.
+Over 6.6.158 and 6.12.112.
 
 | Symbol | Kernels | 7.5.0 | 8.3.0 |
 |---|---|---|---|
@@ -311,7 +312,7 @@ Over 6.12.112.
 
 ### 8.3.0 to 8.5.0
 
-Over 6.12.112, 6.18.55 and 7.2.9.
+Over 6.6.158, 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 8.3.0 | 8.5.0 |
 |---|---|---|---|
@@ -328,6 +329,31 @@ Over 6.12.112, 6.18.55 and 7.2.9.
 | CC_NO_ARRAY_BOUNDS | all | (absent) | y |
 | LD_VERSION | all | 23700 | 23900 |
 | TOOLS_SUPPORT_RELR | all | (absent) | y |
+
+### 8.5.0 to 12.2.0
+
+Over 6.6.158.
+
+| Symbol | Kernels | 8.5.0 | 12.2.0 |
+|---|---|---|---|
+| AS_VERSION | all | 23700 | 23900 |
+| CC_HAS_ASM_GOTO_OUTPUT | all | (absent) | y |
+| CC_HAS_ASM_GOTO_TIED_OUTPUT | all | (absent) | y |
+| CC_HAS_AUTO_VAR_INIT_PATTERN | all | (absent) | y |
+| CC_HAS_AUTO_VAR_INIT_ZERO | all | (absent) | y |
+| CC_HAS_AUTO_VAR_INIT_ZERO_BARE | all | (absent) | y |
+| CC_HAS_SLS | all | (absent) | y |
+| CC_HAS_ZERO_CALL_USED_REGS | all | (absent) | y |
+| CC_NO_ARRAY_BOUNDS | all | (absent) | y |
+| GCC_ASM_GOTO_OUTPUT_WORKAROUND | all | (absent) | y |
+| HAVE_KCSAN_COMPILER | all | (absent) | y |
+| INIT_STACK_ALL_PATTERN | all | (absent) | n |
+| INIT_STACK_ALL_ZERO | all | (absent) | y |
+| INIT_STACK_NONE | all | y | n |
+| KCSAN | all | (absent) | n |
+| LD_VERSION | all | 23700 | 23900 |
+| TOOLS_SUPPORT_RELR | all | (absent) | y |
+| ZERO_CALL_USED_REGS | all | (absent) | n |
 
 ### 9.5.0 to 10.5.0
 
