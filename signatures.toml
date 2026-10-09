@@ -286,7 +286,7 @@ class = "tcg-ioapic-timer"
 rung = "L5"
 match = { first-error = "IO-APIC \\+ timer doesn't work" }
 kind = "emulator"
-summary = "check_timer() gives the PIT a few jiffies to tick through the IO-APIC, and under TCG on a loaded host the vCPU can miss that window. It shows in one boot of three, on kernels from 2.6.26 to 6.1 with GCCs from 3.4 to 12 that boot cleanly in the other two, so the cell says nothing about GCC"
+summary = "check_timer() gives the PIT a few jiffies to tick through the IO-APIC, and under TCG on a loaded host the vCPU can miss that window. It shows in one boot of three, on kernels from 2.6.5 to 6.1 with GCCs from 3.1 to 12 that boot cleanly in the other two, so the cell says nothing about GCC"
 platform = ["x86_64", "i386"]
 
 [[signature]]
@@ -916,7 +916,7 @@ rung = "L3"
 match = { first-error = 'unknown pseudo-op: `\.cfi_', config = '(?m)^CONFIG_UNWIND_INFO=y' }
 kind = "binutils-too-old"
 summary = "With the stack unwinder on, 2.6.18 and 2.6.19 write .cfi directives from dwarf2.h whenever CONFIG_UNWIND_INFO is set, and binutils older than 2.16 does not know them, even though 2.6.19 already probes the assembler for CFI"
-fixed-by = [ { commit = "d1526e2cda64", first-tag = "v2.6.20-rc2", note = "removes the stack unwinder, so the defconfig no longer turns on UNWIND_INFO" } ]
+fixed-by = [ { commit = "d1526e2cda64", first-tag = "v2.6.20-rc2", note = "removes the stack unwinder, so the defconfig no longer turns on UNWIND_INFO", bisected = true } ]
 binutils = "<2.16"
 kernel = ">=2.6.18, <2.6.20"
 platform = ["i386", "x86_64"]
