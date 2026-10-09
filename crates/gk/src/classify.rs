@@ -279,6 +279,19 @@ fn repair_errors(dir: &Path) -> Result<(), String> {
 }
 
 /// The first error of a build that failed with no failing unit, as when a link fails. The lines kbuild stopped on come first when they say what went wrong, but under `-j` they are often just the last commands of other jobs, and then the log's first error line is the one to go by.
+/// Why a build that no unit failed stopped. A build gk stopped for its budget says so in `build.json`. Any other log cut short ends where it was cut, often mid-line, so its last lines say nothing of why it stopped.
+fn no_unit_in(dir: &Path) -> String {
+    if build::over_budget(dir) {
+        return build::OVER_BUDGET.to_owned();
+    }
+    let stopped = if build::cut_short(dir) {
+        None
+    } else {
+        stopped(dir)
+    };
+    no_unit(stopped, &build_log(dir))
+}
+
 fn no_unit(stopped: Option<String>, make: &str) -> String {
     if let Some(line) = gave_up_on(make) {
         return line;
@@ -377,13 +390,7 @@ pub fn failure(dir: &Path, r: &CellRecord) -> Option<Failure> {
                 f.unit = unit.unit;
                 f.command = command;
             } else {
-                // A log cut short ends where it was cut, often mid-line, so its last lines say nothing of why it stopped.
-                let stopped = if build::cut_short(dir) {
-                    None
-                } else {
-                    stopped(dir)
-                };
-                f.first_error = no_unit(stopped, &build_log(dir));
+                f.first_error = no_unit_in(dir);
             }
         }
         "L4" => {
@@ -1079,6 +1086,25 @@ gcc = "<5"
             no_unit(Some(cut.to_owned()), make),
             "a.c:(.text+0x0): multiple definition of `f'"
         );
+    }
+
+    #[test]
+    fn a_build_stopped_for_its_budget_says_so_though_its_log_was_cut() {
+        let dir = std::env::temp_dir().join(format!("gk-budget-cut-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("build.json"),
+            r#"{"configured": true, "built": false, "stopped": ["make.log", ["the build went over its budget"]]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("make.log"),
+            "(cat /dev/null; ) > drivers/media/video/modules.order\n/usr/local/bin/timeout: line 10:     7 Terminated              \"$@\"\n",
+        )
+        .unwrap();
+        assert!(build::cut_short(&dir));
+        assert_eq!(no_unit_in(&dir), "the build went over its budget");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

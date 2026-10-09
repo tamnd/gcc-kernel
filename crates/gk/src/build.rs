@@ -335,7 +335,7 @@ pub fn failure_lines(log: &str, n: usize) -> Vec<String> {
 }
 
 /// What `stopped` says of a build that ran out of its budget.
-const OVER_BUDGET: &str = "the build went over its budget";
+pub const OVER_BUDGET: &str = "the build went over its budget";
 
 /// Whether the cell in `dir` stopped because its build went over the budget, from its `build.json`. On a loaded machine that says more about the machine than the cell, so a search runs such a cell again.
 #[must_use]
