@@ -427,7 +427,7 @@ rung = "L3"
 match = { first-error = "undefined reference to `_proxy_pda'" }
 kind = "new-error"
 summary = "The 2.6.19 x86_64 PDA macros name a dummy _proxy_pda variable only as an asm operand, which nothing defines, and from GCC 4.2 the optimizer can turn the operand into a real reference, so the link fails"
-fixed-by = [ { commit = "1bac3b383a93", first-tag = "v2.6.20-rc1", note = "defines _proxy_pda as zero in the linker script" } ]
+fixed-by = [ { commit = "1bac3b383a93", first-tag = "v2.6.20-rc1", note = "defines _proxy_pda as zero in the linker script", bisected = true } ]
 gcc = ">=4.2"
 kernel = ">=2.6.19, <2.6.20"
 platform = ["x86_64"]
