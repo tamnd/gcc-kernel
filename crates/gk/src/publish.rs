@@ -149,12 +149,23 @@ pub fn entry(repo: &Repo, catalog: &[Compiled<'_>], dir: &Path, r: &CellRecord) 
 /// The matrix of every graded cell in the store, or every cell with `ungraded`. Cells on a commit of the history clone, which `gk bisect-kernel` runs, are left out.
 pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
     let catalog = classify::compile(repo);
-    let mut cells: Vec<Entry> = store::cells()?
-        .iter()
+    let records: Vec<(std::path::PathBuf, CellRecord)> = store::cells()?
+        .into_iter()
         .filter(|(_, r)| ungraded || r.graded)
         .filter(|(_, r)| !r.coordinates.kernel.digest.starts_with("git:"))
         .filter(|(_, r)| !crate::sweep::swept(repo, &r.coordinates))
-        .map(|(dir, r)| entry(repo, &catalog, dir, r))
+        .collect();
+    let hide = hidden(
+        &records
+            .iter()
+            .map(|(_, r)| (&r.coordinates, r.rung.as_str()))
+            .collect::<Vec<_>>(),
+    );
+    let mut cells: Vec<Entry> = records
+        .iter()
+        .zip(hide)
+        .filter(|(_, hide)| !hide)
+        .map(|((dir, r), _)| entry(repo, &catalog, dir, r))
         .collect();
     let gcc_version = |id: &str| {
         id.rsplit_once("gcc-")
@@ -176,6 +187,28 @@ pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
         schema: SCHEMA,
         cells,
     })
+}
+
+/// Which of `cells`, each its coordinates and rung, are build only cells that a boot of the same names makes moot. A cell run with `--no-boot` stops at L4 even where the kernel boots, so once a cell with the same kernel, GCC, binutils, platform and configuration has booted, a build only cell that got no further says nothing new. Being the newer of the two it would still take the square and turn a kernel that works into a hole.
+fn hidden(cells: &[(&gk_model::cell::Coordinates, &str)]) -> Vec<bool> {
+    let names = |c: &gk_model::cell::Coordinates| {
+        (
+            c.kernel.name.clone(),
+            c.gcc.name.clone(),
+            c.binutils.name.clone(),
+            c.platform.clone(),
+            c.config.name.clone(),
+        )
+    };
+    let booted: std::collections::HashSet<_> = cells
+        .iter()
+        .filter(|(c, rung)| !c.qemu.is_empty() && *rung >= "L4")
+        .map(|(c, _)| names(c))
+        .collect();
+    cells
+        .iter()
+        .map(|(c, rung)| c.qemu.is_empty() && *rung == "L4" && booted.contains(&names(c)))
+        .collect()
 }
 
 /// The heat map square of a verdict: green works, yellow runs, orange builds, red fails, or `·` for n/a.
@@ -397,6 +430,29 @@ mod tests {
             build_seconds: None,
             machine: String::new(),
         }
+    }
+
+    #[test]
+    fn a_build_only_cell_does_not_hide_a_boot() {
+        let at = |gcc: &str, qemu: &str| -> gk_model::cell::Coordinates {
+            serde_json::from_str(&format!(
+                r#"{{"kernel": {{"name": "linux-2.6.39", "digest": ""}}, "gcc": {{"name": "{gcc}", "digest": ""}}, "binutils": {{"name": "binutils-2.20.1", "digest": ""}}, "platform": "i386", "config": {{"name": "defconfig+gk", "digest": ""}}, "host": {{"name": "gk-host-squeeze", "digest": ""}}, "qemu": "{qemu}"}}"#
+            ))
+            .unwrap()
+        };
+        let (booted, build_only) = (at("gcc-3.4.6", "sha256:q"), at("gcc-3.4.6", ""));
+        let (failed_boot, alone) = (at("gcc-4.0.4", "sha256:q"), at("gcc-4.1.2", ""));
+        let failed_build = at("gcc-4.0.4", "");
+        assert_eq!(
+            hidden(&[
+                (&booted, "L8"),
+                (&build_only, "L4"),
+                (&failed_boot, "L3"),
+                (&failed_build, "L4"),
+                (&alone, "L4"),
+            ]),
+            [false, true, false, false, false]
+        );
     }
 
     #[test]
