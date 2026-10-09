@@ -57,8 +57,8 @@ gcc_minor="${gcc_minor#*.}"
 gcc_minor="${gcc_minor%%.*}"
 gcc_series=$((gcc_major * 100 + gcc_minor))
 
-# GCC 3.x does not build with GCC 4's stricter C, as in its casts used as lvalues, so where the forge has gcc-3.4 those releases are built with it.
-if [ "$gcc_series" -lt 400 ] && command -v gcc-3.4 > /dev/null 2>&1; then
+# GCC 3.x does not build with GCC 4's stricter C, as in its casts used as lvalues, so where the forge has gcc-3.4 those releases are built with it. A binutils bundle is forged in the forge of a GCC of its own age, and the gas of 2.14 trips on the same C ("array type has incomplete element type" in tc-i386.h), so a binutils bundle uses gcc-3.4 too where the forge has it. Only etch does, and none of the binutils bundles forged before this came from etch.
+if { [ "$gcc_series" -lt 400 ] || [ -z "$GK_GCC" ]; } && command -v gcc-3.4 > /dev/null 2>&1; then
   export CC=gcc-3.4
 fi
 # The gcc directory of 2.95 and older links its programs with neither the LDFLAGS seen by configure nor those given to make, so there the compiler itself is told to link statically.
