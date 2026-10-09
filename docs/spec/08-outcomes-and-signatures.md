@@ -93,7 +93,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `ifdef-0-in-10` | new-error | 3 and later on 1.0 | L3 | none, gone by 1.2 |
 | `museum-asm-impossible` | new-error | 2.7 and later on 1.0 and 1.2 | L3 | none |
 | `gcc28-refused-on-20` | refusal | 2.8, egcs and 2.95 on 2.0 | L3 | none, the refusal is the policy |
-| `gcc-below-min-on-22` | too-old | below 2.7 on 2.2 | L3 | none |
+| `gcc-below-min-on-22` | too-old | below 2.7 on 2.2, and the a.out tools of 2.6.3 | L3 | none |
 | `gcc-below-min-on-24` | too-old | 2.x below 2.9 on 2.4 | L3 | none |
 | `gcc3-ipi-count-on-22` | new-error | 3 and later on 2.2 | L3 | none |
 | `gcc3-0-1-refused` | refusal | 3.0, 3.1 | L1 to L3 | policy from 6680598 |
@@ -150,6 +150,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `gcc16-unused-but-set` | new-warning-werror | 16 | L3 | 97fb54d86d21, 729a2e8e9ac4 |
 | `binutils-too-old-lfence` | binutils-* | binutils below 2.12, i386 | L3 | none, the kernel asks for 2.12 |
 | `binutils-too-old-incbin` | binutils-* | binutils below 2.12, i386, 2.6 | L3 | none, the kernel asks for 2.12 |
+| `binutils-too-old-subsection` | binutils-* | binutils 2.8.1, i386, 2.4 | L3 | none, the kernel asks for 2.9.1.0.25 |
 | `binutils-too-old-281` | binutils-* | binutils 2.8.1, i386, 2.6 | L3 | none, the kernel asks for 2.12 |
 | `binutils-too-old-sysexit` | binutils-* | binutils 2.14, x86_64 | L3 | none |
 | `binutils-too-old-bignum` | binutils-* | binutils 2.14, i386, s2io, aic79xx, the 2.6.22 perfctr watchdog and the 2.6.33 MCE severity table | L3 | none |
