@@ -154,6 +154,7 @@ pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
         .filter(|(_, r)| ungraded || r.graded)
         .filter(|(_, r)| !r.coordinates.kernel.digest.starts_with("git:"))
         .filter(|(_, r)| !crate::sweep::swept(repo, &r.coordinates))
+        .filter(|(dir, r)| !no_result(dir, &r.verdict))
         .collect();
     let hide = hidden(
         &records
@@ -187,6 +188,11 @@ pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
         schema: SCHEMA,
         cells,
     })
+}
+
+/// Whether the cell in `dir` with `verdict` is no result at all: it failed because the build machine ran out of disk, which says nothing about the kernel or the compiler. The matrix and the reports leave it out, so an older cell of the same crossing takes its square, or none does and the square reads not run until a search runs it again.
+pub(crate) fn no_result(dir: &Path, verdict: &str) -> bool {
+    verdict == "fails" && crate::build::disk_full(dir)
 }
 
 /// Which of `cells`, each its coordinates and rung, are build only cells that a boot of the same names makes moot. A cell run with `--no-boot` stops at L4 even where the kernel boots, so once a cell with the same kernel, GCC, binutils, platform and configuration has booted, a build only cell that got no further says nothing new. Being the newer of the two it would still take the square and turn a kernel that works into a hole.
@@ -430,6 +436,21 @@ mod tests {
             build_seconds: None,
             machine: String::new(),
         }
+    }
+
+    #[test]
+    fn a_cell_the_full_disk_stopped_is_no_result() {
+        let dir = std::env::temp_dir().join(format!("gk-no-result-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("errors.jsonl"), "{\"unit\":\"mm/vmstat.o\",\"stderr\":\"fatal error: error writing to /tmp/ccc2h2gi.s: No space left on device\"}\n").unwrap();
+        assert!(no_result(&dir, "fails"));
+        std::fs::write(
+            dir.join("errors.jsonl"),
+            "{\"unit\":\"mm/vmstat.o\",\"stderr\":\"error: expected ';'\"}\n",
+        )
+        .unwrap();
+        assert!(!no_result(&dir, "fails"));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

@@ -66,6 +66,7 @@ pub fn cells(repo: &Repo, ungraded: bool) -> Result<Vec<Cell>, String> {
         .into_iter()
         .filter(|(_, r)| ungraded || r.graded)
         .filter(|(_, r)| !crate::sweep::swept(repo, &r.coordinates))
+        .filter(|(dir, r)| !publish::no_result(dir, &r.verdict))
         .map(|(dir, r)| {
             let warnings = std::fs::read_to_string(dir.join("warnings.jsonl"))
                 .unwrap_or_default()
