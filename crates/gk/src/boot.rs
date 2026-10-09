@@ -46,6 +46,9 @@ const SPLATS: [&str; 6] = [
     "rcu: INFO:",
 ];
 
+/// Lines that start like a splat but only describe the machine. The machine always has two CPUs, and a kernel built without SMP, as the i386 defconfigs of 2.6.17 and 2.6.18 are, says it ignores the second one.
+const NOT_SPLATS: [&str; 1] = ["WARNING: NR_CPUS limit of"];
+
 /// One boot to run.
 pub struct Boot<'a> {
     /// The platform.
@@ -226,7 +229,9 @@ impl Outcome {
         if self.panic.is_none() && PANICS.iter().any(|p| line.starts_with(p)) {
             self.panic = Some(line.to_owned());
         }
-        if SPLATS.iter().any(|p| line.starts_with(p)) {
+        if SPLATS.iter().any(|p| line.starts_with(p))
+            && !NOT_SPLATS.iter().any(|p| line.starts_with(p))
+        {
             self.splats.push(line.to_owned());
         }
     }
@@ -912,6 +917,12 @@ mod tests {
         ]);
         assert_eq!(o.splats.len(), 2);
         assert!(o.panic.is_none());
+    }
+
+    #[test]
+    fn a_uniprocessor_kernel_ignoring_the_second_cpu_is_not_a_splat() {
+        let o = read(&["WARNING: NR_CPUS limit of 1 reached.  Processor ignored."]);
+        assert!(o.splats.is_empty());
     }
 
     #[test]
