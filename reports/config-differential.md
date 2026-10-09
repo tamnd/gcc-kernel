@@ -12,6 +12,34 @@ No kernel has two columns to compare yet.
 
 ## i386 defconfig+gk
 
+| Step | Kernels | Symbols that change |
+|---|--:|--:|
+| 12.2.0 to 16.2.0 | 1 | 3 |
+| 14.2.0 to 16.2.0 | 1 | 4 |
+
+### 12.2.0 to 16.2.0
+
+Over 6.1.189.
+
+| Symbol | Kernels | 12.2.0 | 16.2.0 |
+|---|---|---|---|
+| AS_VERSION | all | 23900 | 20285426 |
+| GCC_ASM_GOTO_OUTPUT_WORKAROUND | all | y | (absent) |
+| LD_VERSION | all | 23900 | 20285426 |
+
+### 14.2.0 to 16.2.0
+
+Over 6.18.55.
+
+| Symbol | Kernels | 14.2.0 | 16.2.0 |
+|---|---|---|---|
+| AS_VERSION | all | 24301 | 20285426 |
+| CC_HAS_COUNTED_BY | all | (absent) | y |
+| CC_HAS_MULTIDIMENSIONAL_NONSTRING | all | (absent) | y |
+| LD_VERSION | all | 24301 | 20285426 |
+
+## i386 tinyconfig+gk
+
 No kernel has two columns to compare yet.
 
 ## x86_64 defconfig+gk
@@ -28,6 +56,7 @@ No kernel has two columns to compare yet.
 | 12.5.0 to 13.5.0 | 1 | 3 |
 | 13.5.0 to 14.2.0 | 1 | 5 |
 | 14.2.0 to 14.4.0 | 1 | 2 |
+| 14.2.0 to 16.2.0 | 1 | 4 |
 | 14.4.0 to 15.3.0 | 1 | 2 |
 | 15.3.0 to 16.1.0 | 1 | 1 |
 | 16.1.0 to 16.2.0 | 1 | 0 |
@@ -172,6 +201,17 @@ Over 7.2.8.
 | AS_VERSION | all | 24301 | 20285426 |
 | LD_VERSION | all | 24301 | 20285426 |
 
+### 14.2.0 to 16.2.0
+
+Over 6.18.55.
+
+| Symbol | Kernels | 14.2.0 | 16.2.0 |
+|---|---|---|---|
+| AS_VERSION | all | 24301 | 20285426 |
+| CC_HAS_COUNTED_BY | all | (absent) | y |
+| CC_HAS_MULTIDIMENSIONAL_NONSTRING | all | (absent) | y |
+| LD_VERSION | all | 24301 | 20285426 |
+
 ### 14.4.0 to 15.3.0
 
 Over 7.2.8.
@@ -193,18 +233,94 @@ Over 7.2.8.
 
 | Step | Kernels | Symbols that change |
 |---|--:|--:|
-| 8.5.0 to 9.5.0 | 1 | 4 |
-| 9.5.0 to 10.5.0 | 1 | 2 |
-| 10.5.0 to 11.5.0 | 1 | 10 |
-| 11.5.0 to 12.2.0 | 1 | 11 |
-| 12.2.0 to 12.5.0 | 1 | 5 |
-| 12.5.0 to 13.5.0 | 1 | 3 |
-| 13.5.0 to 14.2.0 | 1 | 5 |
-| 14.2.0 to 14.4.0 | 1 | 2 |
+| 5.5.0 to 6.3.0 | 1 | 8 |
+| 6.3.0 to 6.5.0 | 1 | 9 |
+| 6.5.0 to 7.5.0 | 1 | 5 |
+| 7.5.0 to 8.3.0 | 1 | 9 |
+| 8.3.0 to 8.5.0 | 3 | 2 |
+| 8.5.0 to 9.5.0 | 3 | 4 |
+| 9.5.0 to 10.5.0 | 3 | 2 |
+| 10.5.0 to 11.5.0 | 3 | 10 |
+| 11.5.0 to 12.2.0 | 3 | 11 |
+| 12.2.0 to 12.5.0 | 3 | 5 |
+| 12.5.0 to 13.5.0 | 3 | 3 |
+| 13.5.0 to 14.2.0 | 2 | 5 |
+| 14.2.0 to 14.4.0 | 2 | 2 |
+| 14.4.0 to 15.3.0 | 2 | 2 |
+| 15.3.0 to 16.1.0 | 2 | 1 |
+| 16.1.0 to 16.2.0 | 2 | 0 |
+
+### 5.5.0 to 6.3.0
+
+Over 6.12.112.
+
+| Symbol | Kernels | 5.5.0 | 6.3.0 |
+|---|---|---|---|
+| AS_VERSION | all | 22901 | 22800 |
+| AS_WRUSS | all | y | (absent) |
+| CC_HAS_NAMED_AS | all | (absent) | y |
+| CC_HAS_SANCOV_TRACE_PC | all | (absent) | y |
+| KCOV | all | (absent) | n |
+| LD_VERSION | all | 22901 | 22800 |
+| USE_X86_SEG_SUPPORT | all | (absent) | y |
+| X86_USER_SHADOW_STACK | all | n | (absent) |
+
+### 6.3.0 to 6.5.0
+
+Over 6.12.112.
+
+| Symbol | Kernels | 6.3.0 | 6.5.0 |
+|---|---|---|---|
+| AS_GFNI | all | (absent) | y |
+| AS_TPAUSE | all | (absent) | y |
+| AS_VAES | all | (absent) | y |
+| AS_VERSION | all | 22800 | 23101 |
+| AS_VPCLMULQDQ | all | (absent) | y |
+| AS_WRUSS | all | (absent) | y |
+| CC_HAS_RETURN_THUNK | all | (absent) | y |
+| LD_VERSION | all | 22800 | 23101 |
+| X86_USER_SHADOW_STACK | all | (absent) | n |
+
+### 6.5.0 to 7.5.0
+
+Over 6.12.112.
+
+| Symbol | Kernels | 6.5.0 | 7.5.0 |
+|---|---|---|---|
+| AS_VERSION | all | 23101 | 23400 |
+| CC_HAS_ASM_INLINE | all | (absent) | y |
+| CC_HAS_NO_PROFILE_FN_ATTR | all | (absent) | y |
+| CC_IMPLICIT_FALLTHROUGH | all | (absent) | "-Wimplicit-fallthrough=5" |
+| LD_VERSION | all | 23101 | 23400 |
+
+### 7.5.0 to 8.3.0
+
+Over 6.12.112.
+
+| Symbol | Kernels | 7.5.0 | 8.3.0 |
+|---|---|---|---|
+| AS_VERSION | all | 23400 | 23200 |
+| CC_HAS_ENTRY_PADDING | all | (absent) | y |
+| CC_HAS_IBT | all | (absent) | y |
+| CC_HAS_SANE_STACKPROTECTOR | all | (absent) | y |
+| CC_HAS_WORKING_NOSANITIZE_ADDRESS | all | (absent) | y |
+| HAVE_STACKPROTECTOR | all | (absent) | y |
+| LD_VERSION | all | 23400 | 23200 |
+| STACKPROTECTOR | all | (absent) | n |
+| X86_KERNEL_IBT | all | (absent) | n |
+
+### 8.3.0 to 8.5.0
+
+Over 6.12.112, 6.18.55 and 7.2.9.
+
+| Symbol | Kernels | 8.3.0 | 8.5.0 |
+|---|---|---|---|
+| AS_VERSION | all | 23200 | 23700 |
+| LD_VERSION | all | 23200 | 23700 |
 
 ### 8.5.0 to 9.5.0
 
-Over 7.2.9.
+Over 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 8.5.0 | 9.5.0 |
 |---|---|---|---|
@@ -215,7 +331,7 @@ Over 7.2.9.
 
 ### 9.5.0 to 10.5.0
 
-Over 7.2.9.
+Over 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 9.5.0 | 10.5.0 |
 |---|---|---|---|
@@ -224,7 +340,7 @@ Over 7.2.9.
 
 ### 10.5.0 to 11.5.0
 
-Over 7.2.9.
+Over 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 10.5.0 | 11.5.0 |
 |---|---|---|---|
@@ -241,7 +357,7 @@ Over 7.2.9.
 
 ### 11.5.0 to 12.2.0
 
-Over 7.2.9.
+Over 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 11.5.0 | 12.2.0 |
 |---|---|---|---|
@@ -259,7 +375,7 @@ Over 7.2.9.
 
 ### 12.2.0 to 12.5.0
 
-Over 7.2.9.
+Over 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 12.2.0 | 12.5.0 |
 |---|---|---|---|
@@ -271,17 +387,17 @@ Over 7.2.9.
 
 ### 12.5.0 to 13.5.0
 
-Over 7.2.9.
+Over 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 12.5.0 | 13.5.0 |
 |---|---|---|---|
 | AS_VERSION | all | 24500 | 20285426 |
-| CC_HAS_ASSUME | all | (absent) | y |
+| CC_HAS_ASSUME | 6.18.55 and 7.2.9 | (absent) | y |
 | LD_VERSION | all | 24500 | 20285426 |
 
 ### 13.5.0 to 14.2.0
 
-Over 7.2.9.
+Over 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 13.5.0 | 14.2.0 |
 |---|---|---|---|
@@ -293,9 +409,26 @@ Over 7.2.9.
 
 ### 14.2.0 to 14.4.0
 
-Over 7.2.9.
+Over 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 14.2.0 | 14.4.0 |
 |---|---|---|---|
 | AS_VERSION | all | 24301 | 20285426 |
 | LD_VERSION | all | 24301 | 20285426 |
+
+### 14.4.0 to 15.3.0
+
+Over 6.18.55 and 7.2.9.
+
+| Symbol | Kernels | 14.4.0 | 15.3.0 |
+|---|---|---|---|
+| CC_HAS_COUNTED_BY | all | (absent) | y |
+| CC_HAS_MULTIDIMENSIONAL_NONSTRING | all | (absent) | y |
+
+### 15.3.0 to 16.1.0
+
+Over 6.18.55 and 7.2.9.
+
+| Symbol | Kernels | 15.3.0 | 16.1.0 |
+|---|---|---|---|
+| CC_HAS_COUNTED_BY_PTR | 7.2.9 | (absent) | y |
