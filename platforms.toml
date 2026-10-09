@@ -13,7 +13,7 @@ defconfig = [{ from = "2.6.0", value = "defconfig" }, { from = "2.6.24", value =
 image = [{ from = "2.6.0", value = "bzImage" }]
 qemu = "qemu-system-x86_64"
 machine = [{ from = "2.6.0", value = "pc" }, { from = "3.0", value = "q35" }]
-cpu = [{ from = "2.6.0", value = "qemu64,vendor=GenuineIntel" }, { from = "2.6.16", value = "qemu64" }, { from = "4.0", value = "max,la57=off" }]
+cpu = [{ from = "2.6.0", value = "qemu64,phys-bits=39" }, { from = "2.6.4", value = "qemu64,vendor=GenuineIntel" }, { from = "2.6.16", value = "qemu64" }, { from = "4.0", value = "max,la57=off" }]
 console = [{ from = "2.6.0", value = "ttyS0" }]
 budget = { build-minutes = 90, boot-seconds = 300, kunit-seconds = 1200 }
 init = { gcc = "gcc-8.5.0", host = "gk-host-trixie" }
