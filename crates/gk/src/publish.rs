@@ -444,7 +444,11 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("errors.jsonl"), "{\"unit\":\"mm/vmstat.o\",\"stderr\":\"fatal error: error writing to /tmp/ccc2h2gi.s: No space left on device\"}\n").unwrap();
         assert!(no_result(&dir, "fails"));
-        std::fs::write(dir.join("errors.jsonl"), "{\"unit\":\"mm/vmstat.o\",\"stderr\":\"error: expected ';'\"}\n").unwrap();
+        std::fs::write(
+            dir.join("errors.jsonl"),
+            "{\"unit\":\"mm/vmstat.o\",\"stderr\":\"error: expected ';'\"}\n",
+        )
+        .unwrap();
         assert!(!no_result(&dir, "fails"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
