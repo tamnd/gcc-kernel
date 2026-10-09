@@ -1058,6 +1058,8 @@ mod tests {
             let at = cmd.iter().position(|a| a == "-cpu").unwrap();
             cmd[at + 1].clone()
         };
+        assert_eq!(cpu("2.6.3"), "qemu64,phys-bits=39");
+        assert_eq!(cpu("2.6.4"), "qemu64,vendor=GenuineIntel");
         assert_eq!(cpu("2.6.15"), "qemu64,vendor=GenuineIntel");
         assert_eq!(cpu("2.6.16"), "qemu64");
     }
