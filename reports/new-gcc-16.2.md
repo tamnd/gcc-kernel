@@ -30,7 +30,7 @@ Kernels with a cell: 7 of 7. Of those, 6 run.
 | 6.6.158 | longterm | runs | L6 | 0 |  |
 | 6.12.112 | longterm | runs | L6 | 0 |  |
 | 6.18.55 | longterm | runs | L6 | 0 |  |
-| 7.2.9 | stable | fails | L2 | 0 |  |
+| 7.2.9 | stable | fails | L2 | 0 | mm/vmstat.c: /src/mm/vmstat.c:2433:1: fatal error: error writing to /tmp/ccc2h2gi.s: No space left on device |
 
 ### arm64
 
@@ -44,7 +44,7 @@ Kernels with a cell: 3 of 7. Of those, 0 run.
 | 6.6.158 | longterm | not run | | | |
 | 6.12.112 | longterm | fails | L2 | 0 |  |
 | 6.18.55 | longterm | fails | L2 | 0 |  |
-| 7.2.9 | stable | fails | L2 | 0 |  |
+| 7.2.9 | stable | fails | L2 | 0 | drivers/platform/arm64/lenovo-thinkpad-t14s.c: /src/drivers/platform/arm64/lenovo-thinkpad-t14s.c:662:1: fatal error:... |
 
 ### arm
 
