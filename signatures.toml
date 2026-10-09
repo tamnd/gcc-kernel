@@ -234,13 +234,6 @@ gcc = "<4.9"
 # The rig, not the compiler.
 
 [[signature]]
-class = "over-budget"
-rung = "L3..L7"
-match = { first-error = 'went over its budget|^timed out after' }
-kind = "timeout"
-summary = "The step ran out of its time budget with no other sign of failure, which on a loaded machine says more about the machine than the cell"
-
-[[signature]]
 class = "disk-full"
 rung = "L1..L5"
 match = { first-error = 'No space left on device' }
@@ -340,6 +333,14 @@ kind = "out-of-tree"
 summary = "arch/x86_64/pci/Makefile adds `-I arch/i386/pci` with a space, so kbuild never sees a `-I` word to point at the source tree, and with gk's O= build mmconfig.c cannot find pci.h. 2.6.9 drops the space before git. A tree built in place compiles, so the cell says nothing about GCC"
 kernel = ">=2.6.5, <2.6.9"
 platform = ["x86_64"]
+
+# Last of the rig signatures, so that a step that timed out after a panic or stall one of the signatures above explains takes that class.
+[[signature]]
+class = "over-budget"
+rung = "L3..L7"
+match = { first-error = 'went over its budget|^timed out after' }
+kind = "timeout"
+summary = "The step ran out of its time budget with no other sign of failure, which on a loaded machine says more about the machine than the cell"
 
 # Changed defaults.
 
