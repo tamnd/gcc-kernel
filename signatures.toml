@@ -421,6 +421,16 @@ kernel = ">=2.6.9, <2.6.11"
 platform = ["x86_64", "i386"]
 
 [[signature]]
+class = "gcc4-incomplete-array-i2c"
+rung = "L3"
+match = { first-error = 'i2c\.h:\d+(:\d+)?: error: array type has incomplete element type' }
+kind = "new-error"
+summary = "GCC 4.0 refuses the i2c_transfer prototype in 2.6.11, which takes an array of struct i2c_msg before the struct is defined, and the x86_64 ia32 ioctl code includes i2c.h. 2.6.12 takes a pointer instead"
+gcc = ">=4"
+kernel = ">=2.6.11, <2.6.12"
+platform = ["x86_64"]
+
+[[signature]]
 class = "gcc48-printk-regparm"
 rung = "L3"
 match = { first-error = "spinlock\\.h:\\d+(:\\d+)?: error: conflicting types for 'printk'" }
@@ -476,7 +486,7 @@ platform = ["x86_64", "i386"]
 [[signature]]
 class = "gcc46-m-elf-i386"
 rung = "L3"
-match = { first-error = 'elf_(?:i386|x86_64): No such file or directory|unrecognized (?:command-line )?option .-m.' }
+match = { first-error = 'elf_(?:i386|x86_64): No such file or directory|unrecognized (?:command[- ]line )?option .-m.' }
 kind = "new-error"
 summary = "x86 builds its vsyscall and vdso pages by passing the linker's -m elf_i386 or -m elf_x86_64 to gcc, which GCC 4.6 and later read as an input file and GCC 11 and later refuse outright"
 fixed-by = [ { commit = "de2a8cf98ecd", first-tag = "v2.6.37-rc7", note = "fixes the vdso Makefile for both, which replaced the vsyscall rule of arch/i386/kernel in 2.6.25" } ]

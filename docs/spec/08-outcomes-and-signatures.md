@@ -100,6 +100,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `arm-gcc3-below-33` | refusal | 3.0 to 3.2, arm | L1 | policy from a136564 |
 | `gcc4-incomplete-array` | new-error | 4 and later on 2.6.0 to 2.6.8, x86 | L3 | none, fixed before git in 2.6.9 |
 | `gcc4-incomplete-array-fb` | new-error | 4 and later on 2.6.9 and 2.6.10, x86 | L3 | none, fixed before git in 2.6.11 |
+| `gcc4-incomplete-array-i2c` | new-error | 4 and later on 2.6.11, x86_64 | L3 | none, fixed before git in 2.6.12 |
 | `gcc48-printk-regparm` | new-error | 4.8 and later on 2.6.0 to 2.6.3, i386 | L3 | none, fixed before git in 2.6.4 |
 | `gcc42-proxy-pda` | new-error | 4.2 and later on 2.6.19, x86_64 | L3 | 1bac3b383a93 |
 | `gcc48-mutex-slowpath-unused` | new-error | 4.8 and later on 2.6.16 to 2.6.28, x86_64 | L3 | 7918baa55514 |
