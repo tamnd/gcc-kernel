@@ -938,7 +938,7 @@ rung = "L3"
 match = { first-error = 'ia32entry\.S:\d+: Error: too many positional arguments' }
 kind = "binutils-too-old"
 summary = "2.6.39 passes $__USER32_CS to the pushq_cfi macro, the define has spaces between its operators, and binutils 2.16 splits it into several macro arguments"
-fixed-by = [ { commit = "dd2897bf0f4d", first-tag = "v3.1-rc1", note = "removes the spaces from the __USER32_CS define" } ]
+fixed-by = [ { commit = "dd2897bf0f4d", first-tag = "v3.1-rc1", note = "removes the spaces from the __USER32_CS define", bisected = true } ]
 binutils = "<2.17"
 kernel = ">=2.6.39, <3.1"
 platform = ["x86_64"]
