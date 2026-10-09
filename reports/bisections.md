@@ -2,7 +2,7 @@
 
 Every `fixed-by` commit of the failure catalog is confirmed by bisecting between a kernel the signature matches and one it does not, with the signature's GCC (spec 03.5 and 08.2). When the bisection finds another commit, the bisected commit wins and the signature is corrected. A signature can name several commits, one for each place the kernel had to change, and a bisection confirms the one its range and platform reach. Written by `gk publish` from `signatures.toml` and the bisections in the result store.
 
-21 bisections in the store. 20 of the 67 signatures with a fixing commit have at least one of their commits confirmed. 29 of the others match no cell of the matrix yet, so there is no failing kernel to bisect from until one does. Cells counts the newest run of each coordinate that the signature matches.
+24 bisections in the store. 23 of the 67 signatures with a fixing commit have at least one of their commits confirmed. 29 of the others match no cell of the matrix yet, so there is no failing kernel to bisect from until one does. Cells counts the newest run of each coordinate that the signature matches.
 
 ## Signatures
 
@@ -13,7 +13,7 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | gcc3-0-1-refused | L1..L3 | refusal | `6680598` |  | 5 |
 | arm-gcc3-below-33 | L1 | refusal | `a136564` |  | 0 |
 | gcc41-weak | L1 | blacklist | `f9d1425` |  | 0 |
-| no-compiler-header | L1 | refusal | `cb984d101b30` `71458cfc782e` | `cb984d101b30` `71458cfc782e` | 47 |
+| no-compiler-header | L1 | refusal | `cb984d101b30` `71458cfc782e` | `cb984d101b30` `71458cfc782e` | 66 |
 | compiler-h-gnuc-gt-4 | L1..L3 | refusal | `f153b82121b0` `cb984d101b30` | `f153b82121b0` `cb984d101b30` | 221 |
 | arm-gcc48-pr58854 | L1 | blacklist | `7fc150543c73` |  | 0 |
 | gcc-min-46 | L1 | refusal | `cafa0010cd51` | `cafa0010cd51` | 0 |
@@ -38,7 +38,7 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | gcc42-proxy-pda | L3 | new-error | `1bac3b383a93` | `1bac3b383a93` | 1 |
 | gcc48-mutex-slowpath-unused | L3 | new-error | `7918baa55514` |  | 1 |
 | gcc48-ptrace-asmregparm | L3 | new-error | `1b4ac2a935aa` | `1b4ac2a935aa` | 11 |
-| gcc46-m-elf-i386 | L3 | new-error | `de2a8cf98ecd` |  | 24 |
+| gcc46-m-elf-i386 | L3 | new-error | `de2a8cf98ecd` |  | 26 |
 | gcc3-vdso-plt-overlap | L3 | too-old | `c65916fe3586` | `c65916fe3586` | 1 |
 | gcc34-this-ip-label | L3 | too-old | `4a92379bdfb4` | `4a92379bdfb4` | 19 |
 | gcc32-directive-in-macro-args | L3 | too-old | `9cf4f298e29a` |  | 2 |
@@ -61,11 +61,11 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | gcc8-objtool-switch | L4..L8 | objtool | `fd35c88b7441` |  | 0 |
 | gcc16-modpost-ipa-init | L4 | modpost | `4c9ad387aa2d` |  | 0 |
 | binutils-too-old-assert | L3 | binutils-too-old | `d2ba8b211bb8` |  | 6 |
-| binutils-too-old-cfi | L3 | binutils-too-old | `d1526e2cda64` |  | 3 |
+| binutils-too-old-cfi | L3 | binutils-too-old | `d1526e2cda64` | `d1526e2cda64` | 3 |
 | binutils-too-old-multiline-macro | L3 | binutils-too-old | `6e3515352bdd` |  | 1 |
-| binutils-216-user32-cs | L3 | binutils-too-old | `dd2897bf0f4d` |  | 3 |
-| binutils-size-undefined | L3 | binutils-assembler | `ad2fc2cd9253` |  | 11 |
-| binutils-segment-mov | L3 | binutils-assembler | `fd51f666fa59` |  | 109 |
+| binutils-216-user32-cs | L3 | binutils-too-old | `dd2897bf0f4d` | `dd2897bf0f4d` | 3 |
+| binutils-size-undefined | L3 | binutils-assembler | `ad2fc2cd9253` | `ad2fc2cd9253` | 11 |
+| binutils-segment-mov | L3 | binutils-assembler | `fd51f666fa59` |  | 110 |
 | binutils-range-ok-cmp | L3 | binutils-assembler | `722f4f5b2600` | `722f4f5b2600` | 27 |
 | binutils-plt32 | L4..L5 | binutils-relocation | `b21ebf2fb4cd` |  | 0 |
 | binutils-separate-code | L5 | binutils-layout | `e3d03598e8ae` |  | 0 |
@@ -84,14 +84,17 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | 2.6.15..2.6.16 | gcc-4.3.5 | i386 | `arch/i386/kernel/apic.o` | 14 | `9ab34fe76114` | [PATCH] enable unit-at-a-time optimisations for gcc4 | v2.6.16-rc1 | gcc43-no-unit-at-a-time |
 | 2.6.17..2.6.18 | gcc-4.4.7 | i386 | `fs/binfmt_aout.o` | 13 | `722f4f5b2600` | [PATCH] x86: fix __range_ok constraint | v2.6.18-rc1 | binutils-range-ok-cmp |
 | 2.6.17..2.6.18 | ubuntu-hardy-gcc-4.2 | x86_64 | L3 | 12 | `eb2cafa1d902` | kbuild: -fno-stack-protector is not good | v2.6.18-rc4 | distro-ssp |
+| 2.6.19..2.6.20 | gcc-3.2.3 with binutils-2.14 | i386 | `arch/i386/kernel/entry.o` | 13 | `d1526e2cda64` | Remove stack unwinder for now | v2.6.20-rc2 | binutils-too-old-cfi |
 | 2.6.19..2.6.20 | gcc-4.3.5 | x86_64 | L3 | 12 | `1bac3b383a93` | [PATCH] x86: Work around gcc 4.2 over aggressive optimizer | v2.6.20-rc1 | gcc42-proxy-pda |
 | 2.6.23..2.6.24 | gcc-3.3.6 | x86_64 | L3 | 13 | `c65916fe3586` | x86: vdso linker script cleanup | v2.6.24-rc1 | gcc3-vdso-plt-overlap |
 | 2.6.24..2.6.25 | gcc-4.5.4 | i386 | `arch/x86/boot/video.o` | 14 | `811a0fff5d6e` | x86 setup: fix constraints in segment accessor functions | v2.6.25-rc1 | gcc44-setup-dil |
 | 2.6.26..2.6.27 | gcc-3.2.3 | x86_64 | `arch/x86/kernel/smpboot.o` | 14 | `1c5b0eb66d74` | x86: fix readb() et al compile error with gcc-3.2.3 | v2.6.27-rc4 | none |
+| 2.6.26..2.6.27 | gcc-4.3.6 with binutils-2.21.1 | x86_64 | `arch/x86/lib/copy_user_64.o` | 13 | `ad2fc2cd9253` | x86: fix copy_user on x86 | v2.6.27-rc1 | binutils-size-undefined |
 | 2.6.26..2.6.27 | gcc-4.3.6 with binutils-2.21.1 | x86_64 | L3 | 13 | `ad1f8bf073e1` | Fix accidental reference to tg3 firmware | v2.6.27-rc1 | none |
 | 2.6.28..2.6.29 | gcc-5.5.0 | x86_64 | L1 | 14 | `f153b82121b0` | Sanitize gcc version header includes | v2.6.29-rc1 | compiler-h-gnuc-gt-4 |
 | 2.6.37..2.6.39 | gcc-3.4.6 | i386 | L3 | 15 | `a45b0616e7ee` | Merge branch 'slab/next' into for-linus | v2.6.38-rc1 | none |
 | 2.6.39..3.0 | gcc-4.8.5 | i386 | `arch/x86/kernel/ptrace.o` | 13 | `1b4ac2a935aa` | x86: Get rid of asmregparm | v3.0-rc1 | gcc48-ptrace-asmregparm |
+| 3.0..3.1 | gcc-3.4.6 with binutils-2.16.1 | x86_64 | `arch/x86/ia32/ia32entry.o` | 18 | `dd2897bf0f4d` | x86, asm: Fix binutils 2.16 issue with __USER32_CS | v3.1-rc1 | binutils-216-user32-cs |
 | 3.17..3.18 | gcc-5.5.0 | x86_64 | L1 | 14 | `71458cfc782e` | kernel: add support for gcc 5 | v3.18-rc1 | no-compiler-header |
 | 4.1..4.2 | gcc-6.5.0 | x86_64 | L1 | 13 | `cb984d101b30` | compiler-gcc: integrate the various compiler-gcc[345].h files | v4.2-rc1 | no-compiler-header, compiler-h-gnuc-gt-4 |
 | 4.8..4.9 | debian-stretch-gcc-6 | x86_64 | `kernel/bounds.s` | 15 | `8ae94224c9d7` | kbuild: add -fno-PIE | v4.9-rc6 | distro-pie |
