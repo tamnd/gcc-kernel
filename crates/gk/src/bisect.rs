@@ -208,7 +208,9 @@ fn unit_rung(setup: &Setup, object: &str, jobs: usize) -> Result<(String, Option
         .join("scratch")
         .join(format!("unit-{}", setup.coordinates.short_id()));
     let built = cell::unit(setup, &dir, object, jobs);
-    let error = matches!(built, Ok(false)).then(|| unit_error(&dir)).flatten();
+    let error = matches!(built, Ok(false))
+        .then(|| unit_error(&dir))
+        .flatten();
     let _ = std::fs::remove_dir_all(&dir);
     Ok((if built? { "L3" } else { "L2" }.into(), error))
 }
@@ -754,7 +756,10 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         assert_eq!(unit_error(&dir), None);
         std::fs::write(dir.join("unit.log"), "  AS      arch/x86_64/kernel/head.o\n/src/arch/x86_64/kernel/head.S:329: Error: missing ')'\nmake[1]: *** [arch/x86_64/kernel/head.o] Error 1\n").unwrap();
-        assert_eq!(unit_error(&dir).as_deref(), Some("/src/arch/x86_64/kernel/head.S:329: Error: missing ')'"));
+        assert_eq!(
+            unit_error(&dir).as_deref(),
+            Some("/src/arch/x86_64/kernel/head.S:329: Error: missing ')'")
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
