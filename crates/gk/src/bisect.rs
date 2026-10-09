@@ -180,8 +180,11 @@ fn release_rung(
     let setup = with_binutils(repo, setup, opts)?;
     let setup = if boot { setup.booting(repo)? } else { setup };
     if let Some(object) = &opts.unit {
-        let rung = unit_rung(&setup, object, opts.jobs)?;
+        let (rung, error) = unit_rung(&setup, object, opts.jobs)?;
         println!("{kernel:<10} {rung:<3} {object} {}", unit_term(&rung));
+        if let Some(e) = error {
+            println!("           {e}");
+        }
         return Ok(rung);
     }
     // An end with no cell yet would only be built to show it gets past the probe, so it is probed, like the commits between.
@@ -199,14 +202,30 @@ fn release_rung(
     Ok(record.rung)
 }
 
-/// The rung of a tree from one object: `L3` when it builds and `L2` when it does not.
-fn unit_rung(setup: &Setup, object: &str, jobs: usize) -> Result<String, String> {
+/// The rung of a tree from one object, `L3` when it builds and `L2` when it does not, and when it does not, the first error its logs give.
+fn unit_rung(setup: &Setup, object: &str, jobs: usize) -> Result<(String, Option<String>), String> {
     let dir = fetch::cache_dir()
         .join("scratch")
         .join(format!("unit-{}", setup.coordinates.short_id()));
     let built = cell::unit(setup, &dir, object, jobs);
+    let error = matches!(built, Ok(false)).then(|| unit_error(&dir)).flatten();
     let _ = std::fs::remove_dir_all(&dir);
-    Ok(if built? { "L3" } else { "L2" }.into())
+    Ok((if built? { "L3" } else { "L2" }.into(), error))
+}
+
+/// The first line of a failed unit's log that names an error, or else its last line that says why kbuild stopped. The object can fail for another reason than the one being bisected, and the bisection would follow that one without a word, so its output shows the line.
+fn unit_error(dir: &Path) -> Option<String> {
+    let log = ["unit.log", "prepare.log"]
+        .iter()
+        .filter_map(|l| std::fs::read_to_string(dir.join(l)).ok())
+        .find(|t| !t.trim().is_empty())?;
+    let line = log
+        .lines()
+        .filter(|l| !l.starts_with("make"))
+        .find(|l| l.contains("error:") || l.contains("Error:"))
+        .map(str::to_owned)
+        .or_else(|| build::failure_lines(&log, 1).pop())?;
+    Some(line.trim().chars().take(300).collect())
 }
 
 /// The cell with the bisection's binutils, when it names one.
@@ -480,7 +499,7 @@ fn bisect(
             .and_then(|s| if boot { s.booting(repo) } else { Ok(s) })
             .and_then(|s| {
                 if let Some(object) = &opts.unit {
-                    unit_rung(&s, object, opts.jobs).map(|r| (r, None))
+                    unit_rung(&s, object, opts.jobs)
                 } else if rung == "L1" {
                     probe_rung(&s, opts.jobs).map(|r| (r, None))
                 } else {
@@ -728,6 +747,16 @@ fn report_of(repo: &Repo, runs: &[Bisection], cells: &BTreeMap<String, usize>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_failed_unit_says_what_failed() {
+        let dir = std::env::temp_dir().join(format!("gk-unit-error-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(unit_error(&dir), None);
+        std::fs::write(dir.join("unit.log"), "  AS      arch/x86_64/kernel/head.o\n/src/arch/x86_64/kernel/head.S:329: Error: missing ')'\nmake[1]: *** [arch/x86_64/kernel/head.o] Error 1\n").unwrap();
+        assert_eq!(unit_error(&dir).as_deref(), Some("/src/arch/x86_64/kernel/head.S:329: Error: missing ')'"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn a_tree_says_its_version_in_the_makefile() {
