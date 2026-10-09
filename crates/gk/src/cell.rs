@@ -60,6 +60,18 @@ fn settle_target(version: &Version) -> Option<&'static str> {
     }
 }
 
+/// Shell commands that run before make for a tree that `O=` alone does not build.
+///
+/// From 2.6.5 to 2.6.8 `arch/x86_64/pci/Makefile` adds `-I arch/i386/pci` with a space, so kbuild does not see a `-I` word to point at the source tree, and the path is read from the output directory, where `pci.h` is not. Linking the headers of `arch/i386/pci` there builds what a tree built in place builds. 2.6.9 drops the space.
+fn o_links(arch: &str, version: &Version) -> &'static str {
+    let s = version.series(3);
+    if arch == "x86_64" && s >= [2, 6, 5].to_vec() && s < [2, 6, 9].to_vec() {
+        "mkdir -p /out/arch/i386/pci && for h in /src/arch/i386/pci/*.h; do ln -sf \"$h\" /out/arch/i386/pci/ || exit 1; done; "
+    } else {
+        ""
+    }
+}
+
 /// A kernel's tree, fetched and unpacked into the cache if it is not there yet.
 pub(crate) fn fetched_tree(
     repo: &Repo,
@@ -426,15 +438,8 @@ impl Setup {
             ]);
         } else if settle_target(&self.version) == Some("oldconfig") {
             // oldconfig takes the default when its input ends, except in the 2.6.16 cycle, whose conf stops with "Console input is closed" at the first new symbol. A tree between releases often has a defconfig behind its Kconfig, so it has new symbols even with no fragment. An empty line is the default too, and every conf takes it.
-            cmd.args([
-                "sh",
-                "-c",
-                "yes '' | make \"$@\"",
-                "sh",
-                "-C",
-                "/src",
-                "O=/out",
-            ]);
+            let script = format!("{}yes '' | make \"$@\"", o_links(&self.arch, &self.version));
+            cmd.args(["sh", "-c", &script, "sh", "-C", "/src", "O=/out"]);
         } else {
             cmd.args(["make", "-C", "/src", "O=/out"]);
         }
@@ -1961,6 +1966,16 @@ mod tests {
             "oldconfig"
         );
         assert!(config_target("allnoconfig", "oldconfig", &museum).is_err());
+    }
+
+    #[test]
+    fn x86_64_from_2_6_5_to_2_6_8_links_the_i386_pci_headers() {
+        let at = |a: &str, v: &str| o_links(a, &v.parse().unwrap());
+        assert_eq!(at("x86_64", "2.6.4"), "");
+        assert!(at("x86_64", "2.6.5").contains("ln -sf"));
+        assert!(at("x86_64", "2.6.8.1").contains("/out/arch/i386/pci"));
+        assert_eq!(at("x86_64", "2.6.9"), "");
+        assert_eq!(at("i386", "2.6.5"), "");
     }
 
     #[test]
