@@ -172,6 +172,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `binutils-ppc-ztext` | binutils-* | binutils 2.46 and later, ppc | L4 | 97f902dd4c99 |
 | `woody-depmod-kstrtab` | host-tool | binutils after 2.12, 2.4 on the woody host, i386 | L4 | none, the woody host now builds depmod from modutils 2.4.27 |
 | `tcg-tsc-clock` | emulator | any, i386, 2.6.0 to 2.6.17 under TCG on a loaded host | L6 | none, the clocksource code of 2.6.18 checks the TSC |
+| `tcg-hpet-clock` | emulator | any, x86_64, 2.6.0 to 2.6.20 under TCG on a loaded host | L6 | none, x86_64 moved to clocksources in 2.6.21 |
 | `tcg-ioapic-timer` | emulator | any, x86, under TCG on a loaded host | L5 | none, a boot that hits it is a rig problem |
 | `tcg-rtc-kunit-stall` | emulator | any, x86_64, 5.10 under TCG | L8 | 95c46336ab47, not on 5.10.y |
 | `stable61-longest-symbol` | kernel-bug | any, 6.1.188 and later on 6.1.y, x86 | L7 | none on 6.1.y yet |
