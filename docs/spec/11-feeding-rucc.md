@@ -74,7 +74,7 @@ The toolchain bundles also give rucc-kernel what its plan's section 4.4 wanted a
 |---|---|---|
 | 4, what the museum really includes, a.out and 0.x | the museum rows with their era toolchains: whether 1.0 builds with GCC 2.5 or 2.7 at all, whether it boots under QEMU, and whether 0.01 can be built unpatched (document 07.7) | G3 |
 | 7, disk, CI time and machines | measured build and boot times for every era on gpc, from real cells | G1 |
-| 10, which 3.x and 4.x stable branches a later GCC builds | the longterm stripe | G2 |
+| 10, which 3.x and 4.x stable branches a later GCC builds | the longterm stripe and the last point of every branch, read in `reports/question-10.md` | G2 |
 | era boundaries in `personas.toml` | `reports/eras.md` | G2 |
 
 ## 11.9 What gcc-kernel does not tell rucc
