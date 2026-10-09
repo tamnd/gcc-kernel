@@ -11,7 +11,6 @@ A hole is a cell that does not work between two columns of the same row that do 
 | 2.6.1 | i386 | defconfig+gk | gcc-3.2.3 | 🟧⚠️ | L5 | tcg-tsc-clock | the boots disagreed |
 | 2.6.15 | i386 | defconfig+gk | gcc-3.2.3 | 🟥 | L2 | binutils-too-old-bignum | drivers/net/s2io.c: {standard input}:260: Error: bignum invalid |
 | 2.6.15 | i386 | defconfig+gk | gcc-4.1.2 | 🟧⚠️ | L5 | tcg-tsc-clock | the boots disagreed |
-| 2.6.17 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | L5 | unclassified |  |
 | 2.6.20 | i386 | defconfig+gk | gcc-4.0.4 | 🟧⚠️ | L4 | tcg-ioapic-timer | the boots disagreed |
 | 2.6.20 | i386 | defconfig+gk | gcc-4.1.2 | 🟧⚠️ | L4 | tcg-ioapic-timer | the boots disagreed |
 | 2.6.20 | i386 | defconfig+gk | gcc-4.2.4 | 🟧⚠️ | L4 | tcg-ioapic-timer | the boots disagreed |
@@ -24,6 +23,7 @@ A hole is a cell that does not work between two columns of the same row that do 
 | 2.6.24 | x86_64 | defconfig+gk | gcc-3.3.6 | 🟧 | L4 | unclassified |  |
 | 2.6.28 | x86_64 | defconfig+gk | gcc-3.4.6 | 🟧 | L4 | tcg-ioapic-timer |  |
 | 2.6.31 | x86_64 | defconfig+gk | gcc-3.4.6 | 🟥 | L2 | gcc34-this-ip-label |  |
+| 3.1.10 | x86_64 | defconfig+gk | gcc-4.7.4 | 🟧⚠️ | L4 | over-budget | the boots disagreed |
 | 4.4.302 | x86_64 | defconfig+gk | debian-stretch-gcc-6 | 🟥 | L2 | over-budget |  |
 | 6.6.157 | x86_64 | defconfig+gk | gcc-9.5.0 | 🟨⚠️ | L6 | unclassified | the boots disagreed |
 | 6.6.157 | x86_64 | defconfig+gk | gcc-10.5.0 | 🟨⚠️ | L6 | unclassified | the boots disagreed |

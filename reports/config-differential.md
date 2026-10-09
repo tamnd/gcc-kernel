@@ -238,13 +238,12 @@ Over 7.2.8.
 | 6.5.0 to 7.5.0 | 2 | 5 |
 | 7.5.0 to 8.3.0 | 2 | 9 |
 | 8.3.0 to 8.5.0 | 4 | 2 |
-| 8.5.0 to 9.5.0 | 3 | 4 |
-| 8.5.0 to 12.2.0 | 1 | 18 |
-| 9.5.0 to 10.5.0 | 3 | 2 |
-| 10.5.0 to 11.5.0 | 3 | 10 |
-| 11.5.0 to 12.2.0 | 3 | 11 |
-| 12.2.0 to 12.5.0 | 3 | 5 |
-| 12.5.0 to 13.5.0 | 3 | 3 |
+| 8.5.0 to 9.5.0 | 4 | 4 |
+| 9.5.0 to 10.5.0 | 4 | 3 |
+| 10.5.0 to 11.5.0 | 4 | 10 |
+| 11.5.0 to 12.2.0 | 4 | 12 |
+| 12.2.0 to 12.5.0 | 4 | 6 |
+| 12.5.0 to 13.5.0 | 4 | 3 |
 | 13.5.0 to 14.2.0 | 2 | 5 |
 | 14.2.0 to 14.4.0 | 2 | 2 |
 | 14.4.0 to 15.3.0 | 2 | 2 |
@@ -321,52 +320,28 @@ Over 6.6.158, 6.12.112, 6.18.55 and 7.2.9.
 
 ### 8.5.0 to 9.5.0
 
-Over 6.12.112, 6.18.55 and 7.2.9.
+Over 6.6.158, 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 8.5.0 | 9.5.0 |
 |---|---|---|---|
 | AS_VERSION | all | 23700 | 23900 |
-| CC_NO_ARRAY_BOUNDS | all | (absent) | y |
+| CC_NO_ARRAY_BOUNDS | 6.12.112, 6.18.55 and 7.2.9 | (absent) | y |
 | LD_VERSION | all | 23700 | 23900 |
 | TOOLS_SUPPORT_RELR | all | (absent) | y |
-
-### 8.5.0 to 12.2.0
-
-Over 6.6.158.
-
-| Symbol | Kernels | 8.5.0 | 12.2.0 |
-|---|---|---|---|
-| AS_VERSION | all | 23700 | 23900 |
-| CC_HAS_ASM_GOTO_OUTPUT | all | (absent) | y |
-| CC_HAS_ASM_GOTO_TIED_OUTPUT | all | (absent) | y |
-| CC_HAS_AUTO_VAR_INIT_PATTERN | all | (absent) | y |
-| CC_HAS_AUTO_VAR_INIT_ZERO | all | (absent) | y |
-| CC_HAS_AUTO_VAR_INIT_ZERO_BARE | all | (absent) | y |
-| CC_HAS_SLS | all | (absent) | y |
-| CC_HAS_ZERO_CALL_USED_REGS | all | (absent) | y |
-| CC_NO_ARRAY_BOUNDS | all | (absent) | y |
-| GCC_ASM_GOTO_OUTPUT_WORKAROUND | all | (absent) | y |
-| HAVE_KCSAN_COMPILER | all | (absent) | y |
-| INIT_STACK_ALL_PATTERN | all | (absent) | n |
-| INIT_STACK_ALL_ZERO | all | (absent) | y |
-| INIT_STACK_NONE | all | y | n |
-| KCSAN | all | (absent) | n |
-| LD_VERSION | all | 23700 | 23900 |
-| TOOLS_SUPPORT_RELR | all | (absent) | y |
-| ZERO_CALL_USED_REGS | all | (absent) | n |
 
 ### 9.5.0 to 10.5.0
 
-Over 6.12.112, 6.18.55 and 7.2.9.
+Over 6.6.158, 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 9.5.0 | 10.5.0 |
 |---|---|---|---|
 | AS_VERSION | all | 23900 | 24100 |
+| CC_NO_ARRAY_BOUNDS | 6.6.158 | (absent) | y |
 | LD_VERSION | all | 23900 | 24100 |
 
 ### 10.5.0 to 11.5.0
 
-Over 6.12.112, 6.18.55 and 7.2.9.
+Over 6.6.158, 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 10.5.0 | 11.5.0 |
 |---|---|---|---|
@@ -375,7 +350,7 @@ Over 6.12.112, 6.18.55 and 7.2.9.
 | CC_HAS_ASM_GOTO_TIED_OUTPUT | all | (absent) | y |
 | CC_HAS_SLS | all | (absent) | y |
 | CC_HAS_ZERO_CALL_USED_REGS | all | (absent) | y |
-| GCC_ASM_GOTO_OUTPUT_BROKEN | all | y | (absent) |
+| GCC_ASM_GOTO_OUTPUT_BROKEN | 6.12.112, 6.18.55 and 7.2.9 | y | (absent) |
 | HAVE_KCSAN_COMPILER | all | (absent) | y |
 | KCSAN | all | (absent) | n |
 | LD_VERSION | all | 24100 | 24301 |
@@ -383,17 +358,18 @@ Over 6.12.112, 6.18.55 and 7.2.9.
 
 ### 11.5.0 to 12.2.0
 
-Over 6.12.112, 6.18.55 and 7.2.9.
+Over 6.6.158, 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 11.5.0 | 12.2.0 |
 |---|---|---|---|
 | AS_VERSION | all | 24301 | 23900 |
-| CC_HAS_ASM_GOTO_OUTPUT | all | y | (absent) |
-| CC_HAS_ASM_GOTO_TIED_OUTPUT | all | y | (absent) |
+| CC_HAS_ASM_GOTO_OUTPUT | 6.12.112, 6.18.55 and 7.2.9 | y | (absent) |
+| CC_HAS_ASM_GOTO_TIED_OUTPUT | 6.12.112, 6.18.55 and 7.2.9 | y | (absent) |
 | CC_HAS_AUTO_VAR_INIT_PATTERN | all | (absent) | y |
 | CC_HAS_AUTO_VAR_INIT_ZERO | all | (absent) | y |
 | CC_HAS_AUTO_VAR_INIT_ZERO_BARE | all | (absent) | y |
-| GCC_ASM_GOTO_OUTPUT_BROKEN | all | (absent) | y |
+| GCC_ASM_GOTO_OUTPUT_BROKEN | 6.12.112, 6.18.55 and 7.2.9 | (absent) | y |
+| GCC_ASM_GOTO_OUTPUT_WORKAROUND | 6.6.158 | (absent) | y |
 | INIT_STACK_ALL_PATTERN | all | (absent) | n |
 | INIT_STACK_ALL_ZERO | all | (absent) | y |
 | INIT_STACK_NONE | all | y | n |
@@ -401,19 +377,20 @@ Over 6.12.112, 6.18.55 and 7.2.9.
 
 ### 12.2.0 to 12.5.0
 
-Over 6.12.112, 6.18.55 and 7.2.9.
+Over 6.6.158, 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 12.2.0 | 12.5.0 |
 |---|---|---|---|
 | AS_VERSION | all | 23900 | 24500 |
-| CC_HAS_ASM_GOTO_OUTPUT | all | (absent) | y |
-| CC_HAS_ASM_GOTO_TIED_OUTPUT | all | (absent) | y |
-| GCC_ASM_GOTO_OUTPUT_BROKEN | all | y | (absent) |
+| CC_HAS_ASM_GOTO_OUTPUT | 6.12.112, 6.18.55 and 7.2.9 | (absent) | y |
+| CC_HAS_ASM_GOTO_TIED_OUTPUT | 6.12.112, 6.18.55 and 7.2.9 | (absent) | y |
+| GCC_ASM_GOTO_OUTPUT_BROKEN | 6.12.112, 6.18.55 and 7.2.9 | y | (absent) |
+| GCC_ASM_GOTO_OUTPUT_WORKAROUND | 6.6.158 | y | (absent) |
 | LD_VERSION | all | 23900 | 24500 |
 
 ### 12.5.0 to 13.5.0
 
-Over 6.12.112, 6.18.55 and 7.2.9.
+Over 6.6.158, 6.12.112, 6.18.55 and 7.2.9.
 
 | Symbol | Kernels | 12.5.0 | 13.5.0 |
 |---|---|---|---|

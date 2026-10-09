@@ -521,14 +521,12 @@
       "platform": "i386",
       "config": "defconfig+gk",
       "era": "gcc-4.1.2",
-      "era-works": false,
+      "era-works": true,
       "min": "gcc-3.2.3",
-      "max": "gcc-3.4.6",
+      "max": "gcc-4.5.4",
       "below": "gcc-3.1.1",
-      "above": "gcc-4.0.4",
-      "holes": [
-        "gcc-3.3.6"
-      ],
+      "above": "gcc-4.8.5",
+      "holes": [],
       "columns": 31
     },
     {
@@ -536,11 +534,11 @@
       "platform": "i386",
       "config": "defconfig+gk",
       "era": "gcc-4.1.2",
-      "era-works": false,
-      "min": null,
-      "max": null,
-      "below": null,
-      "above": null,
+      "era-works": true,
+      "min": "gcc-3.3.6",
+      "max": "gcc-4.1.2",
+      "below": "gcc-3.2.3",
+      "above": "gcc-4.2.4",
       "holes": [],
       "columns": 32
     },
@@ -736,9 +734,9 @@
       "config": "defconfig+gk",
       "era": "gcc-4.3.5",
       "era-works": true,
-      "min": "gcc-4.1.2",
+      "min": "gcc-3.4.6",
       "max": "gcc-4.3.5",
-      "below": "gcc-3.4.6",
+      "below": "gcc-3.2.3",
       "above": null,
       "holes": [],
       "columns": 6
@@ -1254,7 +1252,7 @@
       "below": null,
       "above": null,
       "holes": [],
-      "columns": 26
+      "columns": 33
     },
     {
       "kernel": "2.6.2",
@@ -1262,12 +1260,12 @@
       "config": "defconfig+gk",
       "era": "gcc-3.3.6",
       "era-works": false,
-      "min": null,
-      "max": null,
+      "min": "gcc-3.2.3",
+      "max": "gcc-3.2.3",
       "below": null,
-      "above": null,
+      "above": "gcc-3.3.6",
       "holes": [],
-      "columns": 27
+      "columns": 33
     },
     {
       "kernel": "2.6.3",
@@ -1280,7 +1278,7 @@
       "below": null,
       "above": null,
       "holes": [],
-      "columns": 27
+      "columns": 33
     },
     {
       "kernel": "2.6.4",
@@ -1306,7 +1304,7 @@
       "below": null,
       "above": "gcc-3.3.6",
       "holes": [],
-      "columns": 27
+      "columns": 33
     },
     {
       "kernel": "2.6.6",
@@ -1319,7 +1317,7 @@
       "below": null,
       "above": null,
       "holes": [],
-      "columns": 27
+      "columns": 33
     },
     {
       "kernel": "2.6.7",
@@ -1327,12 +1325,12 @@
       "config": "defconfig+gk",
       "era": "gcc-3.3.6",
       "era-works": false,
-      "min": null,
-      "max": null,
+      "min": "gcc-3.2.3",
+      "max": "gcc-3.2.3",
       "below": null,
-      "above": null,
+      "above": "gcc-3.3.6",
       "holes": [],
-      "columns": 27
+      "columns": 33
     },
     {
       "kernel": "2.6.8",
@@ -1345,7 +1343,7 @@
       "below": null,
       "above": null,
       "holes": [],
-      "columns": 27
+      "columns": 33
     },
     {
       "kernel": "2.6.9",
@@ -1536,9 +1534,9 @@
       "era": "gcc-4.1.2",
       "era-works": true,
       "min": "gcc-3.2.3",
-      "max": "gcc-4.2.4",
+      "max": "gcc-4.3.5",
       "below": null,
-      "above": "gcc-4.3.5",
+      "above": "gcc-4.3.6",
       "holes": [],
       "columns": 8
     },
@@ -1701,6 +1699,19 @@
       "above": null,
       "holes": [],
       "columns": 10
+    },
+    {
+      "kernel": "2.6.30",
+      "platform": "x86_64",
+      "config": "defconfig+gk",
+      "era": "gcc-4.3.5",
+      "era-works": true,
+      "min": "gcc-4.1.2",
+      "max": "gcc-4.3.5",
+      "below": null,
+      "above": null,
+      "holes": [],
+      "columns": 3
     },
     {
       "kernel": "2.6.30.10",
@@ -1923,23 +1934,10 @@
       "below": "gcc-3.4.6",
       "above": "gcc-5.5.0",
       "holes": [],
-      "columns": 13
+      "columns": 15
     },
     {
-      "kernel": "3.1.10",
-      "platform": "x86_64",
-      "config": "defconfig+gk",
-      "era": "gcc-4.7.2",
-      "era-works": true,
-      "min": "gcc-3.3.6",
-      "max": "gcc-4.7.2",
-      "below": "gcc-3.2.3",
-      "above": null,
-      "holes": [],
-      "columns": 11
-    },
-    {
-      "kernel": "3.2.102",
+      "kernel": "3.1",
       "platform": "x86_64",
       "config": "defconfig+gk",
       "era": "gcc-4.7.2",
@@ -1950,6 +1948,47 @@
       "above": null,
       "holes": [],
       "columns": 1
+    },
+    {
+      "kernel": "3.1.10",
+      "platform": "x86_64",
+      "config": "defconfig+gk",
+      "era": "gcc-4.7.2",
+      "era-works": true,
+      "min": "gcc-3.3.6",
+      "max": "gcc-4.9.2",
+      "below": "gcc-3.2.3",
+      "above": "gcc-4.9.4",
+      "holes": [
+        "gcc-4.7.4"
+      ],
+      "columns": 33
+    },
+    {
+      "kernel": "3.2.102",
+      "platform": "x86_64",
+      "config": "defconfig+gk",
+      "era": "gcc-4.7.2",
+      "era-works": true,
+      "min": "gcc-4.7.2",
+      "max": "gcc-4.7.2",
+      "below": null,
+      "above": "gcc-4.9.2",
+      "holes": [],
+      "columns": 3
+    },
+    {
+      "kernel": "3.3.8",
+      "platform": "x86_64",
+      "config": "defconfig+gk",
+      "era": "gcc-4.7.2",
+      "era-works": null,
+      "min": "gcc-4.9.2",
+      "max": "gcc-4.9.2",
+      "below": null,
+      "above": "gcc-6.3.0",
+      "holes": [],
+      "columns": 2
     },
     {
       "kernel": "3.4.113",
@@ -2322,13 +2361,13 @@
       "era": "gcc-12.2.0",
       "era-works": true,
       "min": "gcc-5.5.0",
-      "max": "gcc-12.2.0",
+      "max": "gcc-13.5.0",
       "below": "gcc-4.9.4",
       "above": null,
       "holes": [
         "gcc-8.3.0"
       ],
-      "columns": 23
+      "columns": 28
     },
     {
       "kernel": "6.12.112",
