@@ -273,6 +273,15 @@ kernel = ">=2.6, <2.6.18"
 platform = ["i386"]
 
 [[signature]]
+class = "tcg-hpet-clock"
+rung = "L6"
+match = { first-error = 'smoke checks failed: clock$', console = 'time\.c: Using HPET(/TSC)? based timekeeping' }
+kind = "emulator"
+summary = "Before 2.6.21, x86_64 reads the time of day as the time of the last tick plus how far the HPET counter, or the TSC from 2.6.12, has run since then, scaled by a factor set at boot, and nanosleep counts ticks. Under TCG on a loaded host the two drift apart, so a 20 ms nap can read as less than 19 ms. It fails the clock check in one or two boots of three on 2.6.1, 2.6.6 and 2.6.12 with GCC 3.2.3 and 4.2.4, and the other boots of the same cells pass it, so the cell says nothing about GCC"
+kernel = ">=2.6, <2.6.21"
+platform = ["x86_64"]
+
+[[signature]]
 class = "tcg-ioapic-timer"
 rung = "L5"
 match = { first-error = "IO-APIC \\+ timer doesn't work" }
