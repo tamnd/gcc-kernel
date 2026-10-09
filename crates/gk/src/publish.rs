@@ -347,7 +347,10 @@ pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String
         ),
         ("reports/eras.md", crate::history::eras(repo, &m)),
         ("reports/holes.md", crate::history::holes(repo, &m)),
-        ("reports/question-10.md", crate::history::question_10(repo, &m)),
+        (
+            "reports/question-10.md",
+            crate::history::question_10(repo, &m),
+        ),
         ("reports/bisections.md", crate::bisect::report(repo, &m)),
     ] {
         std::fs::create_dir_all(&reports)

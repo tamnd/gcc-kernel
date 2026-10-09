@@ -576,7 +576,10 @@ mod tests {
         };
         let text = question_10(&repo, &m);
         assert!(text.contains("Rows for a last point so far: 1, covering 1 of the 41 branches from 3.0 to 4.20. A later era's GCC builds the last point in 1 of them. In 0 "));
-        assert!(text.contains(&format!("| 3.0 | 3.0.101 | x86_64 | defconfig+gk | {} | {own} | {next} | {next}", repo.eras.eras[n].name)));
+        assert!(text.contains(&format!(
+            "| 3.0 | 3.0.101 | x86_64 | defconfig+gk | {} | {own} | {next} | {next}",
+            repo.eras.eras[n].name
+        )));
         assert!(!text.contains("| 3.1 |"));
     }
 
