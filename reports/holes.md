@@ -2,7 +2,7 @@
 
 A hole is a cell that does not work between two columns of the same row that do (spec 08.5). It is where one GCC release broke a kernel that the releases around it built and ran, or where the rig was noisy, which is what the flaky mark and the three runs are for. Written by `gk publish` from `matrix/matrix.json`.
 
-28 holes.
+30 holes.
 
 | Kernel | Platform | Configuration | GCC | Cell | Rung | Class | First error |
 |---|---|---|---|:-:|---|---|---|
@@ -11,6 +11,7 @@ A hole is a cell that does not work between two columns of the same row that do 
 | 2.6.1 | i386 | defconfig+gk | gcc-3.2.3 | 🟧⚠️ | L5 | tcg-tsc-clock | the boots disagreed |
 | 2.6.15 | i386 | defconfig+gk | gcc-3.2.3 | 🟥 | L2 | binutils-too-old-bignum | drivers/net/s2io.c: {standard input}:260: Error: bignum invalid |
 | 2.6.15 | i386 | defconfig+gk | gcc-4.1.2 | 🟧⚠️ | L5 | tcg-tsc-clock | the boots disagreed |
+| 2.6.17 | i386 | defconfig+gk | gcc-3.3.6 | 🟧 | L5 | unclassified |  |
 | 2.6.20 | i386 | defconfig+gk | gcc-4.0.4 | 🟧⚠️ | L4 | tcg-ioapic-timer | the boots disagreed |
 | 2.6.20 | i386 | defconfig+gk | gcc-4.1.2 | 🟧⚠️ | L4 | tcg-ioapic-timer | the boots disagreed |
 | 2.6.20 | i386 | defconfig+gk | gcc-4.2.4 | 🟧⚠️ | L4 | tcg-ioapic-timer | the boots disagreed |
@@ -33,4 +34,5 @@ A hole is a cell that does not work between two columns of the same row that do 
 | 6.18.54 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | L7 | gcc14-objtool-endbr |  |
 | 7.2.8 | x86_64 | defconfig+gk | gcc-12.2.0 | 🟧⚠️ | L5 | unclassified | the boots disagreed |
 | 7.2.8 | x86_64 | defconfig+gk | gcc-14.2.0 | 🟨 | L7 | gcc14-objtool-endbr |  |
+| 6.6.158 | x86_64 | tinyconfig+gk | gcc-8.3.0 | 🟧 | L4 | tcg-ioapic-timer |  |
 | 6.12.112 | x86_64 | tinyconfig+gk | gcc-11.5.0 | 🟨⚠️ | L6 | unclassified | the boots disagreed |

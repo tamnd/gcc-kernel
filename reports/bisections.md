@@ -2,7 +2,7 @@
 
 Every `fixed-by` commit of the failure catalog is confirmed by bisecting between a kernel the signature matches and one it does not, with the signature's GCC (spec 03.5 and 08.2). When the bisection finds another commit, the bisected commit wins and the signature is corrected. A signature can name several commits, one for each place the kernel had to change, and a bisection confirms the one its range and platform reach. Written by `gk publish` from `signatures.toml` and the bisections in the result store.
 
-20 bisections in the store. 20 of the 67 signatures with a fixing commit have at least one of their commits confirmed. 29 of the others match no cell of the matrix yet, so there is no failing kernel to bisect from until one does. Cells counts the newest run of each coordinate that the signature matches.
+21 bisections in the store. 20 of the 67 signatures with a fixing commit have at least one of their commits confirmed. 29 of the others match no cell of the matrix yet, so there is no failing kernel to bisect from until one does. Cells counts the newest run of each coordinate that the signature matches.
 
 ## Signatures
 
@@ -18,7 +18,7 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | arm-gcc48-pr58854 | L1 | blacklist | `7fc150543c73` |  | 0 |
 | gcc-min-46 | L1 | refusal | `cafa0010cd51` | `cafa0010cd51` | 0 |
 | gcc-min-49 | L1 | refusal | `6ec4476ac825` | `6ec4476ac825` | 0 |
-| gcc-min-51 | L1 | refusal | `76ae847497bc` | `76ae847497bc` | 48 |
+| gcc-min-51 | L1 | refusal | `76ae847497bc` | `76ae847497bc` | 64 |
 | gcc-min-81 | L1 | refusal | `a3e8fe814ad1` `118c40b7b503` | `a3e8fe814ad1` `118c40b7b503` | 8 |
 | asm-goto-miscompile | L5..L7 | miscompile | `3f0116c` `a9f180345f53` |  | 2 |
 | gcc49-load-balance | L5..L7 | miscompile | `2062afb4f804` |  | 0 |
@@ -63,7 +63,7 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | binutils-too-old-assert | L3 | binutils-too-old | `d2ba8b211bb8` |  | 6 |
 | binutils-too-old-cfi | L3 | binutils-too-old | `d1526e2cda64` |  | 3 |
 | binutils-too-old-multiline-macro | L3 | binutils-too-old | `6e3515352bdd` |  | 1 |
-| binutils-216-user32-cs | L3 | binutils-too-old | `dd2897bf0f4d` |  | 2 |
+| binutils-216-user32-cs | L3 | binutils-too-old | `dd2897bf0f4d` |  | 3 |
 | binutils-size-undefined | L3 | binutils-assembler | `ad2fc2cd9253` |  | 11 |
 | binutils-segment-mov | L3 | binutils-assembler | `fd51f666fa59` |  | 109 |
 | binutils-range-ok-cmp | L3 | binutils-assembler | `722f4f5b2600` | `722f4f5b2600` | 27 |
@@ -88,6 +88,7 @@ Every `fixed-by` commit of the failure catalog is confirmed by bisecting between
 | 2.6.23..2.6.24 | gcc-3.3.6 | x86_64 | L3 | 13 | `c65916fe3586` | x86: vdso linker script cleanup | v2.6.24-rc1 | gcc3-vdso-plt-overlap |
 | 2.6.24..2.6.25 | gcc-4.5.4 | i386 | `arch/x86/boot/video.o` | 14 | `811a0fff5d6e` | x86 setup: fix constraints in segment accessor functions | v2.6.25-rc1 | gcc44-setup-dil |
 | 2.6.26..2.6.27 | gcc-3.2.3 | x86_64 | `arch/x86/kernel/smpboot.o` | 14 | `1c5b0eb66d74` | x86: fix readb() et al compile error with gcc-3.2.3 | v2.6.27-rc4 | none |
+| 2.6.26..2.6.27 | gcc-4.3.6 with binutils-2.21.1 | x86_64 | L3 | 13 | `ad1f8bf073e1` | Fix accidental reference to tg3 firmware | v2.6.27-rc1 | none |
 | 2.6.28..2.6.29 | gcc-5.5.0 | x86_64 | L1 | 14 | `f153b82121b0` | Sanitize gcc version header includes | v2.6.29-rc1 | compiler-h-gnuc-gt-4 |
 | 2.6.37..2.6.39 | gcc-3.4.6 | i386 | L3 | 15 | `a45b0616e7ee` | Merge branch 'slab/next' into for-linus | v2.6.38-rc1 | none |
 | 2.6.39..3.0 | gcc-4.8.5 | i386 | `arch/x86/kernel/ptrace.o` | 13 | `1b4ac2a935aa` | x86: Get rid of asmregparm | v3.0-rc1 | gcc48-ptrace-asmregparm |

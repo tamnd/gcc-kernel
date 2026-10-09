@@ -99,12 +99,26 @@
       "platform": "i386",
       "config": "defconfig+gk",
       "oldest": "2.6.0",
-      "newest": "2.6.5",
+      "newest": "2.6.17",
       "gaps": [
-        "2.6.1"
+        "2.6.1",
+        "2.6.6",
+        "2.6.7",
+        "2.6.8",
+        "2.6.9",
+        "2.6.10",
+        "2.6.11",
+        "2.6.11.12",
+        "2.6.12",
+        "2.6.12.6",
+        "2.6.13",
+        "2.6.13.1",
+        "2.6.14",
+        "2.6.15",
+        "2.6.16"
       ],
-      "works": 5,
-      "ran": 41
+      "works": 6,
+      "ran": 42
     },
     {
       "gcc": "gcc-3.2.3",
@@ -113,7 +127,6 @@
       "oldest": "2.6.4",
       "newest": "2.6.24",
       "gaps": [
-        "2.6.5",
         "2.6.6",
         "2.6.7",
         "2.6.8",
@@ -125,7 +138,7 @@
         "2.6.22",
         "2.6.23"
       ],
-      "works": 12,
+      "works": 13,
       "ran": 36
     },
     {
@@ -136,7 +149,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-3.3.6",
@@ -159,15 +172,15 @@
       "platform": "x86_64",
       "config": "defconfig+gk",
       "oldest": "2.6.11.12",
-      "newest": "2.6.31",
+      "newest": "3.1.10",
       "gaps": [
         "2.6.12",
         "2.6.13",
         "2.6.23",
         "2.6.24"
       ],
-      "works": 19,
-      "ran": 35
+      "works": 20,
+      "ran": 36
     },
     {
       "gcc": "gcc-3.3.6",
@@ -177,7 +190,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-3.4.6",
@@ -192,7 +205,6 @@
         "2.6.3",
         "2.6.6",
         "2.6.13.1",
-        "2.6.17",
         "2.6.18",
         "2.6.30",
         "2.6.31",
@@ -208,7 +220,7 @@
         "2.6.37.6",
         "2.6.39"
       ],
-      "works": 31,
+      "works": 32,
       "ran": 53
     },
     {
@@ -230,10 +242,11 @@
         "2.6.35.14",
         "2.6.36",
         "2.6.39",
+        "3.0",
         "3.0.101"
       ],
       "works": 21,
-      "ran": 45
+      "ran": 46
     },
     {
       "gcc": "gcc-3.4.6",
@@ -243,7 +256,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.0.4",
@@ -265,14 +278,14 @@
       "platform": "x86_64",
       "config": "defconfig+gk",
       "oldest": "2.6.12.6",
-      "newest": "3.0.101",
+      "newest": "3.1.10",
       "gaps": [
         "2.6.13",
         "2.6.17",
         "2.6.35"
       ],
-      "works": 28,
-      "ran": 44
+      "works": 29,
+      "ran": 45
     },
     {
       "gcc": "gcc-4.0.4",
@@ -282,7 +295,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.1.2",
@@ -319,14 +332,14 @@
       "platform": "x86_64",
       "config": "defconfig+gk",
       "oldest": "2.6.12.6",
-      "newest": "3.0.101",
+      "newest": "3.1.10",
       "gaps": [
         "2.6.13",
         "2.6.19",
         "2.6.28.10"
       ],
-      "works": 29,
-      "ran": 45
+      "works": 30,
+      "ran": 46
     },
     {
       "gcc": "gcc-4.1.2",
@@ -336,7 +349,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.2.4",
@@ -358,13 +371,13 @@
       "platform": "x86_64",
       "config": "defconfig+gk",
       "oldest": "2.6.12.6",
-      "newest": "3.0.101",
+      "newest": "3.1.10",
       "gaps": [
         "2.6.13",
         "2.6.19"
       ],
-      "works": 34,
-      "ran": 49
+      "works": 35,
+      "ran": 50
     },
     {
       "gcc": "gcc-4.2.4",
@@ -374,7 +387,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.3.5",
@@ -391,14 +404,14 @@
       "platform": "x86_64",
       "config": "defconfig+gk",
       "oldest": "2.6.16",
-      "newest": "2.6.39",
+      "newest": "3.1.10",
       "gaps": [
         "2.6.17",
         "2.6.19",
         "2.6.20"
       ],
-      "works": 27,
-      "ran": 48
+      "works": 28,
+      "ran": 49
     },
     {
       "gcc": "gcc-4.3.5",
@@ -408,7 +421,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.3.6",
@@ -449,7 +462,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.4.7",
@@ -486,7 +499,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.5.4",
@@ -523,7 +536,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.6.4",
@@ -543,7 +556,7 @@
       "newest": "3.1.10",
       "gaps": [],
       "works": 2,
-      "ran": 2
+      "ran": 3
     },
     {
       "gcc": "gcc-4.6.4",
@@ -553,7 +566,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.7.2",
@@ -573,7 +586,7 @@
       "newest": "3.1.10",
       "gaps": [],
       "works": 2,
-      "ran": 2
+      "ran": 3
     },
     {
       "gcc": "gcc-4.7.2",
@@ -583,7 +596,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.7.4",
@@ -603,7 +616,7 @@
       "newest": "3.0.101",
       "gaps": [],
       "works": 1,
-      "ran": 4
+      "ran": 5
     },
     {
       "gcc": "gcc-4.7.4",
@@ -613,7 +626,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.8.5",
@@ -643,7 +656,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.9.2",
@@ -663,7 +676,7 @@
       "newest": "3.18.140",
       "gaps": [],
       "works": 1,
-      "ran": 1
+      "ran": 2
     },
     {
       "gcc": "gcc-4.9.2",
@@ -673,7 +686,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-4.9.4",
@@ -703,7 +716,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-5.5.0",
@@ -719,11 +732,11 @@
       "gcc": "gcc-5.5.0",
       "platform": "x86_64",
       "config": "tinyconfig+gk",
-      "oldest": "6.12.112",
+      "oldest": "6.6.158",
       "newest": "6.12.112",
       "gaps": [],
-      "works": 1,
-      "ran": 3
+      "works": 2,
+      "ran": 4
     },
     {
       "gcc": "gcc-6.3.0",
@@ -733,17 +746,17 @@
       "newest": "4.8",
       "gaps": [],
       "works": 4,
-      "ran": 7
+      "ran": 8
     },
     {
       "gcc": "gcc-6.3.0",
       "platform": "x86_64",
       "config": "tinyconfig+gk",
-      "oldest": "6.12.112",
+      "oldest": "6.6.158",
       "newest": "6.12.112",
       "gaps": [],
-      "works": 1,
-      "ran": 3
+      "works": 2,
+      "ran": 4
     },
     {
       "gcc": "gcc-6.5.0",
@@ -763,17 +776,17 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 12
+      "ran": 13
     },
     {
       "gcc": "gcc-6.5.0",
       "platform": "x86_64",
       "config": "tinyconfig+gk",
-      "oldest": "6.12.112",
+      "oldest": "6.6.158",
       "newest": "6.12.112",
       "gaps": [],
-      "works": 1,
-      "ran": 3
+      "works": 2,
+      "ran": 4
     },
     {
       "gcc": "gcc-7.5.0",
@@ -783,17 +796,17 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 11
+      "ran": 12
     },
     {
       "gcc": "gcc-7.5.0",
       "platform": "x86_64",
       "config": "tinyconfig+gk",
-      "oldest": "6.12.112",
+      "oldest": "6.6.158",
       "newest": "6.12.112",
       "gaps": [],
-      "works": 1,
-      "ran": 3
+      "works": 2,
+      "ran": 4
     },
     {
       "gcc": "gcc-8.3.0",
@@ -803,7 +816,7 @@
       "newest": null,
       "gaps": [],
       "works": 0,
-      "ran": 2
+      "ran": 6
     },
     {
       "gcc": "gcc-8.3.0",
@@ -813,7 +826,7 @@
       "newest": "7.2.9",
       "gaps": [],
       "works": 3,
-      "ran": 3
+      "ran": 4
     },
     {
       "gcc": "gcc-8.5.0",
@@ -849,11 +862,11 @@
       "gcc": "gcc-8.5.0",
       "platform": "x86_64",
       "config": "tinyconfig+gk",
-      "oldest": "6.12.112",
+      "oldest": "6.6.158",
       "newest": "7.2.9",
       "gaps": [],
-      "works": 3,
-      "ran": 3
+      "works": 4,
+      "ran": 4
     },
     {
       "gcc": "gcc-9.5.0",
@@ -1011,11 +1024,11 @@
       "gcc": "gcc-12.2.0",
       "platform": "x86_64",
       "config": "tinyconfig+gk",
-      "oldest": "6.12.112",
+      "oldest": "6.6.158",
       "newest": "7.2.9",
       "gaps": [],
-      "works": 3,
-      "ran": 3
+      "works": 4,
+      "ran": 4
     },
     {
       "gcc": "gcc-12.5.0",
