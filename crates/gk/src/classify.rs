@@ -182,7 +182,9 @@ fn first_bad_line(dir: &Path, log: &str, console: &str) -> String {
 
 /// What kept a cell from L7, from `kunit.json`, with the console of the run it names: the graded suites that failed in the run that failed the fewest, or the lack of a reference to grade against. A run cut short by a timeout or a stall fails every suite it never reached, so the run with the fewest failures is the one that names the broken suite.
 fn kunit(dir: &Path) -> (String, String) {
-    let log = |run: usize| std::fs::read_to_string(dir.join(format!("kunit-{}.log", run + 1))).unwrap_or_default();
+    let log = |run: usize| {
+        std::fs::read_to_string(dir.join(format!("kunit-{}.log", run + 1))).unwrap_or_default()
+    };
     let Some(k) = std::fs::read_to_string(dir.join("kunit.json"))
         .ok()
         .and_then(|t| serde_json::from_str::<crate::cell::KunitRecord>(&t).ok())
@@ -197,7 +199,10 @@ fn kunit(dir: &Path) -> (String, String) {
         .filter(|(_, f)| !f.is_empty())
         .min_by_key(|(_, f)| f.len())
     {
-        return (format!("KUnit run {}: {} failed", run + 1, suites.join(", ")), log(run));
+        return (
+            format!("KUnit run {}: {} failed", run + 1, suites.join(", ")),
+            log(run),
+        );
     }
     let console = log(0);
     if k.reference.is_empty() {
@@ -1011,8 +1016,16 @@ gcc = "<5"
             r#"{"runs": 3, "reference": "sha256:ab", "graded": ["hash", "overflow"], "failed": [["hash", "overflow"], ["overflow"], ["overflow"]], "suites": []}"#,
         )
         .unwrap();
-        std::fs::write(dir.join("kunit-1.log"), "rcu: INFO: rcu_preempt detected stalls\n").unwrap();
-        std::fs::write(dir.join("kunit-2.log"), "DEFINE_FLEX_test: EXPECTATION FAILED\n").unwrap();
+        std::fs::write(
+            dir.join("kunit-1.log"),
+            "rcu: INFO: rcu_preempt detected stalls\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("kunit-2.log"),
+            "DEFINE_FLEX_test: EXPECTATION FAILED\n",
+        )
+        .unwrap();
         let (first, console) = kunit(&dir);
         assert_eq!(first, "KUnit run 2: overflow failed");
         assert!(console.contains("DEFINE_FLEX_test"));
