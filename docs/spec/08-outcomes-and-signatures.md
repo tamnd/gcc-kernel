@@ -179,6 +179,7 @@ The catalog starts with every breakage of document 01 as a signature. G2's exit 
 | `tcg-rcu-timer-wakeup` | emulator | any, x86, under TCG on a loaded host | L5 to L7 | none, a boot that hits it is a rig problem |
 | `qemu-assertion` | emulator | any, any platform | L5 to L7 | none, the fault is in QEMU |
 | `tcg-drm-mm-frag-timing` | emulator | any, x86, 6.6 under TCG on a loaded host | L7 | none needed, 6.12 no longer has the test |
+| `rig-cut-marker` | host-tool | any, cells booted before #76 | L6 | #76 cuts a marker at the first `[` |
 | `tcg-rtc-kunit-stall` | emulator | any, x86_64, 5.10 under TCG | L8 | 95c46336ab47, not on 5.10.y |
 | `stable61-longest-symbol` | kernel-bug | any, 6.1.188 and later on 6.1.y, x86 | L7 | none on 6.1.y yet |
 | `out-of-tree-include` | out-of-tree | any, x86_64, 2.6.5 to 2.6.8 | L3 | none, fixed before git in 2.6.9 |
