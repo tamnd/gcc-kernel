@@ -307,6 +307,13 @@ kernel = ">=6.6, <6.12"
 platform = ["x86_64", "i386"]
 
 [[signature]]
+class = "rig-cut-marker"
+rung = "L6"
+match = { first-error = '^smoke checks failed: [a-z0-9-]+$', console = 'GK-CHECK [a-z0-9-]+ pass\[ *\d+\.\d+\]' }
+kind = "host-tool"
+summary = "The kernel printed into the middle of a passing GK-CHECK line, as `GK-CHECK exec pass[    6.65] init (81) used greatest stack depth`, and the rig before #76 read the check as failed. The rig has cut the marker at the `[` since then, so only cells booted before that show it, such as 7.2.8 with GCC 12.2 on x86_64"
+
+[[signature]]
 class = "tcg-rtc-kunit-stall"
 rung = "L8"
 match = { first-error = 'rcu: INFO: rcu_sched (self-detected stall on CPU|detected stalls on CPUs/tasks)' }
