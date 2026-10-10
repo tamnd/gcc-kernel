@@ -531,7 +531,7 @@ kernel = ">=2.6.0"
 [[signature]]
 class = "gcc3-vdso-plt-overlap"
 rung = "L3"
-match = { first-error = "vextern\\.h:\\d+: warning: .visibility. attribute directive ignored|vdso\\.so: section \\.\\w+ lma" }
+match = { first-error = "vextern\\.h:\\d+: warning: .visibility. attribute directive ignored|vdso\\.so: section \\.\\w+ lma|ld: section \\.data \\[[0-9a-f]+ -> [0-9a-f]+\\] overlaps section \\.plt" }
 kind = "too-old"
 summary = "GCC 3.3 and older leave a .plt in the x86_64 vDSO that 2.6.23 adds, and the vDSO linker script pins .data at offset 0x900, which the .plt runs into, although 2.6.23 still asks for GCC 3.2 only"
 fixed-by = [ { commit = "c65916fe3586", first-tag = "v2.6.24-rc1", note = "drops the fixed 0x900 offset from the vDSO linker script", bisected = true } ]
