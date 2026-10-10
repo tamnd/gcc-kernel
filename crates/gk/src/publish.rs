@@ -146,17 +146,16 @@ pub fn entry(repo: &Repo, catalog: &[Compiled<'_>], dir: &Path, r: &CellRecord) 
     }
 }
 
-/// The matrix of every graded cell in the store, or every cell with `ungraded`. Cells on a commit of the history clone, which `gk bisect-kernel` runs, are left out. Unless `fresh`, the cells of the matrix already in the repository that no store has any more are kept, see [`lost`].
+/// The matrix of every graded cell in the store, or every cell with `ungraded`. Cells on a commit of the history clone, which `gk bisect-kernel` runs, are left out. Unless `fresh`, the cells of the matrix already in the repository that no store has any more are kept, see [`lost`], and so is the class of a build failure whose build log is gone.
 pub fn matrix(repo: &Repo, ungraded: bool, fresh: bool) -> Result<Matrix, String> {
     let catalog = classify::compile(repo);
     let all = store::cells()?;
     let stored: std::collections::HashSet<&str> =
         all.iter().map(|(_, r)| r.cell.as_str()).collect();
-    let lost = if fresh {
-        Vec::new()
-    } else {
-        lost(repo, &stored)
-    };
+    let published = if fresh { Vec::new() } else { published(repo) };
+    let lost = lost(&published, &stored);
+    let before: std::collections::HashMap<&str, &Entry> =
+        published.iter().map(|e| (e.cell.as_str(), e)).collect();
     let records: Vec<&(std::path::PathBuf, CellRecord)> = all
         .iter()
         .filter(|(_, r)| ungraded || r.graded)
@@ -174,7 +173,16 @@ pub fn matrix(repo: &Repo, ungraded: bool, fresh: bool) -> Result<Matrix, String
         .iter()
         .zip(hide)
         .filter(|(_, hide)| !hide)
-        .map(|((dir, r), _)| entry(repo, &catalog, dir, r))
+        .map(|((dir, r), _)| {
+            let mut e = entry(repo, &catalog, dir, r);
+            if let Some(old) = before.get(e.cell.as_str())
+                && needs_published_class(dir, &r.rung)
+            {
+                e.class.clone_from(&old.class);
+                e.fixed_by.clone_from(&old.fixed_by);
+            }
+            e
+        })
         .chain(lost)
         .collect();
     let gcc_version = |id: &str| {
@@ -199,18 +207,27 @@ pub fn matrix(repo: &Repo, ungraded: bool, fresh: bool) -> Result<Matrix, String
     })
 }
 
-/// The records of the matrix in the repository whose cells are in none of `stored`, as when a build machine's store is lost. They keep their squares, and the class they were published with, until a newer run of the same coordinates takes the square, so losing a store does not turn its share of the matrix back into holes. `gk publish --fresh` drops them.
-fn lost(repo: &Repo, stored: &std::collections::HashSet<&str>) -> Vec<Entry> {
+/// The records of the matrix already in the repository, or none when it has no readable `matrix/matrix.json`.
+fn published(repo: &Repo) -> Vec<Entry> {
     std::fs::read_to_string(repo.root.join("matrix").join("matrix.json"))
         .ok()
         .and_then(|text| serde_json::from_str::<Matrix>(&text).ok())
-        .map(|m| {
-            m.cells
-                .into_iter()
-                .filter(|e| !stored.contains(e.cell.as_str()))
-                .collect()
-        })
+        .map(|m| m.cells)
         .unwrap_or_default()
+}
+
+/// The `published` records whose cells are in none of `stored`, as when a build machine's store is lost. They keep their squares, and the class they were published with, until a newer run of the same coordinates takes the square, so losing a store does not turn its share of the matrix back into holes. `gk publish --fresh` drops them.
+fn lost(published: &[Entry], stored: &std::collections::HashSet<&str>) -> Vec<Entry> {
+    published
+        .iter()
+        .filter(|e| !stored.contains(e.cell.as_str()))
+        .cloned()
+        .collect()
+}
+
+/// Whether the class of the cell in `dir`, which passed `rung`, has to come from the matrix it was published in. A cell that stopped at the build is classified from its build log, and a cell restored from a store mirror, which leaves the build logs out, no longer has one.
+fn needs_published_class(dir: &Path, rung: &str) -> bool {
+    rung <= "L3" && !dir.join("make.log").is_file() && !dir.join("make.log.zst").is_file()
 }
 
 /// Whether the cell in `dir` with `verdict` is no result at all: it failed because the build machine ran out of disk, which says nothing about the kernel or the compiler. The matrix and the reports leave it out, so an older cell of the same crossing takes its square, or none does and the square reads not run until a search runs it again.
@@ -519,9 +536,23 @@ mod tests {
         .unwrap();
         repo.root.clone_from(&root);
         let stored = ["sha256:here"].into_iter().collect();
-        let kept: Vec<String> = lost(&repo, &stored).into_iter().map(|e| e.cell).collect();
+        let kept: Vec<String> = lost(&published(&repo), &stored)
+            .into_iter()
+            .map(|e| e.cell)
+            .collect();
         assert_eq!(kept, ["sha256:gone"]);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_build_failure_without_its_log_keeps_its_published_class() {
+        let dir = std::env::temp_dir().join(format!("gk-nolog-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(needs_published_class(&dir, "L2"));
+        assert!(!needs_published_class(&dir, "L5"));
+        std::fs::write(dir.join("make.log.zst"), "").unwrap();
+        assert!(!needs_published_class(&dir, "L2"));
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
