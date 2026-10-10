@@ -1062,7 +1062,8 @@ gcc = "<5"
 
     #[test]
     fn a_link_that_failed_is_named_for_what_the_linker_said() {
-        let stopped = "/src/arch/i386/kernel/vsyscall-note.S:12: Warning: unrecognized section type";
+        let stopped =
+            "/src/arch/i386/kernel/vsyscall-note.S:12: Warning: unrecognized section type";
         let make = "/src/arch/x86_64/vdso/vextern.h:16: warning: `visibility' attribute directive ignored\n/opt/gk/t/gcc-3.2.3/lib/gcc-lib/x86_64-linux-gnu/3.2.3/../../../../x86_64-linux-gnu/bin/ld: warning: dot moved backwards\n/opt/gk/t/gcc-3.2.3/lib/gcc-lib/x86_64-linux-gnu/3.2.3/../../../../x86_64-linux-gnu/bin/ld: section .data [ffffffffff700900 -> ffffffffff700917] overlaps section .plt [ffffffffff7008e8 -> ffffffffff700907]\ncollect2: ld returned 1 exit status\nmake[2]: *** [arch/x86_64/vdso/vdso.so] Error 1\n";
         assert!(
             no_unit(Some(stopped.to_owned()), make).ends_with(
