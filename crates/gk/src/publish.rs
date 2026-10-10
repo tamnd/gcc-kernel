@@ -150,8 +150,13 @@ pub fn entry(repo: &Repo, catalog: &[Compiled<'_>], dir: &Path, r: &CellRecord) 
 pub fn matrix(repo: &Repo, ungraded: bool, fresh: bool) -> Result<Matrix, String> {
     let catalog = classify::compile(repo);
     let all = store::cells()?;
-    let stored: std::collections::HashSet<&str> = all.iter().map(|(_, r)| r.cell.as_str()).collect();
-    let lost = if fresh { Vec::new() } else { lost(repo, &stored) };
+    let stored: std::collections::HashSet<&str> =
+        all.iter().map(|(_, r)| r.cell.as_str()).collect();
+    let lost = if fresh {
+        Vec::new()
+    } else {
+        lost(repo, &stored)
+    };
     let records: Vec<&(std::path::PathBuf, CellRecord)> = all
         .iter()
         .filter(|(_, r)| ungraded || r.graded)
