@@ -187,7 +187,7 @@ budget = { build-minutes = 60, boot-seconds = 120 }
 
 ## 10.6 The result store
 
-Results are data, not source, so they do not go in the repository's history. The store is a directory tree on gpc, keyed by cell identity, mirrored nightly to a release asset per sweep (`sweep-2026-10-14.tar.zst`). `gk publish` reads it and writes `matrix/` and `reports/`, which are committed. A result can always be traced from `matrix.json` to its cell directory by identity.
+Results are data, not source, so they do not go in the repository's history. The store is a directory tree on gpc, keyed by cell identity, mirrored nightly to a release asset per sweep (`sweep-2026-10-14.tar.zst`). `gk publish` reads it and writes `matrix/` and `reports/`, which are committed. A result can always be traced from `matrix.json` to its cell directory by identity. The one exception is a cell whose store was lost, as server2's was on 2026-10-10. `gk publish` keeps the record it published for such a cell, so the matrix doesn't lose those squares, until a newer run of the same coordinates replaces it. `gk publish --fresh` drops them.
 
 ## 10.7 The published matrix
 
