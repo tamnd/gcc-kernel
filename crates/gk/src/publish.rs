@@ -146,11 +146,19 @@ pub fn entry(repo: &Repo, catalog: &[Compiled<'_>], dir: &Path, r: &CellRecord) 
     }
 }
 
-/// The matrix of every graded cell in the store, or every cell with `ungraded`. Cells on a commit of the history clone, which `gk bisect-kernel` runs, are left out.
-pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
+/// The matrix of every graded cell in the store, or every cell with `ungraded`. Cells on a commit of the history clone, which `gk bisect-kernel` runs, are left out. Unless `fresh`, the cells of the matrix already in the repository that no store has any more are kept, see [`lost`].
+pub fn matrix(repo: &Repo, ungraded: bool, fresh: bool) -> Result<Matrix, String> {
     let catalog = classify::compile(repo);
-    let records: Vec<(std::path::PathBuf, CellRecord)> = store::cells()?
-        .into_iter()
+    let all = store::cells()?;
+    let stored: std::collections::HashSet<&str> =
+        all.iter().map(|(_, r)| r.cell.as_str()).collect();
+    let lost = if fresh {
+        Vec::new()
+    } else {
+        lost(repo, &stored)
+    };
+    let records: Vec<&(std::path::PathBuf, CellRecord)> = all
+        .iter()
         .filter(|(_, r)| ungraded || r.graded)
         .filter(|(_, r)| !r.coordinates.kernel.digest.starts_with("git:"))
         .filter(|(_, r)| !crate::sweep::swept(repo, &r.coordinates))
@@ -167,6 +175,7 @@ pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
         .zip(hide)
         .filter(|(_, hide)| !hide)
         .map(|((dir, r), _)| entry(repo, &catalog, dir, r))
+        .chain(lost)
         .collect();
     let gcc_version = |id: &str| {
         id.rsplit_once("gcc-")
@@ -188,6 +197,20 @@ pub fn matrix(repo: &Repo, ungraded: bool) -> Result<Matrix, String> {
         schema: SCHEMA,
         cells,
     })
+}
+
+/// The records of the matrix in the repository whose cells are in none of `stored`, as when a build machine's store is lost. They keep their squares, and the class they were published with, until a newer run of the same coordinates takes the square, so losing a store does not turn its share of the matrix back into holes. `gk publish --fresh` drops them.
+fn lost(repo: &Repo, stored: &std::collections::HashSet<&str>) -> Vec<Entry> {
+    std::fs::read_to_string(repo.root.join("matrix").join("matrix.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str::<Matrix>(&text).ok())
+        .map(|m| {
+            m.cells
+                .into_iter()
+                .filter(|e| !stored.contains(e.cell.as_str()))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Whether the cell in `dir` with `verdict` is no result at all: it failed because the build machine ran out of disk, which says nothing about the kernel or the compiler. The matrix and the reports leave it out, so an older cell of the same crossing takes its square, or none does and the square reads not run until a search runs it again.
@@ -342,8 +365,8 @@ pub fn today() -> String {
 }
 
 /// Write `matrix/matrix.json`, the frontiers and kernel ranges beside it, the heat maps, the warning census, the configuration differential, the era check, the holes and the bisections under the repository. Returns how many cells the matrix holds and which reports were written.
-pub fn write(repo: &Repo, ungraded: bool) -> Result<(usize, Vec<String>), String> {
-    let m = matrix(repo, ungraded)?;
+pub fn write(repo: &Repo, ungraded: bool, fresh: bool) -> Result<(usize, Vec<String>), String> {
+    let m = matrix(repo, ungraded, fresh)?;
     let dir = repo.root.join("matrix");
     std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
     let text = serde_json::to_string_pretty(&m).map_err(|e| e.to_string())? + "\n";
@@ -474,6 +497,31 @@ mod tests {
             ]),
             [false, true, false, false, false]
         );
+    }
+
+    #[test]
+    fn a_cell_no_store_has_keeps_its_published_record() {
+        let mut repo = Repo::load(Path::new("../..")).unwrap();
+        let root = std::env::temp_dir().join(format!("gk-lost-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("matrix")).unwrap();
+        let mut gone = cell("2.6.18", "gcc-4.2.4", "works", false);
+        gone.cell = "sha256:gone".into();
+        let mut here = cell("2.6.18", "gcc-4.1.2", "works", false);
+        here.cell = "sha256:here".into();
+        let m = Matrix {
+            schema: SCHEMA,
+            cells: vec![gone, here],
+        };
+        std::fs::write(
+            root.join("matrix").join("matrix.json"),
+            serde_json::to_string(&m).unwrap(),
+        )
+        .unwrap();
+        repo.root.clone_from(&root);
+        let stored = ["sha256:here"].into_iter().collect();
+        let kept: Vec<String> = lost(&repo, &stored).into_iter().map(|e| e.cell).collect();
+        assert_eq!(kept, ["sha256:gone"]);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

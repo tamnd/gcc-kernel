@@ -72,7 +72,8 @@ commands:
              and the status section of README.md
              from the graded cells in the store [--ungraded], and with --html [DIR] the static site
              into DIR, which is site when not given. --site-only makes the site from the committed
-             matrix/matrix.json and writes nothing else
+             matrix/matrix.json and writes nothing else. Cells of the committed matrix that no store
+             has any more keep their records, unless --fresh
   config-diff
              the configuration differences between GCC columns on one kernel (spec 11.3):
              config-diff K [G1 G2] --platform P [--config C], every pair of neighbouring
@@ -420,9 +421,10 @@ fn text_command(run: impl FnOnce(&Repo) -> Result<String, String>) -> ExitCode {
     }
 }
 
-/// `gk publish [--ungraded] [--html [DIR]] [--site-only]`. With `--site-only` the site is made from the committed `matrix/matrix.json` and nothing else is written.
+/// `gk publish [--ungraded] [--fresh] [--html [DIR]] [--site-only]`. With `--site-only` the site is made from the committed `matrix/matrix.json` and nothing else is written. With `--fresh` the cells of the committed matrix that no store has are dropped instead of kept.
 fn publish_command(args: &[String]) -> ExitCode {
     let ungraded = args.iter().any(|a| a == "--ungraded");
+    let fresh = args.iter().any(|a| a == "--fresh");
     let html = args.iter().position(|a| a == "--html").map(|i| {
         args.get(i + 1)
             .filter(|a| !a.starts_with('-'))
@@ -434,7 +436,7 @@ fn publish_command(args: &[String]) -> ExitCode {
         let (n, mut reports) = if site_only {
             (0, Vec::new())
         } else {
-            publish::write(&repo, ungraded)?
+            publish::write(&repo, ungraded, fresh)?
         };
         if let Some(dir) = &html {
             let m = if site_only {
@@ -444,7 +446,7 @@ fn publish_command(args: &[String]) -> ExitCode {
                 serde_json::from_str(&text)
                     .map_err(|e| format!("reading {}: {e}", path.display()))?
             } else {
-                publish::matrix(&repo, ungraded)?
+                publish::matrix(&repo, ungraded, fresh)?
             };
             reports.extend(html::write(
                 &repo,
