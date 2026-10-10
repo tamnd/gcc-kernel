@@ -152,9 +152,8 @@ pub fn matrix(repo: &Repo, ungraded: bool, fresh: bool) -> Result<Matrix, String
     let all = store::cells()?;
     let stored: std::collections::HashSet<&str> = all.iter().map(|(_, r)| r.cell.as_str()).collect();
     let lost = if fresh { Vec::new() } else { lost(repo, &stored) };
-    let records: Vec<(std::path::PathBuf, CellRecord)> = all
+    let records: Vec<&(std::path::PathBuf, CellRecord)> = all
         .iter()
-        .cloned()
         .filter(|(_, r)| ungraded || r.graded)
         .filter(|(_, r)| !r.coordinates.kernel.digest.starts_with("git:"))
         .filter(|(_, r)| !crate::sweep::swept(repo, &r.coordinates))
