@@ -95,6 +95,34 @@ fn gave_up_on(make: &str) -> Option<String> {
         .rev()
         .find(|l| is_error_line(l) && l.contains(target))
         .map(|l| l.trim().to_owned())
+        .or_else(|| linker_said(&lines[..at]))
+}
+
+/// What the linker said before `collect2: ld returned 1 exit status` when none of it looks like an error, as binutils 2.14's `ld: section .data [...] overlaps section .plt [...]`. Only the lines right before the collect2 line count, and a linker warning does not.
+fn linker_said(lines: &[&str]) -> Option<String> {
+    let (last, before) = lines.split_last()?;
+    if !last.starts_with("collect2: ld returned") {
+        return None;
+    }
+    let block: Vec<&str> = before
+        .iter()
+        .rev()
+        .take_while(|l| !l.starts_with("make") && !l.starts_with("  "))
+        .copied()
+        .collect();
+    if block.iter().any(|l| is_error_line(l)) {
+        return None;
+    }
+    block
+        .iter()
+        .rev()
+        .find(|l| {
+            l.split_once(": ").is_some_and(|(tool, said)| {
+                (tool == "ld" || tool.ends_with("/ld") || tool.ends_with("-ld"))
+                    && !said.starts_with("warning")
+            })
+        })
+        .map(|l| l.trim().to_owned())
 }
 
 /// A log of a cell directory, decompressed when only the `.zst` is left.
@@ -1030,6 +1058,17 @@ gcc = "<5"
                 "arch/x86/entry/thunk_64.o: warning: objtool: missing symbol table"
             );
         }
+    }
+
+    #[test]
+    fn a_link_that_failed_is_named_for_what_the_linker_said() {
+        let stopped = "/src/arch/i386/kernel/vsyscall-note.S:12: Warning: unrecognized section type";
+        let make = "/src/arch/x86_64/vdso/vextern.h:16: warning: `visibility' attribute directive ignored\n/opt/gk/t/gcc-3.2.3/lib/gcc-lib/x86_64-linux-gnu/3.2.3/../../../../x86_64-linux-gnu/bin/ld: warning: dot moved backwards\n/opt/gk/t/gcc-3.2.3/lib/gcc-lib/x86_64-linux-gnu/3.2.3/../../../../x86_64-linux-gnu/bin/ld: section .data [ffffffffff700900 -> ffffffffff700917] overlaps section .plt [ffffffffff7008e8 -> ffffffffff700907]\ncollect2: ld returned 1 exit status\nmake[2]: *** [arch/x86_64/vdso/vdso.so] Error 1\n";
+        assert!(
+            no_unit(Some(stopped.to_owned()), make).ends_with(
+                "bin/ld: section .data [ffffffffff700900 -> ffffffffff700917] overlaps section .plt [ffffffffff7008e8 -> ffffffffff700907]"
+            )
+        );
     }
 
     #[test]
