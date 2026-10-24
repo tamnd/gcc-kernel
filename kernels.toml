@@ -987,9 +987,9 @@ sha256 = "dcdf99e43e98330d925016985bfbc7b83c66d367b714b2de0cbbfcbf83d8ca43"
 sets = ["releases"]
 
 [[kernel]]
-version = "5.10.271"
-url = "https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.10.271.tar.xz"
-sha256 = "a1b8dfbc0c533694d474caeb156cee47992781e6832ab108bd4266b48ccc252f"
+version = "5.10.272"
+url = "https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.10.272.tar.xz"
+sha256 = "e7e6e7db0fc009fa223ed10bb37be059042c463593f35f50b5c5cc4a70351614"
 sets = ["current", "last-points", "longterm-stripe"]
 moniker = "longterm"
 
@@ -1048,9 +1048,9 @@ sha256 = "57b2cf6991910e3b67a1b3490022e8a0674b6965c74c12da1e99d138d1991ee8"
 sets = ["releases"]
 
 [[kernel]]
-version = "5.15.222"
-url = "https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.15.222.tar.xz"
-sha256 = "4d6ec07679bd008524391cb67597106018646c6378b3953c23ec69b9259cdf84"
+version = "5.15.223"
+url = "https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.15.223.tar.xz"
+sha256 = "c1faba89652ec4af585fb96131fdb70d99e891c2b368cbf6d9c1e5fb7f156c23"
 sets = ["current", "last-points", "longterm-stripe"]
 moniker = "longterm"
 
@@ -1121,9 +1121,9 @@ sha256 = "2ca1f17051a430f6fed1196e4952717507171acfd97d96577212502703b25deb"
 sets = ["releases"]
 
 [[kernel]]
-version = "6.1.189"
-url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.189.tar.xz"
-sha256 = "3ec834a2fefc9a08aac62f993525d7acd10163db6f01d63b4549cbff3f5c9439"
+version = "6.1.190"
+url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.190.tar.xz"
+sha256 = "8aa50daca0412a3d0a61a87af3744f39773d40b3132635fb7bc9be652cdb7b0c"
 sets = ["current", "last-points", "longterm-stripe"]
 moniker = "longterm"
 
@@ -1182,9 +1182,9 @@ sha256 = "d926a06c63dd8ac7df3f86ee1ffc2ce2a3b81a2d168484e76b5b389aba8e56d0"
 sets = ["releases"]
 
 [[kernel]]
-version = "6.6.158"
-url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.158.tar.xz"
-sha256 = "9eb33173b0e04e898d431587c78c47ee6e19e3fdf2ea007323de82af14bb2a4f"
+version = "6.6.160"
+url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.160.tar.xz"
+sha256 = "b24c40a9e2188695803358567edda51c4080176424a57dbefca45e5ac44ec225"
 sets = ["current", "last-points", "longterm-stripe"]
 moniker = "longterm"
 
@@ -1255,9 +1255,9 @@ sha256 = "b1a2562be56e42afb3f8489d4c2a7ac472ac23098f1ef1c1e40da601f54625eb"
 sets = ["releases"]
 
 [[kernel]]
-version = "6.12.112"
-url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.112.tar.xz"
-sha256 = "164dc9d1f6c93c61a15e1f071c48379b467f2b17c469cce7223471968208ed03"
+version = "6.12.114"
+url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.114.tar.xz"
+sha256 = "7a8589912bd7a8adb07fed074283652cf482a35facef8954554654f0154b4af3"
 sets = ["current", "last-points", "longterm-stripe"]
 moniker = "longterm"
 
@@ -1328,9 +1328,9 @@ sha256 = "9106a4605da9e31ff17659d958782b815f9591ab308d03b0ee21aad6c7dced4b"
 sets = ["releases"]
 
 [[kernel]]
-version = "6.18.55"
-url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.55.tar.xz"
-sha256 = "f410638061a165c12f42ab871d2f3fcd525515359b5faeee80969cff84524df9"
+version = "6.18.58"
+url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.58.tar.xz"
+sha256 = "069b19f9032c4dac8149ae4b6520c35debca0f42a9f6d52ee55ba6ca9b818013"
 sets = ["current", "last-points"]
 moniker = "longterm"
 
@@ -1377,8 +1377,14 @@ sha256 = "f9fef3d14c0df53819026f4be74459835c2a0b0dcbf5b5bbd9ea19f0829402b3"
 sets = ["releases"]
 
 [[kernel]]
-version = "7.2.9"
-url = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz"
-sha256 = "b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba"
+version = "7.2.12"
+url = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.12.tar.xz"
+sha256 = "bb18468a8dc8978aa00caa6446e753f7b6da3fee56b6b7f38b16f9430ba02d4f"
 sets = ["current", "last-points"]
 moniker = "stable"
+
+[[kernel]]
+version = "7.3"
+url = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.3.tar.xz"
+sha256 = "87363c24f10e06321eb362765521094e94471f6bff8bce2d6b3e40f39f004953"
+sets = ["releases"]
